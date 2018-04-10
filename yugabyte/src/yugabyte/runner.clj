@@ -15,7 +15,7 @@
   [
 
    [nil "--nemesis NAME"
-    "Nemesis to use"
+    (str "Nemesis to use, one of: " (clojure.string/join ", " (keys nemesis/nemeses)))
     :default "none"
     :validate [identity (cli/one-of nemesis/nemeses)]]
   ]
