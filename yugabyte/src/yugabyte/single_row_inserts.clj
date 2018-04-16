@@ -137,7 +137,9 @@
       (->CQLRowInsertClient conn)))
   (invoke! [this test op]
     (case (:f op)
-      :write (try (cql/insert conn "kv_pairs" (mk-pair (:value op)))
+      :write (try
+               (cql/use-keyspace conn "jepsen_keyspace")
+               (cql/insert conn "kv_pairs" (mk-pair (:value op)))
                 (assoc op :type :ok)
                 (catch UnavailableException e
                   (assoc op :type :fail :value (.getMessage e)))
