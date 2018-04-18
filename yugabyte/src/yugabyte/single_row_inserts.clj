@@ -120,14 +120,15 @@
 (defrecord CQLRowInsertClient [conn]
   client/Client
   (open! [this test node]
+         (info "Opening connection")
          (assoc this :conn (cassandra/connect (->> test :nodes (map name)) {:protocol-version 3})))
   (setup! [_ test]
     (locking setup-lock
       (cql/create-keyspace conn "jepsen_keyspace"
                            (if-not-exists)
                            (with {:replication
-                                  {:class "SimpleStrategy"
-                                   :replication_factor 3}}))
+                                  {"class" "SimpleStrategy"
+                                   "replication_factor" 3}}))
       (cql/use-keyspace conn "jepsen_keyspace")
       (cql/create-table conn "kv_pairs"
                         (if-not-exists)
@@ -138,8 +139,7 @@
   (invoke! [this test op]
     (case (:f op)
       :write (try
-               (cql/use-keyspace conn "jepsen_keyspace")
-               (cql/insert conn "kv_pairs" (mk-pair (:value op)))
+                (cql/insert conn "kv_pairs" (mk-pair (:value op)))
                 (assoc op :type :ok)
                 (catch UnavailableException e
                   (assoc op :type :fail :value (.getMessage e)))
