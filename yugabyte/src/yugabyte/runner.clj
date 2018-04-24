@@ -48,13 +48,21 @@
                   ; order to support running multiple tests.
                   :test-fn  yugabyte.core/yugabyte-test})
                 {"test" {:run (fn [{:keys [options]}]
-                                (info "Test options:\n"
-                                      (with-out-str (pprint options)))
-                                (doseq [i       (range (:test-count options))
-                                        test-fn (:test options)]
-                                  (info "test-fn: " test-fn)
-                                  (let [test (jepsen/run! (log-test (test-fn options) i))]
-                                    (when-not (:valid? (:results test))
-                                      (System/exit 1)))))}})
+                                (info "Options:\n" (with-out-str (pprint options)))
+                                (let [invalid-results
+                                      (->>
+                                       (for [i       (range 1 (inc (:test-count options)))
+                                             test-fn (:test options)]
+                                         (let [test (-> options
+                                                        (dissoc :test)
+                                                        test-fn
+                                                        (log-test i)
+                                                        jepsen/run!)]
+                                           [(:results test) i]))
+                                       (filter #(->> % first :valid? true? not)))]
+                                  (when-not (empty? invalid-results)
+                                    ((info "Following tests have been failed:\n" (pprint invalid-results))
+                                      (System/exit 1)))
+                                  ))}})
     (cli/serve-cmd))
    args))
