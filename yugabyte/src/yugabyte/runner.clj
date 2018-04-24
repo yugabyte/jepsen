@@ -4,9 +4,11 @@
   (:require
             [clojure.tools.logging :refer :all]
             [jepsen.cli :as cli]
-            [yugabyte.core]
-            [yugabyte.nemesis :as nemesis]
-            [yugabyte.single-row-inserts]
+            [yugabyte [core]
+                      [nemesis :as nemesis]
+                      [single-row-inserts]
+                      [single-key-acid]
+             ]
   )
 )
 
@@ -27,7 +29,7 @@
   (cli/run! (merge
       (cli/single-test-cmd {
           :opt-spec opt-spec
-          :test-fn yugabyte.single-row-inserts/test
+          :test-fn yugabyte.single-key-acid/test
       })
       (cli/serve-cmd)
       ) args))
