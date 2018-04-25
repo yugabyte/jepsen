@@ -1,8 +1,10 @@
 (ns yugabyte.nemesis
   (:require [clojure.tools.logging :refer :all]
             [jepsen [control :as c]
+             [generator :as gen]
              [nemesis :as nemesis]
              [util :as util :refer [meh timeout]]]
+            [jepsen.nemesis.time :as nt]
             [slingshot.slingshot :refer [try+]]
             [yugabyte.common :refer :all]
 ))
@@ -68,8 +70,27 @@
    "partition-random-halves"    `(nemesis/partition-random-halves)
    "partition-random-node"      `(nemesis/partition-random-node)
    "partition-majorities-ring"  `(nemesis/partition-majorities-ring)
+   "clock-skew"                 `(nt/clock-nemesis)
   }
 )
+
+(defn gen
+  []
+  (gen/seq
+   (cycle
+    [(gen/sleep nemesis-delay)
+     {:type :info :f :start}
+     (gen/sleep nemesis-duration)
+     {:type :info :f :stop}])))
+
+;(defn clock-gen
+;  "Generates clock skews."
+;  [test process]
+;  (gen/f-map
+;    {:strobe :clock-strobe
+;     :reset  :clock-reset
+;     :bump   :clock-bump}
+;    (nt/clock-gen)))
 
 (defn get-nemesis-by-name
   [name]
