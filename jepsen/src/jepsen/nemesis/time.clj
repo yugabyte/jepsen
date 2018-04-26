@@ -52,7 +52,7 @@
 (defn reset-time!
   "Resets the local node's clock to NTP. If a test is given, resets time on all
   nodes across the test."
-  ([]     (c/su (c/exec :ntpdate :-bu "pool.ntp.org")))
+  ([]     (c/su (c/exec :ntpdate :-b "pool.ntp.org")))
   ([test] (c/with-test-nodes test (reset-time!))))
 
 (defn bump-time!

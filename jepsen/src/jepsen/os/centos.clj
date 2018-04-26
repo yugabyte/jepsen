@@ -48,7 +48,7 @@
   (let [pkgs (->> pkgs (map name) set)]
     (->> (c/exec :rpm :-q pkgs (c/lit "||") :true)
          str/split-lines
-;         (filter #(not (re-matches "is not installed" %)))
+         (filter #(not (re-matches #".* is not installed" %)))
          set)))
 
 (defn uninstall!
@@ -158,13 +158,13 @@
                   :rsyslog
                   :logrotate]))
 
-      (c/su (c/exec :systemctl :ntpd :stop))
+      (c/su (c/exec :systemctl :stop :ntpd))
 
       (meh (net/heal! (:net test) test)))
 
     (teardown! [_ test node]
       (info node "tearing down centos")
-      (c/su (c/exec :systemctl :ntpd :start)))
+      (c/su (c/exec :systemctl :start :ntpd)))
 
     (install-build-essential! [_]
       (install [:gcc :gcc-c++ :make :openssl-devel]))))
