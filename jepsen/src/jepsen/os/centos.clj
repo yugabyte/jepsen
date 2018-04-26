@@ -158,13 +158,13 @@
                   :rsyslog
                   :logrotate]))
 
-      (c/su (c/exec :systemctl :ntp :stop))
+      (c/su (c/exec :systemctl :ntpd :stop))
 
       (meh (net/heal! (:net test) test)))
 
     (teardown! [_ test node]
       (info node "tearing down centos")
-      (c/su (c/exec :systemctl :ntp :start)))
+      (c/su (c/exec :systemctl :ntpd :start)))
 
     (install-build-essential! [_]
       (install [:gcc :gcc-c++ :make :openssl-devel]))))
