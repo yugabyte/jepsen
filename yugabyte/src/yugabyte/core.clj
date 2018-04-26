@@ -8,6 +8,7 @@
                     [util :as util :refer [meh timeout]]
             ]
             [jepsen.control.util :as cu]
+            [jepsen.os.centos :as centos]
             [yugabyte [common :refer :all]
                       [nemesis :as nemesis]]
             ))
@@ -83,7 +84,7 @@
   (let [{:keys [client-generator
                 client-final-generator]} opts
         generator (->> client-generator
-                       (gen/nemesis (nemesis/gen))
+                       (gen/nemesis (nemesis/gen opts))
                        (gen/time-limit (:time-limit opts)))
         generator (if-not client-final-generator
                     generator
@@ -101,6 +102,7 @@
               :username "yugabyte"
           }
           :db      (db "x.y.z")
+          :os      centos/os
           :generator generator
           :nemesis (nemesis/get-nemesis-by-name (:nemesis opts))
          })))

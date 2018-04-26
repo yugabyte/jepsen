@@ -58,23 +58,7 @@
   )
 )
 
-(def nemeses
-  "Supported nemeses"
-  {"none"                       `(none)
-   "start-stop-tserver"         `(tserver-killer)
-   "start-kill-tserver"         `(tserver-killer :-9)
-   "start-stop-master"          `(master-killer)
-   "start-kill-master"          `(master-killer :-9)
-   "start-stop-node"            `(node-killer)
-   "start-kill-node"            `(node-killer :-9)
-   "partition-random-halves"    `(nemesis/partition-random-halves)
-   "partition-random-node"      `(nemesis/partition-random-node)
-   "partition-majorities-ring"  `(nemesis/partition-majorities-ring)
-   "clock-skew"                 `(nt/clock-nemesis)
-  }
-)
-
-(defn gen
+(defn gen-start-stop
   []
   (gen/seq
    (cycle
@@ -83,16 +67,33 @@
      (gen/sleep nemesis-duration)
      {:type :info :f :stop}])))
 
-;(defn clock-gen
-;  "Generates clock skews."
-;  [test process]
-;  (gen/f-map
-;    {:strobe :clock-strobe
-;     :reset  :clock-reset
-;     :bump   :clock-bump}
-;    (nt/clock-gen)))
+(def nemeses
+  "Supported nemeses"
+  {"none"                       {:nemesis `(none)}
+   "start-stop-tserver"         {:nemesis `(tserver-killer) :generator `(gen-start-stop)}
+   "start-kill-tserver"         {:nemesis `(tserver-killer :-9) :generator `(gen-start-stop)}
+   "start-stop-master"          {:nemesis `(master-killer) :generator `(gen-start-stop)}
+   "start-kill-master"          {:nemesis `(master-killer :-9) :generator `(gen-start-stop)}
+   "start-stop-node"            {:nemesis `(node-killer) :generator `(gen-start-stop)}
+   "start-kill-node"            {:nemesis `(node-killer :-9) :generator `(gen-start-stop)}
+   "partition-random-halves"    {:nemesis `(nemesis/partition-random-halves) :generator `(gen-start-stop)}
+   "partition-random-node"      {:nemesis `(nemesis/partition-random-node) :generator `(gen-start-stop)}
+   "partition-majorities-ring"  {:nemesis `(nemesis/partition-majorities-ring) :generator `(gen-start-stop)}
+   "clock-skew"                 {:nemesis `(nt/clock-nemesis) :generator `(nt/clock-gen)}
+  }
+)
+
+(defn gen
+  [opts]
+  (->> opts
+    :nemesis
+    (get nemeses)
+    :generator
+    eval))
 
 (defn get-nemesis-by-name
   [name]
-  (eval (get nemeses name))
-)
+  (->> name
+    (get nemeses)
+    :nemesis
+    eval))
