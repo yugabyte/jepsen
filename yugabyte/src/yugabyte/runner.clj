@@ -8,7 +8,9 @@
             [yugabyte [core]
                       [nemesis :as nemesis]
                       [single-row-inserts]
-                      [single-key-acid]]
+                      [single-key-acid]
+                      [multi-key-acid]
+             ]
   )
 )
 
@@ -16,6 +18,7 @@
   "A map of test names to test constructors."
   {"single-row-inserts" yugabyte.single-row-inserts/test
    "single-key-acid" yugabyte.single-key-acid/test
+   "multi-key-acid" yugabyte.multi-key-acid/test
    }
   )
 

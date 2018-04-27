@@ -17,6 +17,7 @@
 (def tserver-log-dir "/home/yugabyte/tserver/logs")
 
 (def setup-lock (Object.))
+(def keyspace "jepsen_keyspace")
 
 (defn wait-for-recovery
   "Waits for the driver to report all nodes are up"
