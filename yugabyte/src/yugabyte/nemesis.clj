@@ -9,8 +9,8 @@
             [yugabyte.common :refer :all]
 ))
 
-(def nemesis-delay 5) ; Delay between nemesis cycles.
-(def nemesis-duration 5) ; Duration of single nemesis cycle.
+(def nemesis-delay 5) ; Delay between nemesis cycles in seconds.
+(def nemesis-duration 5) ; Duration of single nemesis cycle in secods.
 
 (defn kill!
   [node process opts]
@@ -59,6 +59,7 @@
 )
 
 (defn gen-start-stop
+  "Generates start/stop generic nemesis events sequences"
   []
   (gen/seq
    (cycle
@@ -66,6 +67,24 @@
      {:type :info :f :start}
      (gen/sleep nemesis-duration)
      {:type :info :f :stop}])))
+
+(defn bump-gen
+  "Randomized clock bump generator. On random subsets of nodes, bumps the clock
+  from -max-skew to +max-skew milliseconds, exponentially distributed."
+  [max-skew-ms test process]
+  (let [gen (nt/bump-gen test process)]
+    (assoc gen :value
+           (->> (:value gen)
+                (map (fn [x] [(key x) (-> x val (* max-skew-ms) (quot 262144))]))
+                (into {})))))
+
+(defn clock-gen
+  "Emits a random schedule of clock skew operations up to skew-ms milliseconds."
+  [max-skew-ms]
+  (->>
+    (gen/mix (concat [nt/reset-gen] (repeat 3 (partial bump-gen max-skew-ms))))
+    (gen/delay nemesis-delay)
+   ))
 
 (def nemeses
   "Supported nemeses"
@@ -79,7 +98,10 @@
    "partition-random-halves"    {:nemesis `(nemesis/partition-random-halves) :generator `(gen-start-stop)}
    "partition-random-node"      {:nemesis `(nemesis/partition-random-node) :generator `(gen-start-stop)}
    "partition-majorities-ring"  {:nemesis `(nemesis/partition-majorities-ring) :generator `(gen-start-stop)}
-   "clock-skew"                 {:nemesis `(nt/clock-nemesis) :generator `(nt/clock-gen)}
+   "small-skew"                 {:nemesis `(nt/clock-nemesis) :generator `(clock-gen 100)}
+   "medium-skew"                {:nemesis `(nt/clock-nemesis) :generator `(clock-gen 250)}
+   "large-skew"                 {:nemesis `(nt/clock-nemesis) :generator `(clock-gen 500)}
+   "xlarge-skew"                {:nemesis `(nt/clock-nemesis) :generator `(clock-gen 1000)}
   }
 )
 
