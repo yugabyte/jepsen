@@ -64,7 +64,7 @@
                                            [(:results test) i]))
                                        (filter #(->> % first :valid? true? not)))]
                                   (when-not (empty? invalid-results)
-                                    ((info "Following tests have been failed:\n" (pprint invalid-results))
+                                    ((info "Following tests have been failed:\n" (with-out-str (pprint invalid-results)))
                                       (System/exit 1)))
                                   ))}})
     (cli/serve-cmd))

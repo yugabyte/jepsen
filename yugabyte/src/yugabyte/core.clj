@@ -60,25 +60,23 @@
 (defn db
   "YugaByteDB for a particular version."
   [version]
-  (reify db/DB
+  (reify
+    db/DB
     (setup! [_ test node]
-      (info node "Setup YugaByteDB " version)
-      (start! node test)
-; TODO - wait for all nodes up instead of sleep for each node.
-      (Thread/sleep 5000)
-    )
+            (locking setup-lock
+              (info node "Setup YugaByteDB " version)
+              (start! node test)
+              ; TODO - wait for all nodes up instead of sleep for each node.
+              (Thread/sleep 3000)))
 
     (teardown! [_ test node]
-      (info node "Tearing down YugaByteDB...")
-      (wipe! node)
-    )
+               (info node "Tearing down YugaByteDB...")
+               (wipe! node))
 
     db/LogFiles
     (log-files [_ test node]
-      (concat (cu/ls-full master-log-dir)
-              (cu/ls-full tserver-log-dir)))
-  )
-)
+               (concat (cu/ls-full master-log-dir)
+                       (cu/ls-full tserver-log-dir)))))
 
 (defn yugabyte-test
   [opts]

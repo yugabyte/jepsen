@@ -7,6 +7,7 @@
                     [checker   :as checker]
                     [generator :as gen]
                     [util :as util :refer [meh timeout]]]
+            [jepsen.checker.timeline :as timeline]
             [knossos.op :as op]
             [clojurewerkz.cassaforte [client :as cassandra]
                                      [query :refer :all]
@@ -162,5 +163,6 @@
                                  (gen/stagger 1))
           :client-final-generator (gen/once r)
           :checker (checker/compose {:perf (checker/perf)
+                                     :timeline (timeline/html)
                                      :details (check-inserts)})
          })))
