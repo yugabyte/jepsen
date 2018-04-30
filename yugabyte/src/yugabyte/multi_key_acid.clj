@@ -13,9 +13,11 @@
             [yugabyte.core :refer :all]
             )
   (:import (knossos.model Model)
-           (com.datastax.driver.core.exceptions UnavailableException
-                                                WriteTimeoutException
+           (com.datastax.driver.core.exceptions DriverException
+                                                UnavailableException
+                                                OperationTimedOutException
                                                 ReadTimeoutException
+                                                WriteTimeoutException
                                                 NoHostAvailableException)))
 
 (def table-name "multi_key_acid")
@@ -103,14 +105,22 @@
                    (assoc op :type :fail :value (.getMessage e)))
                  (catch WriteTimeoutException e
                    (assoc op :type :info :value :timed-out))
+                 (catch OperationTimedOutException e
+                   (assoc op :type :info :value :timed-out))
                  (catch NoHostAvailableException e
                    (info "All nodes are down - sleeping 2s")
                    (Thread/sleep 2000)
-                   (assoc op :type :fail :value (.getMessage e)))))))
+                   (assoc op :type :fail :value (.getMessage e)))
+                 (catch DriverException e
+                   (if (re-find #"Value write after transaction start|Conflicts with higher priority transaction|Conflicts with committed transaction"
+                                (.getMessage e))
+                     ; Definitely failed
+                     (assoc op :type :fail :value (.getMessage e))
+                     (throw e)))))))
   (teardown! [this test])
   (close! [this test]
-    (info "Closing client with conn" conn)
-    (cassandra/disconnect! conn)))
+          (info "Closing client with conn" conn)
+          (cassandra/disconnect! conn)))
 
 (defn r [_ _] {:type :invoke, :f :txn :value :read})
 (defn w [_ _]

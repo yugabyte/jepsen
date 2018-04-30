@@ -35,6 +35,8 @@
   [node test]
   (info node "Starting YugaByteDB")
   (start-master! node)
+  ; TODO - wait for all masters up instead of sleep for each node.
+  (Thread/sleep 5000)
   (start-tserver! node)
 )
 
@@ -42,8 +44,10 @@
   "Stops YugaByteDB."
   [node]
   (info node "Stopping YugaByteDB")
-  (info (meh (c/exec (c/lit "/home/yugabyte/bin/yb-server-ctl.sh tserver stop; pkill -9 yb-tserver || true"))))
-  (info (meh (c/exec (c/lit "if [[ -e /home/yugabyte/master/master.out ]]; then /home/yugabyte/bin/yb-server-ctl.sh master stop; pkill -9 yb-master || true; fi"))))
+  (info (meh (c/exec (c/lit "/home/yugabyte/bin/yb-server-ctl.sh tserver stop; sleep 1;
+    pkill -9 yb-tserver || true"))))
+  (info (meh (c/exec (c/lit "if [[ -e /home/yugabyte/master/master.out ]]; then
+    /home/yugabyte/bin/yb-server-ctl.sh master stop; sleep 1; pkill -9 yb-master || true; fi"))))
 )
 
 (defn wipe!
@@ -62,12 +66,9 @@
   [version]
   (reify
     db/DB
-    (setup! [_ test node]
-            (locking setup-lock
-              (info node "Setup YugaByteDB " version)
-              (start! node test)
-              ; TODO - wait for all nodes up instead of sleep for each node.
-              (Thread/sleep 3000)))
+   (setup! [_ test node]
+           (info node "Setup YugaByteDB " version)
+           (start! node test))
 
     (teardown! [_ test node]
                (info node "Tearing down YugaByteDB...")
