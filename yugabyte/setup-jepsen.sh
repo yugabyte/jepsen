@@ -7,6 +7,7 @@ YB_PEM_FILE="$HOME/.yugabyte/yugabyte-dev-aws-keypair.pem"
 SSH_PORT=54422
 
 IFS=$'\r\n' GLOBIGNORE='*' NODES=($(cat $NODES_FILE))
+GLOBIGNORE=
 
 SSH_COMMON_OPTS=(-i $YB_PEM_FILE)
 SSH_OPTS=(${SSH_COMMON_OPTS[@]} -p $SSH_PORT)

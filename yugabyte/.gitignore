@@ -2,7 +2,7 @@
 /classes
 /checkouts
 /store
-/results-sorted
+/results-sorted*
 pom.xml
 pom.xml.asc
 *.jar
