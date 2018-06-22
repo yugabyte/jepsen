@@ -14,8 +14,8 @@ trap 'cd $SAVED_DIR' EXIT SIGHUP SIGINT SIGTERM
 
 cd "${0%/*}"
 
-find $STORE_DIR -name "jepsen.log"  -print0 |
-  while IFS= read -r -d $'\0' log_path; do
+find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
+  while IFS= read -r log_path; do
     rel_log_path=${log_path#$STORE_DIR/}
     rel_dir_path=${rel_log_path%/jepsen.log}
     if grep -q ':valid? false' "$log_path"; then
@@ -34,4 +34,5 @@ find $STORE_DIR -name "jepsen.log"  -print0 |
     dest_dir="$SORTED_DIR/$category/$rel_dir_path"
     mkdir -p "$(dirname "$dest_dir")"
     mv "$STORE_DIR/$rel_dir_path" "$dest_dir"
+    ln -sf "../$dest_dir" "$SORTED_DIR/latest"
   done

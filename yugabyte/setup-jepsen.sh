@@ -5,8 +5,6 @@ set -euo pipefail
 NODES_FILE="$HOME/code/jepsen/nodes"
 YB_PEM_FILE="$HOME/.yugabyte/yugabyte-dev-aws-keypair.pem"
 SSH_PORT=54422
-PKG_LIST="wget curl vim man-db faketime ntpdate unzip iptables psmisc tar bzip2 libzip2 "\
-"iputils-ping iproute rsyslog logrotat"
 
 IFS=$'\r\n' GLOBIGNORE='*' NODES=($(cat $NODES_FILE))
 
@@ -31,9 +29,6 @@ do
 
   # Make sure that the StrictHostChecking does not create any issue with the later commands.
   ssh ${SSH_OPTS[@]} centos@$node 'hostname'
-
-  # Install required packages.
-  ssh ${SSH_OPTS[@]} centos@$node "sudo yum install -y $PKG_LIST"
 
   # Allow yugabyte user key-based access.
   (echo && ssh-keygen -y -f $YB_PEM_FILE) | \
