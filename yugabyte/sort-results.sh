@@ -20,6 +20,10 @@ find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
     rel_dir_path=${rel_log_path%/jepsen.log}
     if grep -q ':valid? false' "$log_path"; then
       category="invalid"
+    elif grep -q ':valid? :unknown' "$log_path"; then
+      category="valid-unknown"
+    elif grep -q 'Test run timed out!' "$log_path"; then
+      category="timed-out"
     elif grep -q 'Everything looks good!' "$log_path"; then
       category="ok"
     elif grep -q 'jepsen.os.OS.install_build_essential_BANG_' "$log_path"; then
@@ -28,11 +32,14 @@ find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
       category="assert-failed-invocation-value"
     elif grep -q 'set[!]: [*]current-length[*] from non-binding thread' "$log_path"; then
       category="cant-set-current-length"
+    elif [[ ! -e "$rel_dir_path/history.edn" ]]; then
+      category="no-history"
     else
       category="unknown"
     fi
     dest_dir="$SORTED_DIR/$category/$rel_dir_path"
     mkdir -p "$(dirname "$dest_dir")"
     mv "$STORE_DIR/$rel_dir_path" "$dest_dir"
+    rm -f "$SORTED_DIR/latest"
     ln -sf "../$dest_dir" "$SORTED_DIR/latest"
   done
