@@ -14,6 +14,7 @@
             [yugabyte [core :refer :all]]
             )
   (:import (com.datastax.driver.core.exceptions UnavailableException
+                                                OperationTimedOutException
                                                 WriteTimeoutException
                                                 ReadTimeoutException
                                                 NoHostAvailableException)))
@@ -53,7 +54,7 @@
                (catch WriteTimeoutException e
                  (assoc op :type :info :error :write-timed-out))
                (catch OperationTimedOutException e
-                 (assoc op :type :fail :error :client-timed-out))
+                 (assoc op :type :info :error :client-timed-out))
                (catch NoHostAvailableException e
                  (info "All nodes are down - sleeping 2s")
                  (Thread/sleep 2000)
@@ -71,7 +72,7 @@
              (catch WriteTimeoutException e
                (assoc op :type :info :error :write-timed-out))
              (catch OperationTimedOutException e
-               (assoc op :type :fail :error :client-timed-out))
+               (assoc op :type :info :error :client-timed-out))
              (catch NoHostAvailableException e
                (info "All nodes are down - sleeping 2s")
                (Thread/sleep 2000)
