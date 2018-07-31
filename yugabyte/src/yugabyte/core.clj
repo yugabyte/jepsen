@@ -74,10 +74,10 @@
     db/DB
    (setup! [_ test node]
            (info node "Setup YugaByteDB " version)
-           (c/exec :sed :-i "/--max_clock_sync_error_usec/d" tserver-conf)
+           (c/exec :sed :-i "/--max_clock_skew_usec/d" tserver-conf)
            (let [max-skew-ms (test :max-clock-skew-ms)]
              (if (some? max-skew-ms)
-               (c/exec :echo (str "--max_clock_sync_error_usec="
+               (c/exec :echo (str "--max_clock_skew_usec="
                                   (->> (:max-clock-skew-ms test) (* 1000) (* 2) (* max-bump-time-ops-per-test)))
                              (c/lit ">>") tserver-conf)
                (do
@@ -96,7 +96,7 @@
     (log-files [_ test node]
                (concat (cu/ls-full master-log-dir)
                        (cu/ls-full tserver-log-dir)
-                       tserver-conf))))
+                       [tserver-conf]))))
 
 (defn yugabyte-test
   [opts]
