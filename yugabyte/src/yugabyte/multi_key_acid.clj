@@ -27,6 +27,9 @@
   (step [this op]
         (assert (= (:f op) :txn))
         (try
+        ; `knossos.model.memo/memo` function passing operation invocations as steps to the model, so in our case we can
+        ; receive operation which value is simply `:read` without any sequence and need to handle that properly by
+        ; returning current state.
         (if (= (:value op) :read) this
         (reduce
           (fn [state [f k v]]
