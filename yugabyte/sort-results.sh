@@ -32,7 +32,7 @@ find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
       category="assert-failed-invocation-value"
     elif grep -q 'set[!]: [*]current-length[*] from non-binding thread' "$log_path"; then
       category="cant-set-current-length"
-    elif [[ ! -e "$rel_dir_path/history.edn" ]]; then
+    elif [[ ! -e "$STORE_DIR/$rel_dir_path/history.edn" ]]; then
       category="no-history"
     else
       category="unknown"
