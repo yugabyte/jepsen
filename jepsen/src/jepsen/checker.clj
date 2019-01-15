@@ -360,7 +360,7 @@
   "A counter starts at zero; add operations should increment it by that much,
   and reads should return the present value. This checker validates that at
   each read, the value is at greater than the sum of all :ok increments and
-  :invoke decrements, and lower than the sum of all attempted increments and
+  attempted decrements, and lower than the sum of all attempted increments and
   :ok decrements.
 
   Since we know a :fail increment did not occur, we should decrement the
