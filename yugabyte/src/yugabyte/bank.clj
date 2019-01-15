@@ -164,21 +164,6 @@
                                  :timeline (timeline/html)
                                  :details  (bank-checker)})})))
 
-(defn bank-test-base-0
-  [opts]
-  (yugabyte-test
-    (merge opts
-      {:client      {:client (:client opts)
-                     :during (->> (gen/mix [bank-read bank-diff-transfer])
-                                  (gen/clients))
-
-                     :final (gen/clients (gen/once bank-read))}
-       :checker     (checker/compose
-                      {:perf    (checker/perf)
-                       :timeline (timeline/html)
-                       :details (bank-checker)})}
-      (dissoc opts :client))))
-
 (defn test
   [opts]
   (bank-test-base
