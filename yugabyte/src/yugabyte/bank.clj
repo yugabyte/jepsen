@@ -154,13 +154,13 @@
 (defn bank-test-base
   [opts]
   (yugabyte-test
-    (merge opts
-           {:client-generator (gen/mix [bank-read bank-diff-transfer])
+    (merge {:client-generator (gen/mix [bank-read bank-diff-transfer])
             :client-final-generator (gen/once bank-read)
             :checker          (checker/compose
                                 {:perf     (checker/perf)
                                  :timeline (timeline/html)
-                                 :details  (bank-checker)})})))
+                                 :details  (bank-checker)})}
+           opts)))
 
 (defn test
   [opts]
@@ -252,5 +252,8 @@
       (bank-test-base
         (merge {:name   "cql-bank-multitable"
                 :model  {:n 5 :total 50}
+                ;; TODO: remove following to use default bank client-generator with reads after we support transactions
+                ;; with selects.
+                :client-generator (gen/mix [bank-diff-transfer])
                 :client (CQLMultiBank. 5 10 nil)}
                opts)))
