@@ -68,12 +68,10 @@
       (let [{:keys [from to amount]} (:value op)]
         (try
           (cassandra/execute conn
-                             (str "BEGIN TRANSACTION "
-                                  (str "UPDATE " keyspace "." table-name " SET balance = balance - " amount
-                                       " WHERE id = " from ";")
-                                  (str "UPDATE " keyspace "." table-name " SET balance = balance + " amount
-                                       " WHERE id = " to ";")
-                                  "END TRANSACTION;"))
+            (str "BEGIN TRANSACTION "
+              (str "UPDATE " keyspace "." table-name " SET balance = balance - " amount " WHERE id = " from ";")
+              (str "UPDATE " keyspace "." table-name " SET balance = balance + " amount " WHERE id = " to ";")
+              "END TRANSACTION;"))
           (assoc op :type :ok)
           (catch UnavailableException e
             (assoc op :type :fail :error (.getMessage e)))
@@ -171,3 +169,88 @@
             :model  {:n 5 :total 50}
             :client (CQLBank. 5 10 nil)}
            opts)))
+
+(defrecord CQLMultiBank [n starting-balance conn]
+  client/Client
+  (open! [this test node]
+    (info "Opening connection to " node)
+    (assoc this :conn (cassandra/connect [node] {:protocol-version 3
+                                                 :retry-policy (retry-policy :no-retry-on-client-timeout)})))
+  (setup! [this test]
+    (locking setup-lock
+      (cql/create-keyspace conn keyspace
+                           (if-not-exists)
+                           (with
+                             {:replication
+                              {"class"              "SimpleStrategy"
+                               "replication_factor" 3}}))
+      (info "Creating accounts")
+      (dotimes [i n]
+               (info "Creating table" i)
+               (cassandra/execute conn (str "CREATE TABLE IF NOT EXISTS " keyspace "." table-name i
+                                            " (id INT PRIMARY KEY, balance BIGINT)"
+                                            " WITH transactions = { 'enabled' : true }"))
+               (info "Populating account" i)
+               (cql/insert-with-ks conn keyspace (str table-name i) {:id 0 :balance starting-balance}))))
+
+  (invoke! [this test op]
+    (case (:f op)
+      :read
+      (try (wait-for-recovery 30 conn)
+      (->> (range n)
+        (mapv (fn [x]
+          (->> (cql/select-with-ks conn keyspace (str table-name x) (where [[= :id 0]]))
+               first
+               :balance)))
+        (assoc op :type :ok, :value))
+      (catch UnavailableException e
+        (info "Not enough replicas - failing")
+        (assoc op :type :fail :error (.getMessage e)))
+      (catch ReadTimeoutException e
+        (assoc op :type :fail :error :read-timed-out))
+      (catch OperationTimedOutException e
+        (assoc op :type :fail :error :client-timed-out))
+      (catch NoHostAvailableException e
+        (info "All nodes are down - sleeping 2s")
+        (Thread/sleep 2000)
+        (assoc op :type :fail :error (.getMessage e))))
+
+      :transfer
+      (let [{:keys [from to amount]} (:value op)]
+      (try
+        (cassandra/execute conn
+          (str "BEGIN TRANSACTION "
+            (str "UPDATE " keyspace "." table-name from " SET balance = balance - " amount " WHERE id = 0;")
+            (str "UPDATE " keyspace "." table-name to " SET balance = balance + " amount " WHERE id = 0;")
+            "END TRANSACTION;"))
+        (assoc op :type :ok)
+        (catch UnavailableException e
+          (assoc op :type :fail :error (.getMessage e)))
+        (catch WriteTimeoutException e
+          (assoc op :type :info :error :write-timed-out))
+        (catch OperationTimedOutException e
+          (assoc op :type :info :error :client-timed-out))
+        (catch NoHostAvailableException e
+          (info "All nodes are down - sleeping 2s")
+          (Thread/sleep 2000)
+          (assoc op :type :fail :error (.getMessage e)))
+        (catch DriverException e
+          (if (re-find #"Value write after transaction start|Conflicts with higher priority transaction|Conflicts with committed transaction|Operation expired: Failed UpdateTransaction.* status: COMMITTED .*: Transaction expired"
+                       (.getMessage e))
+          ; Definitely failed
+          (assoc op :type :fail :error (.getMessage e))
+          (throw e)))))))
+
+  (teardown! [this test])
+
+  (close! [this test]
+    (info "Closing client with conn" conn)
+      (cassandra/disconnect! conn)))
+
+(defn multitable-test
+      [opts]
+      (bank-test-base
+        (merge {:name   "cql-bank-multitable"
+                :model  {:n 5 :total 50}
+                :client (CQLMultiBank. 5 10 nil)}
+               opts)))

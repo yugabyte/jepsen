@@ -25,6 +25,7 @@
    "counter-inc" yugabyte.counter/test-inc
    "counter-inc-dec" yugabyte.counter/test-inc-dec
    "bank" yugabyte.bank/test
+   "bank-multi" yugabyte.bank/multitable-test
    }
   )
 
