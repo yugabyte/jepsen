@@ -20,7 +20,8 @@ nemeses can be added to interfere with the database operations and exercise the 
 Install [https://leiningen.org](https://leiningen.org):
 ```bash
 mkdir ~/bin
-curl https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /home/centos/bin/lein && chmod +x ~/bin/lein
+curl https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /home/centos/bin/lein \
+  && chmod +x ~/bin/lein
 ```
 
 Add `~/bin` to `$PATH`. 
@@ -28,8 +29,7 @@ Add `~/bin` to `$PATH`.
 Install Cassaforte driver:
 ```bash
 mkdir ~/code
-git clone https://github.com/YugaByte/cassaforte \
-  ~/code/cassaforte
+git clone https://github.com/YugaByte/cassaforte ~/code/cassaforte
 cd ~/code/cassaforte
 git checkout driver-3.0-yb
 lein install
@@ -89,10 +89,10 @@ To run all tests one by one under each nemesis in infinite loop:
 This will also classify test results by categories and put them into `~/code/jepsen/yugabyte/results-sorted` 
 sub-directories:
 - *ok*
-- *timed-out* - test run (including analysis phase) took more than time limit defined in `run-jepsen.py`
-- *no-history* - file with operations history is absent
-- *valid-unknown* - test results checker wasn't able to determine whether results are valid 
-- *invalid* - history of operations is inconsisent
+- *timed-out* - test run (including analysis phase) took more than time limit defined in `run-jepsen.py`.
+- *no-history* - file with operations history is absent.
+- *valid-unknown* - test results checker wasn't able to determine whether results are valid. 
+- *invalid* - history of operations is inconsisent.
 
 The following tests are implemented:
 
