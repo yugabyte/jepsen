@@ -90,7 +90,7 @@
   "Return clock skew nemesis map config"
   [max-skew-ms]
   (def clock-gen-partial (partial clock-gen max-skew-ms))
-`  {:nemesis `(nt/clock-nemesis)
+  {:nemesis `(nt/clock-nemesis)
    :max-clock-skew-ms max-skew-ms
    :generator `(clock-gen-partial)
    :final-generator `(gen/once nt/reset-gen)
