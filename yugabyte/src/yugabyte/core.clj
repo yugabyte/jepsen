@@ -109,6 +109,10 @@
                     generator
                     (gen/phases
                      generator
+                     (gen/log "Healing cluster")
+                     (gen/nemesis (nemesis/final-gen opts))
+                     (gen/log "Waiting for quiescence")
+                     (gen/sleep 30)
                      (gen/clients client-final-generator)))]
   (merge tests/noop-test
          (dissoc opts :client-generator :client-final-generator)
