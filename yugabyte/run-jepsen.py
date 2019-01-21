@@ -35,7 +35,6 @@ TESTS = [
     "counter-inc",
     "counter-inc-dec",
     "bank",
-    "bank-multi",
 ]
 NEMESES = [
     "none",

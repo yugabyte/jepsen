@@ -170,6 +170,7 @@
             :client (CQLBank. 5 10 nil)}
            opts)))
 
+;; Shouldn't be used until we support transactions with selects.
 (defrecord CQLMultiBank [n starting-balance conn]
   client/Client
   (open! [this test node]
@@ -191,7 +192,7 @@
                                             " (id INT PRIMARY KEY, balance BIGINT)"
                                             " WITH transactions = { 'enabled' : true }"))
                (info "Populating account" i)
-               (cql/insert-with-ks conn keyspace (str table-name i) {:id 0 :balance starting-balance}))))
+               (cql/insert-with-ks conn keyspace (str table-name i) {:id i :balance starting-balance}))))
 
   (invoke! [this test op]
     (case (:f op)
@@ -199,7 +200,8 @@
       (try (wait-for-recovery 30 conn)
       (->> (range n)
         (mapv (fn [x]
-          (->> (cql/select-with-ks conn keyspace (str table-name x) (where [[= :id 0]]))
+          ;; TODO - should be wrapped in a transaction after we support transactions with selects.
+          (->> (cql/select-with-ks conn keyspace (str table-name x) (where [[= :id x]]))
                first
                :balance)))
         (assoc op :type :ok, :value))
@@ -220,8 +222,8 @@
       (try
         (cassandra/execute conn
           (str "BEGIN TRANSACTION "
-            (str "UPDATE " keyspace "." table-name from " SET balance = balance - " amount " WHERE id = 0;")
-            (str "UPDATE " keyspace "." table-name to " SET balance = balance + " amount " WHERE id = 0;")
+            (str "UPDATE " keyspace "." table-name from " SET balance = balance - " amount " WHERE id = " from ";")
+            (str "UPDATE " keyspace "." table-name to " SET balance = balance + " amount " WHERE id = " to ";")
             "END TRANSACTION;"))
         (assoc op :type :ok)
         (catch UnavailableException e
@@ -252,8 +254,9 @@
       (bank-test-base
         (merge {:name   "cql-bank-multitable"
                 :model  {:n 5 :total 50}
-                ;; TODO: remove following to use default bank client-generator with reads after we support transactions
-                ;; with selects.
+                ;; TODO: remove generators override to use default bank generators after we support transactions with
+                ;; selects.
                 :client-generator (gen/mix [bank-diff-transfer])
+                :client-final-generator (gen/once bank-read)
                 :client (CQLMultiBank. 5 10 nil)}
                opts)))
