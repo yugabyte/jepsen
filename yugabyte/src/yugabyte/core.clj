@@ -94,9 +94,11 @@
 
     db/LogFiles
     (log-files [_ test node]
-               (concat (cu/ls-full master-log-dir)
-                       (cu/ls-full tserver-log-dir)
-                       [tserver-conf]))))
+               (concat
+                 ; Filter out symlinks.
+                 (filter #(not (re-matches #".*\/yb-master.(INFO|WARNING|ERROR)" %)) (cu/ls-full master-log-dir))
+                 (filter #(not (re-matches #".*\/yb-tserver.(INFO|WARNING|ERROR)" %)) (cu/ls-full tserver-log-dir))
+                 [tserver-conf]))))
 
 (defn yugabyte-test
   [opts]
