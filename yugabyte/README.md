@@ -102,7 +102,6 @@ The following tests are implemented:
 - `counter-inc` - concurrent counter increments.
 - `counter-inc-dec` - concurrent counter increments and decrements.
 - `bank` - concurrent transfers between rows of a shared table.
-- `bank-multi` - concurrent transfers between rows of different tables.
 
 Nemeses:
 
