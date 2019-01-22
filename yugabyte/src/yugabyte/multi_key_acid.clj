@@ -26,7 +26,6 @@
   Model
   (step [this op]
         (assert (= (:f op) :txn))
-        (try
         ; `knossos.model.memo/memo` function passing operation invocations as steps to the model, so in our case we can
         ; receive operation which value is simply `:read` without any sequence and need to handle that properly by
         ; returning current state.
@@ -43,11 +42,7 @@
                          (str k ": " (pr-str (get state k)) "≠" (pr-str v)))))
               :write (assoc state k v)))
           this
-          (:value op)))
-          (catch Exception e
-            (info "op: " op)
-            (throw e)
-          ))))
+          (:value op)))))
 
 (defn multi-register
   "A register supporting read and write transactions over registers identified
