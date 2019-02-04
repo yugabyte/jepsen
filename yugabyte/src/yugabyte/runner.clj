@@ -58,10 +58,10 @@
     :default false]
 
    [nil "--version VERSION" "What version of Yugabyte to install"
-    :default nil]
+    :default "1.1.10.0"]
 
    [nil "--url URL" "URL to Yugabyte tarball to install, have precedence over --version"
-    :default "https://downloads.yugabyte.com/yugabyte-ce-1.1.10.0-linux.tar.gz"]
+    :default nil]
    ])
 
 (defn log-test

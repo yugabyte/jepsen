@@ -229,6 +229,11 @@
           ; Probably not installed
           )))
 
+(defn get-ce-url
+  "Returns URL to community edition tarball for specific released version"
+  [version]
+  (str "https://downloads.yugabyte.com/yugabyte-ce-" version "-linux.tar.gz"))
+
 (defn log-files-without-symlinks
   "Takes a directory, and returns a list of logfiles in that direcory, skipping
   the symlinks which end in .INFO, .WARNING, etc."
@@ -272,9 +277,7 @@
       (c/cd dir
             ; Post-install takes forever, so let's try and skip this on
             ; subsequent runs
-            (let [url (or (:url test) (str "https://downloads.yugabyte.com/yugabyte-ce-"
-                                           (:version test)
-                                           "-linux.tar.gz"))
+            (let [url (or (:url test) (get-ce-url (:version test)))
                   installed-url (get-installed-url)
                   ]
               (when-not (= url installed-url)
