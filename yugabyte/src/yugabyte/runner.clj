@@ -60,7 +60,7 @@
    [nil "--version VERSION" "What version of Yugabyte to install"
     :default "1.1.10.0"]
 
-   [nil "--url URL" "URL to Yugabyte tarball to install, have precedence over --version"
+   [nil "--url URL" "URL to Yugabyte tarball to install, has precedence over --version"
     :default nil]
    ])
 
