@@ -406,7 +406,11 @@
                  {:appender :file
                   :encoder :pattern
                   :pattern "%d{ISO8601}{GMT}\t%p\t[%t] %c: %m%n"
-                  :file (.getCanonicalPath (path! test "jepsen.log"))}]})
+                  :file (.getCanonicalPath (path! test "jepsen.log"))}]
+     :overrides {
+                 "com.datastax.driver.core.RequestHandler" :trace
+                 }
+     })
   (update-current-symlink! test))
 
 (defn stop-logging!

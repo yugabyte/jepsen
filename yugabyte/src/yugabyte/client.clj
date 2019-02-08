@@ -192,9 +192,12 @@
            (throw e#)))
 
        (catch NoHostAvailableException e#
-         (info "All nodes are down - sleeping 2s")
-         (Thread/sleep 2000)
-         (assoc ~op :type :fail :error [:no-host-available (.getMessage e#)]))
+         (condp re-find (.getMessage e#)
+           #"no host was tried"
+           ((info "All nodes are down - sleeping 2s")
+             (Thread/sleep 2000)
+             (assoc ~op :type :fail :error [:no-host-available (.getMessage e#)]))
+           (assoc ~op :type crash#, :error [:no-host-available (.getMessage e#)])))
 
        (catch DriverException e#
          (if (re-find #"Value write after transaction start|Conflicts with higher priority transaction|Conflicts with committed transaction|Operation expired: Failed UpdateTransaction.* status: COMMITTED .*: Transaction expired"
@@ -265,7 +268,10 @@
                ~@setup-code))
 
 					 (close! [~'this ~'test]
-						 (c/disconnect! ~'conn))
+             (info "Closing connection to node")
+             (->> ~'conn .getCluster .closeAsync .force .get)
+             ;(c/disconnect! ~'conn)
+             (info "Closed connection to node"))
 
 					 ~@exprs)
 
@@ -280,16 +286,17 @@
   evalulates some basic commands to make sure the cluster is ready to accept
   requests. Retries when necessary."
   [node]
-  (let [max-tries 1000]
+  (let [max-tries 50]
     (dt/with-retry [tries max-tries]
+      (when (< 0 tries max-tries)
+        (Thread/sleep 1000))
+
+      (when (zero? tries)
+        (info "Zero?, tries " tries)
+        (throw (RuntimeException.
+                 "Client gave up waiting for cluster setup.")))
       (let [conn (connect node)]
         (try
-          (when (< 0 tries max-tries)
-            (Thread/sleep 1000))
-
-          (when (zero? tries)
-            (throw (RuntimeException.
-                     "Client gave up waiting for cluster setup.")))
 
           ; We need to do this serially to avoid a race in table creation
           (locking await-setup
@@ -332,5 +339,5 @@
         (retry (dec tries)))
 
       (catch NoHostAvailableException e
-        (info "Waiting for cluster setup: No host available")
+        (info "Waiting for cluster setup: No host available" (.getMessage e))
         (retry (dec tries))))))

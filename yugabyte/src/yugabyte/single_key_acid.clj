@@ -20,10 +20,9 @@
 
 (c/defclient CQLSingleKey keyspace []
   (setup! [this test]
-    (cql/use-keyspace conn keyspace)
-    (cql/create-table conn table-name
-                      (if-not-exists)
-                      (column-definitions {:id :int
+    (c/create-table conn table-name
+                    (if-not-exists)
+                    (column-definitions {:id :int
                                            :val :int
                                            :primary-key [:id]})))
 

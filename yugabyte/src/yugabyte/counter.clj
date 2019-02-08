@@ -1,40 +1,38 @@
 (ns yugabyte.counter
   (:require [clojure.tools.logging :refer [debug info warn]]
             [jepsen [client    :as client]
-             [checker   :as checker]
-             [generator :as gen]]
+                    [checker   :as checker]
+                    [generator :as gen]]
             [jepsen.checker.timeline :as timeline]
             [clojurewerkz.cassaforte [client :as cassandra]
-             [query :refer :all]
-             [policies :refer :all]
-             [cql :as cql]]
-            [yugabyte [auto :as auto]
-                      [client :as c]
+                                     [query :as q]
+                                     [cql :as cql]]
+            [yugabyte [client :as c]
                       [core :refer :all]]))
 
-(def table-name "counter")
 (def keyspace "jepsen")
+(def table-name "counter")
 
 (c/defclient CQLCounterClient keyspace []
   (setup! [this test]
-    (cql/create-table conn table-name
-                      (if-not-exists)
-                      (column-definitions {:id :int
-                                           :count :counter
-                                           :primary-key [:id]}))
-    (cql/update conn table-name {:count (increment-by 0)}
-                (where [[= :id 0]])))
+    (c/create-table conn table-name
+                    (q/if-not-exists)
+                    (q/column-definitions {:id :int
+                                         :count :counter
+                                         :primary-key [:id]}))
+    (cql/update conn table-name {:count (q/increment-by 0)}
+                (q/where [[= :id 0]])))
 
   (invoke! [this test op]
     (c/with-errors op #{:read}
       (case (:f op)
-        :add (do (cql/update-with-ks conn keyspace table-name
-                                     {:count (increment-by (:value op))}
-                                     (where [[= :id 0]]))
+        :add (do (cql/update conn table-name
+                                  {:count (q/increment-by (:value op))}
+                                  (q/where [[= :id 0]]))
                  (assoc op :type :ok))
 
-        :read (let [value (->> (cql/select-with-ks conn keyspace table-name
-                                                        (where [[= :id 0]]))
+        :read (let [value (->> (cql/select conn table-name
+                                                (q/where [[= :id 0]]))
                                     first
                                     :count)]
                      (assoc op :type :ok :value value)))))

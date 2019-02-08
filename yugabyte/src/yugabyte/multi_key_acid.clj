@@ -55,14 +55,22 @@
 
 (c/defclient CQLMultiKey keyspace []
   (setup! [this test]
-    (cassandra/execute
-      conn (str "CREATE TABLE IF NOT EXISTS "
-                keyspace "." table-name
-                ; ik is an independent-key, so we can segment the test into
-                ; independent groups. group is a reserved keyword. :(
-                " (id INT, ik INT, val INT,"
-                " PRIMARY KEY (id, ik)"
-                ") WITH transactions = { 'enabled' : true }")))
+    (c/create-transactional-table conn table-name
+                    (if-not-exists)
+                    (column-definitions {:id :int
+                                         ; ik is an independent-key, so we can segment the test into
+                                         ; independent groups. group is a reserved keyword. :(
+                                         :ik :int
+                                         :val :int
+                                         :primary-key [:id :ik]})))
+    ;(cassandra/execute
+    ;  conn (str "CREATE TABLE IF NOT EXISTS "
+    ;            keyspace "." table-name
+    ;            ; ik is an independent-key, so we can segment the test into
+    ;            ; independent groups. group is a reserved keyword. :(
+    ;            " (id INT, ik INT, val INT,"
+    ;            " PRIMARY KEY (id, ik)"
+    ;            ") WITH transactions = { 'enabled' : true }")))
 
   (invoke! [this test op]
     (assert (= (:f op) :txn))

@@ -8,8 +8,8 @@
             [slingshot.slingshot :refer [try+]]
             [yugabyte.auto :as auto]))
 
-(def nemesis-delay    50) ; Delay between nemesis cycles in seconds.
-(def nemesis-duration 50) ; Duration of single nemesis cycle in secods.
+(def nemesis-delay    30) ; Delay between nemesis cycles in seconds.
+(def nemesis-duration 30) ; Duration of single nemesis cycle in secods.
 
 (defn kill!
   [node process opts]
@@ -76,14 +76,14 @@
 (defn gen-start-stop
   "Generates start/stop generic nemesis events sequences"
   []
-  (gen/seq (cycle (strobe-rest))))
+  ;(gen/seq (cycle (strobe-rest))))
 
-;  (gen/seq
-;   (cycle
-;    [(gen/sleep nemesis-delay)
-;     {:type :info :f :start}
-;     (gen/sleep nemesis-duration)
-;     {:type :info :f :stop}])))
+  (gen/seq
+   (cycle
+    [(gen/sleep nemesis-delay)
+     {:type :info :f :start}
+     (gen/sleep nemesis-duration)
+     {:type :info :f :stop}])))
 
 (defn start-stop
   "Return start-stop nemesis map config"

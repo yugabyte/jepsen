@@ -24,11 +24,11 @@
 (c/defclient CQLBank keyspace []
   (setup! [this test]
       (info "Creating table")
-      (cassandra/execute conn (str "CREATE TABLE IF NOT EXISTS "
-                                   keyspace "." table-name
-                                   " (id INT PRIMARY KEY, balance BIGINT)"
-                                   " WITH transactions = { 'enabled' : true }"))
-
+      (c/create-transactional-table conn table-name
+                                    (if-not-exists)
+                                    (column-definitions {:id :int
+                                                         :balance :bigint
+                                                         :primary-key [:id]}))
       (info "Creating accounts")
       (cql/insert-with-ks conn keyspace table-name
                           {:id (first (:accounts test))
@@ -87,10 +87,11 @@
     (info "Creating accounts")
     (doseq [a (:accounts test)]
       (info "Creating table" a)
-      (cassandra/execute conn (str "CREATE TABLE IF NOT EXISTS "
-                                   keyspace "." table-name a
-                                   " (id INT PRIMARY KEY, balance BIGINT)"
-                                   " WITH transactions = { 'enabled' : true }"))
+      (c/create-transactional-table conn (str table-name a)
+                                    (if-not-exists)
+                                    (column-definitions {:id :int
+                                                         :balance :bigint
+                                                         :primary-key [:id]}))
       (info "Populating account" a)
       (cql/insert-with-ks conn keyspace (str table-name a)
                           {:id      a

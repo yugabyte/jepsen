@@ -303,6 +303,7 @@
                :chdir   dir}
               ce-master-bin
               ce-shared-opts
+              "--enable_load_balancing=false"
               :--master_addresses   (master-addresses test)
               :--replication_factor (:replication-factor test))))
 
@@ -315,10 +316,11 @@
               ce-tserver-bin
               ce-shared-opts
               :--tserver_master_addrs (master-addresses test)
+              :--client_read_write_timeout_ms 2000
               ; Tracing
-              :--enable_tracing
-              :--rpc_slow_query_threshold_ms 1000
-              :--load_balancer_max_concurrent_adds 10
+              ;:--enable_tracing
+              ;:--rpc_slow_query_threshold_ms 1000
+              ;:--load_balancer_max_concurrent_adds 10
               ; Heartbeats
               ;:--heartbeat_interval_ms 100
               ;:--heartbeat_rpc_timeout_ms 1500
@@ -328,6 +330,12 @@
               ;:--leader_failure_max_missed_heartbeat_period 3
               ;:--consensus_rpc_timeout_ms 300
               ;:--client_read_write_timeout_ms 6000
+              ; Debugging
+              ;:--follower_unavailable_considered_failed_sec 30
+              ;"--vmodule=\"tablet_service=1\""
+              ;"--temp_debug=true"
+              ;"--rpc_slow_query_threshold_ms=1"
+              ;"--collect_end_to_end_traces=1"
               )))
 
     (stop-master! [db]
