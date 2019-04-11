@@ -1,4 +1,5 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
+
 #
 # Copyright (c) YugaByte, Inc.
 #
@@ -13,12 +14,21 @@
 # under the License.
 #
 
+# This script aims to be compatible with both Python 2.7 and Python 3.
+
+
+"""
+A script to run multiple YugaByte DB Jepsen tests in a loop and organize the results.
+"""
+
 import atexit
 import errno
 import os
 import subprocess
 import sys
 import time
+import logging
+import argparse
 
 from collections import namedtuple
 
@@ -26,10 +36,10 @@ CmdResult = namedtuple('CmdResult',
                        ['returncode',
                         'timed_out'])
 
-SINGLE_TEST_RUN_TIME = 600 # Only for workload, doesn't include test results analysis.
-TEST_TIMEOUT = 1200 # Includes test results analysis.
+SINGLE_TEST_RUN_TIME = 600  # Only for workload, doesn't include test results analysis.
+TEST_TIMEOUT = 1200  # Includes test results analysis.
 NODES_FILE = os.path.expanduser("~/code/jepsen/nodes")
-URL = "https://downloads.yugabyte.com/yugabyte-ce-1.2.4.0-linux.tar.gz"
+DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-ce-1.2.4.0-linux.tar.gz"
 
 TESTS = [
    "single-key-acid",
@@ -65,10 +75,11 @@ SORT_RESULTS_SH = os.path.join(SCRIPT_DIR, "sort-results.sh")
 
 child_processes = []
 
+
 def cleanup():
     deadline = time.time() + 5
     for p in child_processes:
-        while p.poll() == None and time.time() < deadline:
+        while p.poll() is None and time.time() < deadline:
             time.sleep(1)
         try:
             p.kill()
@@ -76,17 +87,18 @@ def cleanup():
             if e.errno != errno.ESRCH:
                 raise e
 
+
 def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True):
-    print cmd
+    logging.info("Running command: %s", cmd)
     p = subprocess.Popen(cmd, shell=True)
     child_processes.append(p)
 
     if timeout:
         deadline = time.time() + timeout
-    while p.poll() == None and (timeout == None or time.time() < deadline):
+    while p.poll() is None and (timeout is None or time.time() < deadline):
         time.sleep(1)
 
-    if p.poll() == None:
+    if p.poll() is None:
         timed_out = True
         p.terminate()
     else:
@@ -94,29 +106,66 @@ def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True):
 
     child_processes.remove(p)
     if exit_on_error and p.returncode != 0:
+        logging.error(
+                "Failed running command (exit code: %d): %s",
+                p.returncode, cmd)
         sys.exit(p.returncode)
-    return CmdResult(returncode = p.returncode, timed_out = timed_out)
+    return CmdResult(returncode=p.returncode, timed_out=timed_out)
 
-atexit.register(cleanup)
 
-run_cmd(SORT_RESULTS_SH)
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--tarball-url',
+        default=DEFAULT_TARBALL_URL,
+        help='YugaByte DB tarball URL to use')
+    parser.add_argument(
+        '--max-time-sec',
+        type=int,
+        help="Maximum time to run for. The actual run time could a few minutes longer than this.")
+    return parser.parse_args()
 
-while True:
-    for nemesis in NEMESES:
-        for test in TESTS:
-            result = run_cmd(
-                "lein run test --os debian --url {URL} --workload {test} --nemesis {nemesis} --concurrency 5n "
-                "--time-limit {run_time}".format(**locals()),
-                timeout=TIMEOUT, run_time=SINGLE_TEST_RUN_TIME, exit_on_error=False
-            )
-            if result.timed_out:
-                for root, dirs, files in os.walk(STORE_DIR):
-                    for file in files:
-                        if file == "jepsen.log":
-                            msg = "Test run timed out!"
-                            print "\n" + msg
-                            with open(os.path.join(root, file), "a") as f:
-                                f.write(msg)
 
-            run_cmd(SORT_RESULTS_SH)
+def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(filename)s:%(lineno)d %(levelname)s] %(message)s")
+    args = parse_args()
 
+    atexit.register(cleanup)
+
+    run_cmd(SORT_RESULTS_SH)
+
+    while True:
+        for nemesis in NEMESES:
+            for test in TESTS:
+                result = run_cmd(
+                    "lein run test "
+                    "--os debian "
+                    "--url {url} "
+                    "--workload {test} "
+                    "--nemesis {nemesis} "
+                    "--concurrency 5n "
+                    "--time-limit {run_time}".format(
+                        url=args.tarball_url,
+                        test=test,
+                        nemesis=nemesis,
+                        run_time=SINGLE_TEST_RUN_TIME
+                    ),
+                    timeout=TEST_TIMEOUT,
+                    exit_on_error=False
+                )
+                if result.timed_out:
+                    for root, dirs, files in os.walk(STORE_DIR):
+                        for file in files:
+                            if file == "jepsen.log":
+                                msg = "Test run timed out!"
+                                logging.info(msg)
+                                with open(os.path.join(root, file), "a") as f:
+                                    f.write(msg)
+
+                run_cmd(SORT_RESULTS_SH)
+
+
+if __name__ == '__main__':
+    main()
