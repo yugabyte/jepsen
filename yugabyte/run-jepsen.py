@@ -65,8 +65,7 @@ NEMESES = [
     "partition-half",
     "partition-one",
     "partition-ring",
-    "partition",
-    # "clock-skew",
+    "partition"
 ]
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -122,7 +121,11 @@ def parse_args():
     parser.add_argument(
         '--max-time-sec',
         type=int,
-        help="Maximum time to run for. The actual run time could a few minutes longer than this.")
+        help='Maximum time to run for. The actual run time could a few minutes longer than this.')
+    parser.add_argument(
+        '--enable-clock-skew',
+        action='store_true',
+        help='Enable clock skew nemesis. This will not work on LXC.')
     return parser.parse_args()
 
 
@@ -134,11 +137,32 @@ def main():
 
     atexit.register(cleanup)
 
+    # Sort old results in the beginning if it did not happen at the end of the last run.
     run_cmd(SORT_RESULTS_SH)
 
-    while True:
-        for nemesis in NEMESES:
+    start_time = time.time()
+    nemeses = NEMESES
+    if args.enable_clock_skew:
+        nemeses += ['clock-skew']
+
+    num_tests_run = 0
+    total_test_time_sec = 0
+
+    is_done = False
+    while not is_done:
+        for nemesis in nemeses:
+            if is_done:
+                break
             for test in TESTS:
+                elapsed_time_sec = time.time() - start_time
+                if args.max_time_sec is not None and elapsed_time_sec > args.max_time_sec:
+                    logging.info(
+                        "Elapsed time is %.1f seconds, it has exceeded the max allowed time %.1f, "
+                        "stopping", elapsed_time_sec, args.max_time_sec)
+                    is_done = True
+                    break
+
+                test_start_time_sec = time.time()
                 result = run_cmd(
                     "lein run test "
                     "--os debian "
@@ -157,14 +181,22 @@ def main():
                 )
                 if result.timed_out:
                     for root, dirs, files in os.walk(STORE_DIR):
-                        for file in files:
-                            if file == "jepsen.log":
+                        for file_name in files:
+                            if file_name == "jepsen.log":
                                 msg = "Test run timed out!"
                                 logging.info(msg)
                                 with open(os.path.join(root, file), "a") as f:
                                     f.write(msg)
 
                 run_cmd(SORT_RESULTS_SH)
+                test_elapsed_time_sec = time.time() - test_start_time_sec
+
+                num_tests_run += 1
+                total_test_time_sec += test_elapsed_time_sec
+
+                logging.info(
+                    "Finished running %d tests, total test time: %.1f sec, avg test time: %.1f",
+                    num_tests_run, total_test_time_sec, total_test_time_sec / num_tests_run)
 
 
 if __name__ == '__main__':
