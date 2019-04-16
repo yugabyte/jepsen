@@ -130,9 +130,9 @@ def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True, log_name_prefix=N
             sys.exit(p.returncode)
         return CmdResult(returncode=p.returncode, timed_out=timed_out)
     finally:
-        if stdout_file is None:
+        if stdout_file is not None:
             stdout_file.close()
-        if stderr_file is None:
+        if stderr_file is not None:
             stderr_file.close()
 
 
