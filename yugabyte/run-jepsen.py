@@ -107,7 +107,7 @@ def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True, log_name_prefix=N
         else:
             stdout_file = open(stdout_path, 'wb')
             stderr_file = open(stderr_path, 'wb')
-            p = subprocess.Popen(cmd, stdout=stdout_file, stderr_stderr_file, **popen_kwargs)
+            p = subprocess.Popen(cmd, stdout=stdout_file, stderr=stderr_file, **popen_kwargs)
 
         child_processes.append(p)
 
