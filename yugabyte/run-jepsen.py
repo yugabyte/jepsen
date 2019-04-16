@@ -173,6 +173,8 @@ def main():
     total_test_time_sec = 0
 
     is_done = False
+    if not os.path.isdir(LOGS_DIR):
+        os.makedirs(LOGS_DIR)
     while not is_done:
         for nemesis in nemeses:
             if is_done:
@@ -202,7 +204,7 @@ def main():
                     ),
                     timeout=TEST_TIMEOUT,
                     exit_on_error=False,
-                    log_name_prefix="workload_{}_nemesis_{}".format(test, nemesis)
+                    log_name_prefix="{}_nemesis_{}".format(test, nemesis)
                 )
 
                 if result.timed_out:
