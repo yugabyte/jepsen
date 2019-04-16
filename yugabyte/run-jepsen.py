@@ -91,7 +91,7 @@ def cleanup():
 def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True, log_name_prefix=None):
     logging.info("Running command: %s", cmd)
     if log_name_prefix is not None:
-        timestamp_str = time.strftime('%Y-%m-%dT%H_%M_%S')
+        timestamp_str = time.strftime('%Y-%m-%dT%H-%M-%S')
         log_name_prefix += '_' + timestamp_str
         stdout_path = os.path.join(LOGS_DIR, log_name_prefix + '_stdout.log')
         stderr_path = os.path.join(LOGS_DIR, log_name_prefix + '_stderr.log')
@@ -173,8 +173,12 @@ def main():
     total_test_time_sec = 0
 
     is_done = False
-    if not os.path.isdir(LOGS_DIR):
-        os.makedirs(LOGS_DIR)
+    if os.path.isdir(LOGS_DIR):
+        logging.info("Directory %s already exists", LOGS_DIR)
+    else:
+        logging.info("Creating directory %s", LOGS_DIR)
+        os.mkdir(LOGS_DIR)
+
     while not is_done:
         for nemesis in nemeses:
             if is_done:
