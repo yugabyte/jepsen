@@ -199,7 +199,7 @@ def main():
                     "--url {url} "
                     "--workload {test} "
                     "--nemesis {nemesis} "
-                    "--concurrency 5n "
+                    "--concurrency 30 "
                     "--time-limit {run_time}".format(
                         url=args.tarball_url,
                         test=test,
