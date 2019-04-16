@@ -202,7 +202,7 @@ def main():
                     ),
                     timeout=TEST_TIMEOUT,
                     exit_on_error=False,
-                    log_name_prefix="workload_{}_nemesis_{}".format(workload, nemesis)
+                    log_name_prefix="workload_{}_nemesis_{}".format(test, nemesis)
                 )
 
                 if result.timed_out:
