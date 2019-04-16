@@ -70,6 +70,7 @@ NEMESES = [
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 STORE_DIR = os.path.join(SCRIPT_DIR, "store")
+LOGS_DIR = os.path.join(SCRIPT_DIR, "logs")
 SORT_RESULTS_SH = os.path.join(SCRIPT_DIR, "sort-results.sh")
 
 child_processes = []
@@ -87,29 +88,52 @@ def cleanup():
                 raise e
 
 
-def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True):
+def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True, log_name_prefix=None):
     logging.info("Running command: %s", cmd)
-    p = subprocess.Popen(cmd, shell=True)
-    child_processes.append(p)
+    if log_name_prefix is not None:
+        timestamp_str = time.strftime('%Y-%m-%dT%H_%M_%S')
+        log_name_prefix += '_' + timestamp_str
+        stdout_path = os.path.join(LOGS_DIR, log_name_prefix + '_stdout.log')
+        stderr_path = os.path.join(LOGS_DIR, log_name_prefix + '_stderr.log')
+        logging.info("stdout log: %s, stderr log: %s", stdout_path, stderr_path)
 
-    if timeout:
-        deadline = time.time() + timeout
-    while p.poll() is None and (timeout is None or time.time() < deadline):
-        time.sleep(1)
+    stdout_file = None
+    stderr_file = None
 
-    if p.poll() is None:
-        timed_out = True
-        p.terminate()
-    else:
-        timed_out = False
+    popen_kwargs = dict(shell=True)
+    try:
+        if log_name_prefix is None:
+            p = subprocess.Popen(cmd, **popen_kwargs)
+        else:
+            stdout_file = open(stdout_path, 'wb')
+            stderr_file = open(stderr_path, 'wb')
+            p = subprocess.Popen(cmd, stdout=stdout_file, stderr_stderr_file, **popen_kwargs)
 
-    child_processes.remove(p)
-    if exit_on_error and p.returncode != 0:
-        logging.error(
-                "Failed running command (exit code: %d): %s",
-                p.returncode, cmd)
-        sys.exit(p.returncode)
-    return CmdResult(returncode=p.returncode, timed_out=timed_out)
+        child_processes.append(p)
+
+        if timeout:
+            deadline = time.time() + timeout
+        while p.poll() is None and (timeout is None or time.time() < deadline):
+            time.sleep(1)
+
+        if p.poll() is None:
+            timed_out = True
+            p.terminate()
+        else:
+            timed_out = False
+
+        child_processes.remove(p)
+        if exit_on_error and p.returncode != 0:
+            logging.error(
+                    "Failed running command (exit code: %d): %s",
+                    p.returncode, cmd)
+            sys.exit(p.returncode)
+        return CmdResult(returncode=p.returncode, timed_out=timed_out)
+    finally:
+        if stdout_file is None:
+            stdout_file.close()
+        if stderr_file is None:
+            stderr_file.close()
 
 
 def parse_args():
@@ -177,15 +201,18 @@ def main():
                         run_time=SINGLE_TEST_RUN_TIME
                     ),
                     timeout=TEST_TIMEOUT,
-                    exit_on_error=False
+                    exit_on_error=False,
+                    log_name_prefix="workload_{}_nemesis_{}".format(workload, nemesis)
                 )
+
                 if result.timed_out:
+                    logging.info("Test timed out. Updating all jepsen.log files in %s", STORE_DIR)
                     for root, dirs, files in os.walk(STORE_DIR):
                         for file_name in files:
                             if file_name == "jepsen.log":
                                 msg = "Test run timed out!"
                                 logging.info(msg)
-                                with open(os.path.join(root, file), "a") as f:
+                                with open(os.path.join(root, file_name), "a") as f:
                                     f.write(msg)
 
                 run_cmd(SORT_RESULTS_SH)
