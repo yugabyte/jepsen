@@ -89,7 +89,7 @@ def cleanup():
 
 
 def show_last_lines(file_path, n_lines):
-    if n_lines is None;
+    if n_lines is None:
         return
     if not os.path.exists(file_path):
         logging.warning("File does not exist: %s, cannot show last %d lines",
