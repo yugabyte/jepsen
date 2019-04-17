@@ -88,8 +88,28 @@ def cleanup():
                 raise e
 
 
-def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True, log_name_prefix=None):
+def show_last_lines(file_path, n_lines):
+    if n_lines is None;
+        return
+    if not os.path.exists(file_path):
+        logging.warning("File does not exist: %s, cannot show last %d lines",
+                        file_path, n_lines)
+        return
+    logging.info("Last %d lines of file %s:", n_lines, file_path)
+    subprocess.check_call(['tail', '-n', str(n_lines), file_path])
+
+
+def run_cmd(cmd,
+            shell=True,
+            timeout=None,
+            exit_on_error=True,
+            log_name_prefix=None,
+            keep_output_log_file=True,
+            num_lines_to_show=None):
+
     logging.info("Running command: %s", cmd)
+    stdout_path = None
+    stderr_path = None
     if log_name_prefix is not None:
         timestamp_str = time.strftime('%Y-%m-%dT%H-%M-%S')
         log_name_prefix += '_' + timestamp_str
@@ -132,8 +152,16 @@ def run_cmd(cmd, shell=True, timeout=None, exit_on_error=True, log_name_prefix=N
     finally:
         if stdout_file is not None:
             stdout_file.close()
+            show_last_lines(stdout_path, num_lines_to_show)
+            if not keep_output_log_file:
+                try:
+                    os.remove(stdout_path)
+                except IOError, ex:
+                    logging.error("Error deleting output log %s, ignoring: %s",
+                                  stdout_path, ex)
         if stderr_file is not None:
             stderr_file.close()
+            show_last_lines(stderr_path, num_lines_to_show)
 
 
 def parse_args():
@@ -150,6 +178,10 @@ def parse_args():
         '--enable-clock-skew',
         action='store_true',
         help='Enable clock skew nemesis. This will not work on LXC.')
+    parser.add_argument(
+        '--concurrency',
+        default='4n',
+        help='Concurrency to specify, e.g. 2n, 4n, or 5n, where n means the number of nodes.')
     return parser.parse_args()
 
 
@@ -199,16 +231,18 @@ def main():
                     "--url {url} "
                     "--workload {test} "
                     "--nemesis {nemesis} "
-                    "--concurrency 30 "
+                    "--concurrency {concurrency}"
                     "--time-limit {run_time}".format(
                         url=args.tarball_url,
                         test=test,
                         nemesis=nemesis,
-                        run_time=SINGLE_TEST_RUN_TIME
+                        run_time=SINGLE_TEST_RUN_TIME,
+                        concurrency=args.concurrency
                     ),
                     timeout=TEST_TIMEOUT,
                     exit_on_error=False,
-                    log_name_prefix="{}_nemesis_{}".format(test, nemesis)
+                    log_name_prefix="{}_nemesis_{}".format(test, nemesis),
+                    keep_output_log_file=False
                 )
 
                 if result.timed_out:
