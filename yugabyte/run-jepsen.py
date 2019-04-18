@@ -143,12 +143,12 @@ def run_cmd(cmd,
             timed_out = False
 
         child_processes.remove(p)
-        if exit_on_error and p.returncode != 0:
-            logging.error(
-                    "Failed running command (exit code: %d): %s",
-                    p.returncode, cmd)
-            sys.exit(p.returncode)
+        if p.returncode != 0:
+            logging.error("Failed running command (exit code: %d): %s", p.returncode, cmd)
+            if exit_on_error:
+                sys.exit(p.returncode)
         return CmdResult(returncode=p.returncode, timed_out=timed_out)
+
     finally:
         if stdout_file is not None:
             stdout_file.close()
@@ -226,23 +226,20 @@ def main():
 
                 test_start_time_sec = time.time()
                 result = run_cmd(
-                    "lein run test "
-                    "--os debian "
-                    "--url {url} "
-                    "--workload {test} "
-                    "--nemesis {nemesis} "
-                    "--concurrency {concurrency}"
-                    "--time-limit {run_time}".format(
-                        url=args.tarball_url,
-                        test=test,
-                        nemesis=nemesis,
-                        run_time=SINGLE_TEST_RUN_TIME,
-                        concurrency=args.concurrency
-                    ),
+                    " ".join([
+                        "lein run test",
+                        "--os debian",
+                        "--url " + args.tarball_url,
+                        "--workload " + test,
+                        "--nemesis " + nemesis,
+                        "--concurrency " + args.concurrency,
+                        "--time-limit " + str(TEST_TIMEOUT)
+                    ]),
                     timeout=TEST_TIMEOUT,
                     exit_on_error=False,
                     log_name_prefix="{}_nemesis_{}".format(test, nemesis),
-                    keep_output_log_file=False
+                    keep_output_log_file=False,
+                    num_lines_to_show=50
                 )
 
                 if result.timed_out:
