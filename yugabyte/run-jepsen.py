@@ -91,7 +91,7 @@ def cleanup():
 def truncate_line(line, max_chars=200):
     if len(line) <= max_chars:
         return line
-    res_candidate = line[:max_chars] + "... (skipped %d bytes)" % (len(line) - max_characters)
+    res_candidate = line[:max_chars] + "... (skipped %d bytes)" % (len(line) - max_chars)
     if len(line) <= len(res_candidate):
         return line
     return res_candidate
@@ -156,15 +156,17 @@ def run_cmd(cmd,
         if p.poll() is None:
             timed_out = True
             p.terminate()
+            returncode = p.wait()
         else:
             timed_out = False
+            returncode = p.returncode
 
         child_processes.remove(p)
-        if p.returncode != 0:
-            logging.error("Failed running command (exit code: %d): %s", p.returncode, cmd)
+        if returncode != 0:
+            logging.error("Failed running command (exit code: %d): %s", returncode, cmd)
             if exit_on_error:
-                sys.exit(p.returncode)
-        return CmdResult(returncode=p.returncode, timed_out=timed_out)
+                sys.exit(returncode)
+        return CmdResult(returncode=returncode, timed_out=timed_out)
 
     finally:
         if stdout_file is not None:
