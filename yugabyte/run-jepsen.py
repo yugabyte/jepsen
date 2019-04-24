@@ -88,6 +88,15 @@ def cleanup():
                 raise e
 
 
+def truncate_line(line, max_chars=200):
+    if len(line) <= max_chars:
+        return line
+    res_candidate = line[:max_chars] + "... (skipped %d bytes)" % (len(line) - max_characters)
+    if len(line) <= len(res_candidate):
+        return line
+    return res_candidate
+
+
 def show_last_lines(file_path, n_lines):
     if n_lines is None:
         return
@@ -95,8 +104,16 @@ def show_last_lines(file_path, n_lines):
         logging.warning("File does not exist: %s, cannot show last %d lines",
                         file_path, n_lines)
         return
-    logging.info("Last %d lines of file %s:", n_lines, file_path)
-    subprocess.check_call(['tail', '-n', str(n_lines), file_path])
+    total_num_lines = int(subprocess.check_output(['wc', '-l', file_path]).strip().split()[0])
+
+    last_lines = subprocess.check_output(['tail', '-n', str(n_lines), file_path])
+
+    logging.info(
+        "%s of file %s:\n%s",
+        ("Last %d lines" % n_lines if total_num_lines > n_lines else 'Contents'),
+        n_lines, file_path,
+        "\n".join([truncate_line(line) for line in last_lines.split("\n")])
+    )
 
 
 def run_cmd(cmd,
