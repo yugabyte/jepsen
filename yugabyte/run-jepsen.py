@@ -37,7 +37,7 @@ CmdResult = namedtuple('CmdResult',
                         'timed_out'])
 
 SINGLE_TEST_RUN_TIME = 600  # Only for workload, doesn't include test results analysis.
-TEST_TIMEOUT = 1200  # Includes test results analysis.
+TEST_AND_ANALYSIS_TIMEOUT_SEC = 1800  # Includes test results analysis.
 NODES_FILE = os.path.expanduser("~/code/jepsen/nodes")
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-ce-1.2.4.0-linux.tar.gz"
 
@@ -156,7 +156,7 @@ def run_cmd(cmd,
 
         if p.poll() is None:
             timed_out = True
-            p.terminate()
+            p.kill()
             returncode = p.wait()
         else:
             timed_out = False
@@ -222,6 +222,7 @@ def main():
         nemeses += ['clock-skew']
 
     num_tests_run = 0
+    num_timed_out_tests = 0
     total_test_time_sec = 0
 
     is_done = False
@@ -253,7 +254,7 @@ def main():
                         "--workload " + test,
                         "--nemesis " + nemesis,
                         "--concurrency " + args.concurrency,
-                        "--time-limit " + str(TEST_TIMEOUT)
+                        "--time-limit " + str(TEST_AND_ANALYSIS_TIMEOUT_SEC)
                     ]),
                     timeout=TEST_TIMEOUT,
                     exit_on_error=False,
@@ -262,25 +263,42 @@ def main():
                     num_lines_to_show=50
                 )
 
+                test_elapsed_time_sec = time.time() - test_start_time_sec
                 if result.timed_out:
+                    num_timed_out_tests += 1
                     logging.info("Test timed out. Updating all jepsen.log files in %s", STORE_DIR)
                     for root, dirs, files in os.walk(STORE_DIR):
                         for file_name in files:
                             if file_name == "jepsen.log":
-                                msg = "Test run timed out!"
+                                msg = (
+                                    "Test run timed out in %.1f sec, "
+                                    "exit code %d (timeout: %.1f sec)!"
+                                ) % (test_elapsed_time_sec,
+                                     result.returncode,
+                                     TEST_AND_ANALYSIS_TIMEOUT_SEC)
                                 logging.info(msg)
                                 with open(os.path.join(root, file_name), "a") as f:
-                                    f.write(msg)
+                                    f.write("\n" + msg)
+                else:
+                    logging.info("Test completed in %.1f sec, exit code: %d",
+                                 test_elapsed_time_sec, result.returncode)
 
                 run_cmd(SORT_RESULTS_SH)
-                test_elapsed_time_sec = time.time() - test_start_time_sec
 
                 num_tests_run += 1
                 total_test_time_sec += test_elapsed_time_sec
 
                 logging.info(
-                    "Finished running %d tests, total test time: %.1f sec, avg test time: %.1f",
-                    num_tests_run, total_test_time_sec, total_test_time_sec / num_tests_run)
+                    "Finished running %d tests, "
+                    "%d tests timed out, "
+                    "last test elapsed time: %.1f sec, "
+                    "total test time: %.1f sec, "
+                    "avg test time: %.1f",
+                    num_tests_run,
+                    num_tests_timed_out,
+                    test_elapsed_time_sec,
+                    total_test_time_sec,
+                    total_test_time_sec / num_tests_run)
 
 
 if __name__ == '__main__':
