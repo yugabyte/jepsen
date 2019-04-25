@@ -390,7 +390,7 @@
       (c/su (cu/stop-daemon! ce-tserver-bin ce-tserver-pidfile)))
 
     (wipe! [db]
-      (c/su (c/exec :rm :-rf :somenonexistentdir)))
+      (c/su (c/exec :rm :-rf ce-data-dir)))
 
     db/DB
     (setup! [db test node]
