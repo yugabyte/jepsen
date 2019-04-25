@@ -100,7 +100,10 @@ def truncate_line(line, max_chars=500):
 
 def get_last_lines(file_path, n_lines):
     total_num_lines = int(subprocess.check_output(['wc', '-l', file_path]).strip().split()[0])
-    return subprocess.check_output(['tail', '-n', str(n_lines), file_path]).split("\n")
+    return (
+        subprocess.check_output(['tail', '-n', str(n_lines), file_path]).split("\n"),
+        total_num_lines
+    )
 
 
 def show_last_lines(file_path, n_lines):
@@ -110,7 +113,7 @@ def show_last_lines(file_path, n_lines):
         logging.warning("File does not exist: %s, cannot show last %d lines",
                         file_path, n_lines)
         return
-    lines = get_last_lines(file_path, n_lines)
+    lines, total_num_lines = get_last_lines(file_path, n_lines)
     logging.info(
         "%s of file %s:\n%s",
         ("Last %d lines" % n_lines if total_num_lines > n_lines else 'Contents'),
@@ -172,7 +175,7 @@ def run_cmd(cmd,
                 sys.exit(returncode)
         everything_looks_good = False
         if stdout_path is not None and os.path.exists(stdout_path):
-            last_lines_of_output = get_last_lines(stdout_path, 50)
+            last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
                     line.startswith('Everything looks good!') for line in last_lines_of_output)
         return CmdResult(
