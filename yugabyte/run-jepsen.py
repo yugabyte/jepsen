@@ -34,7 +34,8 @@ from collections import namedtuple
 
 CmdResult = namedtuple('CmdResult',
                        ['returncode',
-                        'timed_out'])
+                        'timed_out',
+                        'everything_looks_good'])
 
 SINGLE_TEST_RUN_TIME = 600  # Only for workload, doesn't include test results analysis.
 TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
@@ -45,7 +46,7 @@ TESTS = [
    "single-key-acid",
    "multi-key-acid",
    "counter-inc",
-   "counter-inc-dec",
+   "counter",  # This might have been called counter-inc-dec previously?
    "bank",
    "set",
    "set-index",
@@ -88,13 +89,18 @@ def cleanup():
                 raise e
 
 
-def truncate_line(line, max_chars=200):
+def truncate_line(line, max_chars=500):
     if len(line) <= max_chars:
         return line
-    res_candidate = line[:max_chars] + "... (skipped %d bytes)" % (len(line) - max_chars)
+    res_candidate = line[:max_chars] + "... (skipped %d chars)" % (len(line) - max_chars)
     if len(line) <= len(res_candidate):
         return line
     return res_candidate
+
+
+def get_last_lines(file_path, n_lines):
+    total_num_lines = int(subprocess.check_output(['wc', '-l', file_path]).strip().split()[-1])
+    return subprocess.check_output(['tail', '-n', str(n_lines), file_path]).split("\n")
 
 
 def show_last_lines(file_path, n_lines):
@@ -104,15 +110,12 @@ def show_last_lines(file_path, n_lines):
         logging.warning("File does not exist: %s, cannot show last %d lines",
                         file_path, n_lines)
         return
-    total_num_lines = int(subprocess.check_output(['wc', '-l', file_path]).strip().split()[0])
-
-    last_lines = subprocess.check_output(['tail', '-n', str(n_lines), file_path])
-
+    lines = get_last_lines(file_path, n_lines)
     logging.info(
         "%s of file %s:\n%s",
         ("Last %d lines" % n_lines if total_num_lines > n_lines else 'Contents'),
          file_path,
-        "\n".join([truncate_line(line) for line in last_lines.split("\n")])
+        "\n".join([truncate_line(line) for line in lines])
     )
 
 
@@ -167,7 +170,15 @@ def run_cmd(cmd,
             logging.error("Failed running command (exit code: %d): %s", returncode, cmd)
             if exit_on_error:
                 sys.exit(returncode)
-        return CmdResult(returncode=returncode, timed_out=timed_out)
+        everything_looks_good = False
+        if os.path.exists(stdout_path):
+            last_lines_of_output = get_last_lines(stdout_path, 50)
+            everything_looks_good = any(
+                    line.startswith('Everything looks good!') for line in last_lines_of_output)
+        return CmdResult(
+                returncode=returncode,
+                timed_out=timed_out,
+                everything_looks_good=everything_looks_good)
 
     finally:
         if stdout_file is not None:
@@ -232,19 +243,23 @@ def main():
         logging.info("Creating directory %s", LOGS_DIR)
         os.mkdir(LOGS_DIR)
 
+    test_index = 0
+    num_everything_looks_good = 0
     while not is_done:
         for nemesis in nemeses:
             if is_done:
                 break
             for test in TESTS:
-                elapsed_time_sec = time.time() - start_time
-                if args.max_time_sec is not None and elapsed_time_sec > args.max_time_sec:
+                total_elapsed_time_sec = time.time() - start_time
+                if args.max_time_sec is not None and total_elapsed_time_sec > args.max_time_sec:
                     logging.info(
                         "Elapsed time is %.1f seconds, it has exceeded the max allowed time %.1f, "
-                        "stopping", elapsed_time_sec, args.max_time_sec)
+                        "stopping", total_elapsed_time_sec, args.max_time_sec)
                     is_done = True
                     break
 
+                test_index += 1
+                logging.info("\n%s\nStarting test run %d\n%s", "=" * 80, test_index, "=" * 80)
                 test_start_time_sec = time.time()
                 result = run_cmd(
                     " ".join([
@@ -271,32 +286,38 @@ def main():
                         for file_name in files:
                             if file_name == "jepsen.log":
                                 msg = (
-                                    "Test run timed out in %.1f sec, "
-                                    "exit code %d (timeout: %.1f sec)!"
-                                ) % (test_elapsed_time_sec,
-                                     result.returncode,
+                                    "Test run #%d timed out in %.1f sec (timeout: %.1f sec)"
+                                ) % (test_index,
+                                     test_elapsed_time_sec,
                                      TEST_AND_ANALYSIS_TIMEOUT_SEC)
                                 logging.info(msg)
                                 with open(os.path.join(root, file_name), "a") as f:
                                     f.write("\n" + msg)
-                else:
-                    logging.info("Test completed in %.1f sec, exit code: %d",
-                                 test_elapsed_time_sec, result.returncode)
+                logging.info(
+                        "Test run #%d: elapsed_time=%.1f, returncode=%d, everything_looks_good=%s",
+                        test_index, test_elapsed_time_sec, result.returncode,
+                        result.everything_looks_good)
+                if result.everything_looks_good:
+                    num_everything_looks_good += 1
 
                 run_cmd(SORT_RESULTS_SH)
+
+                logging.info("\n%s\nFinished test run %d\n%s", "=" * 80, test_index, "=" * 80)
 
                 num_tests_run += 1
                 total_test_time_sec += test_elapsed_time_sec
 
                 logging.info(
                     "Finished running %d tests, "
+                    "in %d tests everything looks good, "
                     "%d tests timed out, "
-                    "last test elapsed time: %.1f sec, "
+                    "total elapsed time: %.1f sec, "
                     "total test time: %.1f sec, "
                     "avg test time: %.1f",
                     num_tests_run,
+                    num_everything_looks_good,
                     num_timed_out_tests,
-                    test_elapsed_time_sec,
+                    total_elapsed_time_sec,
                     total_test_time_sec,
                     total_test_time_sec / num_tests_run)
 
