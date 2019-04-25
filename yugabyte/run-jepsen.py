@@ -37,7 +37,7 @@ CmdResult = namedtuple('CmdResult',
                         'timed_out'])
 
 SINGLE_TEST_RUN_TIME = 600  # Only for workload, doesn't include test results analysis.
-TEST_AND_ANALYSIS_TIMEOUT_SEC = 1800  # Includes test results analysis.
+TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
 NODES_FILE = os.path.expanduser("~/code/jepsen/nodes")
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-ce-1.2.4.0-linux.tar.gz"
 
@@ -254,9 +254,9 @@ def main():
                         "--workload " + test,
                         "--nemesis " + nemesis,
                         "--concurrency " + args.concurrency,
-                        "--time-limit " + str(TEST_AND_ANALYSIS_TIMEOUT_SEC)
+                        "--time-limit " + str(SINGLE_TEST_RUN_TIME)
                     ]),
-                    timeout=TEST_TIMEOUT,
+                    timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
                     exit_on_error=False,
                     log_name_prefix="{}_nemesis_{}".format(test, nemesis),
                     keep_output_log_file=False,
