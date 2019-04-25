@@ -99,7 +99,7 @@ def truncate_line(line, max_chars=500):
 
 
 def get_last_lines(file_path, n_lines):
-    total_num_lines = int(subprocess.check_output(['wc', '-l', file_path]).strip().split()[-1])
+    total_num_lines = int(subprocess.check_output(['wc', '-l', file_path]).strip().split()[0])
     return subprocess.check_output(['tail', '-n', str(n_lines), file_path]).split("\n")
 
 
