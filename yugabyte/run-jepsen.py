@@ -295,7 +295,7 @@ def main():
                     "total test time: %.1f sec, "
                     "avg test time: %.1f",
                     num_tests_run,
-                    num_tests_timed_out,
+                    num_timed_out_tests,
                     test_elapsed_time_sec,
                     total_test_time_sec,
                     total_test_time_sec / num_tests_run)
