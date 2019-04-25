@@ -337,7 +337,7 @@ def main():
                     "in %d tests everything looks good, "
                     "in %d tests something looks not so good, "
                     "%d tests timed out, "
-                    "%d tests returned zero exit code (OK), ",
+                    "%d tests returned zero exit code (OK), "
                     "%d tests returned non-zero exit code (not OK -- this may includes timeouts), "
                     "total elapsed time: %.1f sec, "
                     "total test time: %.1f sec, "
