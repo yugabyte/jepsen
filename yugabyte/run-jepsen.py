@@ -270,7 +270,7 @@ def main():
                         test_index,
                         "=" * 80)
                 test_start_time_sec = time.time()
-                test_description_str = "worklaod " + test + ", nemesis " + nemsis
+                test_description_str = "worklaod " + test + ", nemesis " + nemesis
                 if test == 'set':
                     # The set test might time out if you let it run for 10 minutes and leave 10 more
                     # minutes for analysis, so cut its running time in half.
