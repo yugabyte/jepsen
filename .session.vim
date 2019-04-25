@@ -1,6 +1,6 @@
 " ~/code/jepsen/.session.vim:
 " Vim session script for a single tab page.
-" Created by session.vim 2.13.1 on 24 April 2019 at 16:22:19.
+" Created by session.vim 2.13.1 on 24 April 2019 at 17:12:51.
 " Open this file in Vim and run :source % to restore your session.
 
 call setqflist([])
@@ -13,7 +13,7 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
-badd +0 ~/code/jepsen/yugabyte/run-jepsen.py
+badd +1 ~/code/jepsen/yugabyte/run-jepsen.py
 argglobal
 silent! argdel *
 edit ~/code/jepsen/yugabyte/run-jepsen.py
@@ -32,12 +32,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 254 - ((46 * winheight(0) + 39) / 79)
+let s:l = 114 - ((38 * winheight(0) + 39) / 79)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-254
-normal! 025|
+114
+normal! 09|
 if exists('s:wipebuf')
 "   silent exe 'bwipe ' . s:wipebuf
 endif

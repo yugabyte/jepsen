@@ -111,7 +111,7 @@ def show_last_lines(file_path, n_lines):
     logging.info(
         "%s of file %s:\n%s",
         ("Last %d lines" % n_lines if total_num_lines > n_lines else 'Contents'),
-        n_lines, file_path,
+         file_path,
         "\n".join([truncate_line(line) for line in last_lines.split("\n")])
     )
 
@@ -132,7 +132,8 @@ def run_cmd(cmd,
         log_name_prefix += '_' + timestamp_str
         stdout_path = os.path.join(LOGS_DIR, log_name_prefix + '_stdout.log')
         stderr_path = os.path.join(LOGS_DIR, log_name_prefix + '_stderr.log')
-        logging.info("stdout log: %s, stderr log: %s", stdout_path, stderr_path)
+        logging.info("stdout log: %s", stdout_path)
+        logging.info("stderr log: %s", stderr_path)
 
     stdout_file = None
     stderr_file = None
