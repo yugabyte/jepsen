@@ -45,8 +45,7 @@ DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-ce-1.2.4.0-linux.
 TESTS = [
    "single-key-acid",
    "multi-key-acid",
-   "counter-inc",
-   "counter",  # This might have been called counter-inc-dec previously?
+   "counter",  # There used to be "counter-inc" and "counter-inc-dec" previously.
    "bank",
    "set",
    "set-index",
@@ -248,6 +247,9 @@ def main():
 
     test_index = 0
     num_everything_looks_good = 0
+    num_not_everything_looks_good = 0
+    num_zero_exit_code = 0
+    num_non_zero_exit_code = 0
     while not is_done:
         for nemesis in nemeses:
             if is_done:
@@ -262,8 +264,19 @@ def main():
                     break
 
                 test_index += 1
-                logging.info("\n%s\nStarting test run %d\n%s", "=" * 80, test_index, "=" * 80)
+                logging.info(
+                        "\n%s\nStarting test run #%d\n%s",
+                        "=" * 80,
+                        test_index,
+                        "=" * 80)
                 test_start_time_sec = time.time()
+                test_description_str = "worklaod " + test + ", nemesis " + nemsis
+                if test == 'set':
+                    # The set test might time out if you let it run for 10 minutes and leave 10 more
+                    # minutes for analysis, so cut its running time in half.
+                    test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME // 2
+                else:
+                    test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME
                 result = run_cmd(
                     " ".join([
                         "lein run test",
@@ -272,7 +285,7 @@ def main():
                         "--workload " + test,
                         "--nemesis " + nemesis,
                         "--concurrency " + args.concurrency,
-                        "--time-limit " + str(SINGLE_TEST_RUN_TIME)
+                        "--time-limit " + str(test_run_time_limit_no_analysis_sec)
                     ]),
                     timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
                     exit_on_error=False,
@@ -302,24 +315,39 @@ def main():
                         result.everything_looks_good)
                 if result.everything_looks_good:
                     num_everything_looks_good += 1
+                else:
+                    num_not_everything_looks_good += 1
+                if result.returncode == 0:
+                    num_zero_exit_code += 1
+                else:
+                    num_non_zero_exit_code += 1
 
                 run_cmd(SORT_RESULTS_SH)
 
-                logging.info("\n%s\nFinished test run %d\n%s", "=" * 80, test_index, "=" * 80)
+                logging.info(
+                        "\n%s\nFinished test run #%d (%s)\n%s",
+                        "=" * 80, test_index, test_description_str, "=" * 80)
 
                 num_tests_run += 1
                 total_test_time_sec += test_elapsed_time_sec
 
+                total_elapsed_time_sec = time.time() - start_time
                 logging.info(
                     "Finished running %d tests, "
                     "in %d tests everything looks good, "
+                    "in %d tests something looks not so good, "
                     "%d tests timed out, "
+                    "%d tests returned zero exit code (OK), ",
+                    "%d tests returned non-zero exit code (not OK -- this may includes timeouts), "
                     "total elapsed time: %.1f sec, "
                     "total test time: %.1f sec, "
                     "avg test time: %.1f",
                     num_tests_run,
                     num_everything_looks_good,
+                    num_not_everything_looks_good,
                     num_timed_out_tests,
+                    num_zero_exit_code,
+                    num_non_zero_exit_code,
                     total_elapsed_time_sec,
                     total_test_time_sec,
                     total_test_time_sec / num_tests_run)
