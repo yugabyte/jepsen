@@ -281,7 +281,7 @@ def main():
                         test_index,
                         "=" * 80)
                 test_start_time_sec = time.time()
-                test_description_str = "worklaod " + test + ", nemesis " + nemesis
+                test_description_str = "workload " + test + ", nemesis " + nemesis
                 if test == 'set':
                     test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST
                 else:
@@ -321,9 +321,9 @@ def main():
                         result.everything_looks_good)
                 if result.everything_looks_good:
                     num_everything_looks_good += 1
-                    not_good_tests.append(test_description_str)
                 else:
                     num_not_everything_looks_good += 1
+                    not_good_tests.append(test_description_str)
                 if result.returncode == 0:
                     num_zero_exit_code += 1
                 else:
