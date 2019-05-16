@@ -16,10 +16,12 @@ addons:
 before_install:
   - cd ${TRAVIS_BUILD_DIR}/jepsen
 script: |
-  set -euo pipefail
-  pip install --user pycodestyle
-  pycodestyle --max-line-length=100 ../yugabyte/run-jepsen.py
-  lein do clean, test
+  (
+    set -euo pipefail
+    pip install --user pycodestyle
+    pycodestyle --max-line-length=100 ../yugabyte/run-jepsen.py
+    lein do clean, test
+  )
 
 notifications:
   email:
