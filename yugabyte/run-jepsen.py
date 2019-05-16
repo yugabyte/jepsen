@@ -121,8 +121,8 @@ def show_last_lines(file_path, n_lines):
     lines, total_num_lines = get_last_lines(file_path, n_lines)
     logging.info(
         "%s of file %s:\n%s",
-        ("Last %d lines" % n_lines if total_num_lines > n_lines else 'Contents'),
-         file_path,
+        "Last %d lines" % n_lines if total_num_lines > n_lines else 'Contents',
+        file_path,
         "\n".join([truncate_line(line) for line in lines])
     )
 

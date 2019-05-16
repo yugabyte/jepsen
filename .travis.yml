@@ -18,7 +18,7 @@ before_install:
 script: |
   set -euo pipefail
   pip install --user pycodestyle
-  pycodestyle ../yugabyte/run-jepsen.py
+  pycodestyle --max-line-length=100 ../yugabyte/run-jepsen.py
   lein do clean, test
 
 notifications:
