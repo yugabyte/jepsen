@@ -290,7 +290,7 @@ def main():
                     " ".join([
                         "lein run test",
                         "--os debian",
-                        "--url " + args.tarball_url,
+                        "--url " + args.url,
                         "--workload " + test,
                         "--nemesis " + nemesis,
                         "--concurrency " + args.concurrency,
