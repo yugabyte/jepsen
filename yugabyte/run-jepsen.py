@@ -37,7 +37,13 @@ CmdResult = namedtuple('CmdResult',
                         'timed_out',
                         'everything_looks_good'])
 
-SINGLE_TEST_RUN_TIME = 600  # Only for workload, doesn't include test results analysis.
+# Only for workload, doesn't include test results analysis. Customized for the "set" test.
+SINGLE_TEST_RUN_TIME = 600
+
+# The set test might time out if you let it run for 10 minutes and leave 10 more
+# minutes for analysis, so cut its running time in half.
+SINGLE_TEST_RUN_TIME_FOR_SET_TEST = 300
+
 TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
 NODES_FILE = os.path.expanduser("~/code/jepsen/nodes")
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-ce-1.2.4.0-linux.tar.gz"
@@ -137,7 +143,8 @@ def run_cmd(cmd,
         log_name_prefix += '_' + timestamp_str
         stdout_path = os.path.join(LOGS_DIR, log_name_prefix + '_stdout.log')
         stderr_path = os.path.join(LOGS_DIR, log_name_prefix + '_stderr.log')
-        logging.info("stdout log: %s", stdout_path)
+        stdout_action_str = '' if keep_output_log_file else ' (will be deleted)'
+        logging.info("stdout log: %s%s", stdout_path, stdout_action_str)
         logging.info("stderr log: %s", stderr_path)
 
     stdout_file = None
@@ -251,6 +258,9 @@ def main():
     num_not_everything_looks_good = 0
     num_zero_exit_code = 0
     num_non_zero_exit_code = 0
+
+    not_good_tests = []
+
     while not is_done:
         for nemesis in nemeses:
             if is_done:
@@ -273,9 +283,7 @@ def main():
                 test_start_time_sec = time.time()
                 test_description_str = "worklaod " + test + ", nemesis " + nemesis
                 if test == 'set':
-                    # The set test might time out if you let it run for 10 minutes and leave 10 more
-                    # minutes for analysis, so cut its running time in half.
-                    test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME // 2
+                    test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST
                 else:
                     test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME
                 result = run_cmd(
@@ -313,6 +321,7 @@ def main():
                         result.everything_looks_good)
                 if result.everything_looks_good:
                     num_everything_looks_good += 1
+                    not_good_tests.append(test_description_str)
                 else:
                     num_not_everything_looks_good += 1
                 if result.returncode == 0:
@@ -333,7 +342,7 @@ def main():
                 logging.info(
                     "Finished running %d tests, "
                     "in %d tests everything looks good, "
-                    "in %d tests something looks not so good, "
+                    "in %d tests something does not look good, "
                     "%d tests timed out, "
                     "%d tests returned zero exit code (OK), "
                     "%d tests returned non-zero exit code (not OK -- this may includes timeouts), "
@@ -349,6 +358,9 @@ def main():
                     total_elapsed_time_sec,
                     total_test_time_sec,
                     total_test_time_sec / num_tests_run)
+                if not_good_tests:
+                    logging.info("Tests where something does not look good:\n    %s",
+                                 "\n    ".join(not_good_tests))
 
 
 if __name__ == '__main__':
