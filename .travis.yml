@@ -18,6 +18,9 @@ before_install:
 script: |
   set -euo pipefail
   pip install --user pycodestyle
+  pwd
+  ls
+  find . -name "run-jepsen.py"
   pycodestyle yugabyte/run-jepsen.py
   lein do clean, test
 
