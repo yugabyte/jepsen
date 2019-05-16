@@ -200,13 +200,14 @@ def run_cmd(cmd,
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        '--tarball-url',
+        '--url',
         default=DEFAULT_TARBALL_URL,
         help='YugaByte DB tarball URL to use')
     parser.add_argument(
         '--max-time-sec',
         type=int,
-        help='Maximum time to run for. The actual run time could a few minutes longer than this.')
+        help='Maximum time to run for. The actual run time could be a few minutes longer than '
+             'this.')
     parser.add_argument(
         '--enable-clock-skew',
         action='store_true',
@@ -296,19 +297,16 @@ def main():
 
                 test_elapsed_time_sec = time.time() - test_start_time_sec
                 if result.timed_out:
-                    num_timed_out_tests += 1
-                    logging.info("Test timed out. Updating all jepsen.log files in %s", STORE_DIR)
-                    for root, dirs, files in os.walk(STORE_DIR):
-                        for file_name in files:
-                            if file_name == "jepsen.log":
-                                msg = (
-                                    "Test run #%d timed out in %.1f sec (timeout: %.1f sec)"
-                                ) % (test_index,
-                                     test_elapsed_time_sec,
-                                     TEST_AND_ANALYSIS_TIMEOUT_SEC)
-                                logging.info(msg)
-                                with open(os.path.join(root, file_name), "a") as f:
-                                    f.write("\n" + msg)
+                    jepsen_log_file = os.path.join(STORE_DIR, 'current', 'jepsen.log')
+                    logging.info("Test timed out. Updating the log at %s", jepsen_log_file)
+                    if os.path.exists(jepsen_log_file):
+                        msg = "Test run timed out!"
+                        logging.info(msg)
+                        with open(jepsen_log_file, "a") as f:
+                            f.write(msg)
+                    else:
+                        logging.error("File %s does not exist!", jepsen_log_file)
+
                 logging.info(
                         "Test run #%d: elapsed_time=%.1f, returncode=%d, everything_looks_good=%s",
                         test_index, test_elapsed_time_sec, result.returncode,
