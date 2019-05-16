@@ -6,6 +6,7 @@ jdk:
 branches:
   only:
     - master
+    - master-yb
 addons:
   apt:
     packages:
