@@ -12,11 +12,12 @@ addons:
     packages:
       - gnuplot
       - gnuplot-x11
-      - python-pycodestyle
+      - python-pip
 before_install:
   - cd ${TRAVIS_BUILD_DIR}/jepsen
 script: |
   set -euo pipefail
+  pip install --user pycodestyle
   pycodestyle yugabyte/run-jepsen.py
   lein do clean, test
 
