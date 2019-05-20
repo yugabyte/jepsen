@@ -310,6 +310,14 @@
    :--rpc_connection_timeout_ms                   1500
    ])
 
+(defn stop-local-ntp-services!
+  "Try to stop ntp/ntpd, because it won't let ntpdate to sync clocks."
+  []
+  (do (try (c/su (c/exec :service :ntp :stop))
+           (catch RuntimeException e))
+      (try (c/su (c/exec :service :ntpd :stop))
+           (catch RuntimeException e))))
+
 (defn community-edition
   "Constructs a DB for installing and running the community edition"
   []
@@ -388,6 +396,7 @@
     db/DB
     (setup! [db test node]
       (install! db test)
+      (stop-local-ntp-services!)
       (start! db test node))
 
     (teardown! [db test node]
@@ -438,18 +447,15 @@
     (setup! [this test node]
       (install! this test)
 
+      (stop-local-ntp-services!)
       (c/exec :sed :-i "/--max_clock_skew_usec/d" tserver-conf)
       (let [max-skew-ms (test :max-clock-skew-ms)]
         (if (some? max-skew-ms)
           (c/exec :echo (str "--max_clock_skew_usec="
                              (->> (:max-clock-skew-ms test) (* 1000) (* 2) (* max-bump-time-ops-per-test)))
                   (c/lit ">>") tserver-conf)
-          (do
-            ; Sync clocks on all servers since we are not testing clock skew. Try to stop ntpd, because it won't
-            ; let ntpdate to sync clocks.
-            (try (c/su (c/exec :service :ntpd :stop))
-                 (catch RuntimeException e))
-            (c/su (c/exec :ntpdate :-b "pool.ntp.org")))))
+          ; Sync clocks on all servers since we are not testing clock skew.
+          (c/su (c/exec :ntpdate :-b "pool.ntp.org"))))
       (start! this test node))
 
     (teardown! [this test node]
