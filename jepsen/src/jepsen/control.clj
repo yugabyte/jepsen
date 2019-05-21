@@ -4,9 +4,8 @@
   scripts to open connections to various nodes."
   (:import java.io.File)
   (:require [clj-ssh.ssh    :as ssh]
-            [jepsen.util    :as util :refer [real-pmap
-                                             with-thread-name]]
-            [dom-top.core :refer [with-retry]]
+            [jepsen.util    :as util :refer [with-thread-name]]
+            [dom-top.core :refer [real-pmap with-retry]]
             [jepsen.reconnect :as rc]
             [clojure.string :as str]
             [clojure.tools.logging :refer [warn info debug error]]
@@ -125,9 +124,17 @@
   (if (zero? exit)
     result
     (throw+
-     (merge {:type ::nonzero-exit
-             :cmd (:cmd action)}
-            result))))
+      (merge {:type ::nonzero-exit
+              :cmd (:cmd action)}
+             result)
+      nil ; cause
+      "Command exited with non-zero status %d on node %s:\n%s\n\nSTDIN:\n%s\n\nSTDOUT:\n%s\n\nSTDERR:\n%s"
+      exit
+      (:host result)
+      (:cmd action)
+      (:in result)
+      (:out result)
+      (:err result))))
 
 (defn just-stdout
   "Returns the stdout from an ssh result, trimming any newlines at the end."

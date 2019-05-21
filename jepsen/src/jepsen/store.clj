@@ -42,18 +42,14 @@
        clojure.lang.PersistentHashSet
        {"persistent-hash-set" (reify WriteHandler
                                 (write [_ w set]
-                                  (.writeTag w "persistent-hash-set"
-                                             (count set))
-                                  (doseq [e set]
-                                    (.writeObject w e))))}
+                                  (.writeTag w "persistent-hash-set" 1)
+                                  (.writeObject w (seq set))))}
 
        clojure.lang.PersistentTreeSet
        {"persistent-sorted-set" (reify WriteHandler
                                   (write [_ w set]
-                                    (.writeTag w "persistent-sorted-set"
-                                               (count set))
-                                    (doseq [e set]
-                                      (.writeObject w e))))}
+                                    (.writeTag w "persistent-sorted-set" 1)
+                                    (.writeObject w (seq set))))}
 
        clojure.lang.MapEntry
        {"map-entry" (reify WriteHandler
@@ -91,19 +87,13 @@
 
        "persistent-hash-set" (reify ReadHandler
                                (read [_ rdr tag component-count]
-                                 (let [s (transient #{})]
-                                   (dotimes [_ component-count]
-                                     (conj! s (.readObject rdr)))
-                                   (persistent! s))))
+                                 (assert (= 1 component-count))
+                                 (into #{} (.readObject rdr))))
 
        "persistent-sorted-set" (reify ReadHandler
                                  (read [_ rdr tag component-count]
-                                   (loop [i component-count
-                                          s (sorted-set)]
-                                     (if (pos? i)
-                                       (recur (dec i)
-                                              (conj s (.readObject rdr)))
-                                       s))))
+                                   (assert (= 1 component-count))
+                                   (into (sorted-set) (.readObject rdr))))
 
        "map-entry" (reify ReadHandler
                      (read [_ rdr tag component-count]

@@ -17,10 +17,12 @@
             [tidb [bank :as bank]
                   [db :as db]
                   [long-fork :as long-fork]
+                  [monotonic :as monotonic]
                   [nemesis :as nemesis]
                   [register :as register]
                   [sequential :as sequential]
-                  [sets :as set]]))
+                  [sets :as set]
+                  [table :as table]]))
 
 (def oses
   "Supported operating systems"
@@ -33,14 +35,23 @@
   {:bank            bank/workload
    :bank-multitable bank/multitable-workload
    :long-fork       long-fork/workload
+   :monotonic       monotonic/inc-workload
+   :txn-cycle       monotonic/txn-workload
+   :append          monotonic/append-workload
    :register        register/workload
    :set             set/workload
-   :sequential      sequential/workload})
+   :set-cas         set/cas-workload
+   :sequential      sequential/workload
+   :table           table/workload})
 
 (def workload-options
   "For each workload, a map of workload options to all values that option
   supports."
-  {:bank            {:auto-retry        [true false]
+  {:append          {:auto-retry        [true false]
+                     :auto-retry-limit  [10 0]
+                     :read-lock         [nil "FOR UPDATE"]
+                     :predicate-read    [true false]}
+   :bank            {:auto-retry        [true false]
                      :auto-retry-limit  [10 0]
                      :update-in-place   [true false]
                      :read-lock         [nil "FOR UPDATE"]}
@@ -49,14 +60,23 @@
                      :update-in-place   [true false]
                      :read-lock         [nil "FOR UPDATE"]}
    :long-fork       {:auto-retry        [true false]
-                     :auto-retry-limit  [10 0]}
+                     :auto-retry-limit  [10 0]
+                     :use-index         [true false]}
+   :monotonic       {:auto-retry        [true false]
+                     :auto-retry-limit  [10 0]
+                     :use-index         [true false]}
    :register        {:auto-retry        [true false]
                      :auto-retry-limit  [10 0]
-                     :read-lock         [nil "FOR UPDATE"]}
+                     :read-lock         [nil "FOR UPDATE"]
+                     :use-index         [true false]}
    :set             {:auto-retry        [true false]
                      :auto-retry-limit  [10 0]}
+   :set-cas         {:auto-retry        [true false]
+                     :auto-retry-limit  [10 0]
+                     :read-lock         [nil "FOR UPDATE"]}
    :sequential      {:auto-retry        [true false]
-                     :auto-retry-limit  [10 0]}})
+                     :auto-retry-limit  [10 0]}
+   :table           {}})
 
 (def workload-options-expected-to-pass
   "Workload options restricted to only those we expect to pass."
@@ -89,10 +109,10 @@
 
 (def nemesis-specs
   "These are the types of failures that the nemesis can perform."
-  #{:inter-replica-partition
-    :intra-replica-partition
-    :single-node-partition
-    :partition
+  #{:partition
+    :partition-one
+    :partition-half
+    :partition-ring
     :kill
     :pause
     :kill-pd
@@ -101,6 +121,10 @@
     :pause-pd
     :pause-kv
     :pause-db
+    :schedules
+    :shuffle-leader
+    :shuffle-region
+    :random-merge
     :clock-skew
     ; Special-case generators
     :restart-kv-without-pd})
@@ -113,9 +137,13 @@
         [:kill]
         [:pause]
         [:clock-skew]
-        [:partitions]
+        [:partition]
+        [:shuffle-leader]
+        [:shuffle-region]
+        [:random-merge]
+        [:schedules]
         ; Combined
-        [:kill :pause :clock-skew :partitions]]
+        [:kill :pause :clock-skew :partition :schedules]]
        (map (fn [faults] (zipmap faults (repeat true))))))
 
 (def plot-spec
@@ -144,6 +172,18 @@
                :color       "#A6A0E9"
                :start       #{:pause-db}
                :stop        #{:resume-db}}
+              {:name        "shuffle-leader"
+               :color       "#A6D0E9"
+               :start       #{:shuffle-leader}
+               :stop        #{:del-shuffle-leader}}
+              {:name        "shuffle-region"
+               :color       "#A6D0C9"
+               :start       #{:shuffle-region}
+               :stop        #{:del-shuffle-region}}
+              {:name        "random-merge"
+               :color       "#A6D0A9"
+               :start       #{:random-merge}
+               :stop        #{:del-random-merge}}
               {:name        "partition"
                :color       "#A0C8E9"
                :start       #{:start-partition}
@@ -167,6 +207,10 @@
                     " update-in-place")
                   (when (:read-lock opts)
                     (str " select " (:read-lock opts)))
+                  (when (:predicate-read opts)
+                    " predicate-read")
+                  (when (:use-index opts)
+                     " use-index")
                   (when-not (= [:interval] (keys (:nemesis opts)))
                     (str " nemesis " (->> (dissoc (:nemesis opts)
                                                    :interval
@@ -218,7 +262,14 @@
 
 (def cli-opts
   "Command line options for tools.cli"
-  [[nil "--nemesis-interval SECONDS"
+  [[nil "--faketime MAX_RATIO"
+    "Use faketime to skew clock rates up to MAX_RATIO"
+    :parse-fn #(Double/parseDouble %)
+    :validate [pos? "should be a positive number"]]
+
+    [nil "--force-reinstall" "Don't re-use an existing TiDB directory"]
+
+    [nil "--nemesis-interval SECONDS"
     "Roughly how long to wait between nemesis operations. Default: 10s."
     :parse-fn parse-long
     :assoc-fn (fn [m k v] (update m :nemesis assoc :interval v))
@@ -283,16 +334,22 @@
     :parse-fn parse-long
     :validate [(complement neg?) "Must not be negative"]]
 
+   [nil "--predicate-read" "If present, try to read using a query over a secondary key, rather than by primary key. Implied by --use-index."
+    :default false]
+
    [nil "--read-lock TYPE"
     "What kind of read locks, if any, should we acquire? Default is none; may
     also be 'update'."
     :default nil
     :parse-fn {"update" "FOR UPDATE"}
-    :validate #{nil "FOR UPDATE"}]
+    :validate [#{nil "FOR UPDATE"} "Should be FOR UPDATE"]]
 
    [nil "--update-in-place"
     "If true, performs updates (on some workloads) in place, rather than
     separating read and write operations."
+    :default false]
+
+   ["-i" "--use-index" "Whether to use indices, or read by primary key"
     :default false]
 
    ["-w" "--workload NAME" "Test workload to run"
