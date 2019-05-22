@@ -39,6 +39,11 @@
     :validate [#{:community-edition :enterprise-edition}
                "Either community-edition or enterprise edition"]]
 
+   [nil "--api NAME" "Database API to use, either ycql or ysql"
+    :parse-fn keyword
+    :validate [#{:ycql :ysql}]
+    :missing "Please specify --api to be either ycql or ysql"]
+
    [nil "--experimental-tuning-flags" "Enable some experimental tuning flags which are supposed to help YB recover faster"
     :default false]
 

@@ -5,7 +5,6 @@
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
-            [clojurewerkz.cassaforte.client :as cassandra]
             [clj-http.client :as http]
             [dom-top.core :as dt]
             [jepsen [control :as c]
@@ -22,6 +21,8 @@
 (def dir
   "Where we unpack the Yugabyte package"
   "/home/yugabyte")
+
+(def db-name "jepsen")
 
 (def master-log-dir  (str dir "/master/logs"))
 (def tserver-log-dir (str dir "/tserver/logs"))
@@ -183,7 +184,9 @@
   (start-tserver! db test node)
   (await-tservers test)
 
-  (yc/await-setup node)
+  (if (= (:api test) :ycql)
+    (yc/await-setup node)
+    ()) ; TODO: Fixme!
   :started)
 
 (defn stop! [db test node]
@@ -218,17 +221,6 @@
   [db]
   (kill! "yb-master")
   (stop-master! db))
-
-(defn wait-for-recovery
-  "Waits for the driver to report all nodes are up"
-  [timeout-secs conn]
-  (timeout (* 1000 timeout-secs)
-           (throw (RuntimeException.
-                    (str "Driver didn't report all nodes were up in "
-                         timeout-secs "s - failing")))
-           (while (->> (cassandra/get-hosts conn)
-                       (map :is-up) and not)
-             (Thread/sleep 500))))
 
 (defn version
   "Returns a map of version information by calling `bin/yb-master --version`,
@@ -300,6 +292,14 @@
    ;:--follower_unavailable_considered_failed_sec 10)
    ])
 
+(defn tserver-api-opts
+  "API-specific options for tserver"
+  [api node]
+  (if (= api :ysql)
+    [:--start_pgsql_proxy
+     :--pgsql_proxy_bind_address (cn/ip node)]
+    []))
+
 (def experimental-tuning-flags
   ; Speed up recovery from partitions and crashes. Right now it looks like
   ; these actually make the cluster slower to, or unable to, recover.
@@ -309,6 +309,28 @@
    :--rpc_default_keepalive_time_ms               5000
    :--rpc_connection_timeout_ms                   1500
    ])
+
+(defn cluster-wide-initdb!
+  "Run initdb on a single node to initialize the whole cluster,
+  doing exactly what yb-ctl does - except we don't restore env vars back."
+  [test]
+  ;(println " ================= ")
+  ;(let [env-vars-to-remove (->> (System/getenv)
+  ;                              (.keySet)
+  ;                              (seq)
+  ;                              (filter (fn [s] (or (= "LANG" s) (str/starts-with? s "LC_")))))]
+  ;  (doseq [v env-vars-to-remove]
+  ;    (println (c/exec* (str "echo \"Before: " v " = $" v "\"")))
+  ;    ;(c/exec :unset v)
+  ;    (println (c/exec* (str "unset " v)))
+  ;    (println (c/exec* (str "echo \"After:  " v " = $" v "\"")))))
+  ;(println " ================= ")
+  (pprint [" === Running initdb ==="])
+  (println (c/exec (str dir "/bin/yb-ctl")
+                   :--data_dir ce-data-dir
+                   :--master_addresses (master-addresses test)
+                   :run_initdb))
+  ())
 
 (defn stop-local-ntp-services!
   "Try to stop ntp/ntpd, because it won't let ntpdate to sync clocks."
@@ -341,7 +363,7 @@
                   (c/su (info "Post-install script")
                         (c/exec "./bin/post_install.sh")
 
-                        (c/exec :echo url (c/lit (str ">>" installed-url-file)))
+                        (c/exec :echo url :>> installed-url-file)
                         (info "Done with setup")))))))
 
     (start-master! [db test node]
@@ -356,6 +378,14 @@
                 experimental-tuning-flags)
               :--master_addresses   (master-addresses test)
               :--replication_factor (:replication-factor test)
+              ; ----------------------------------------------------------------------
+              :--rpc_slow_query_threshold_ms                  120000
+              :--retryable_rpc_single_call_timeout_ms         120000
+              :--client_read_write_timeout_ms                 120000
+              :--leader_failure_exp_backoff_max_delta_ms      120000
+              :--rpc_default_keepalive_time_ms                120000
+              :--rpc_connection_timeout_ms                    120000
+              ; ----------------------------------------------------------------------
               :--v 3)))
 
     (start-tserver! [db test node]
@@ -371,8 +401,19 @@
               :--tserver_master_addrs (master-addresses test)
               ; Tracing
               :--enable_tracing
-              :--rpc_slow_query_threshold_ms 1000
+;              :--rpc_slow_query_threshold_ms 1000
+              ; ----------------------------------------------------------------------
+              :--rpc_slow_query_threshold_ms                  120000
+              :--retryable_rpc_single_call_timeout_ms         120000
+              :--client_read_write_timeout_ms                 120000
+              :--leader_failure_exp_backoff_max_delta_ms      120000
+              :--rpc_default_keepalive_time_ms                120000
+              :--rpc_connection_timeout_ms                    120000
+              :--pg_yb_session_timeout_ms                     120000
+              ; ----------------------------------------------------------------------
               :--load_balancer_max_concurrent_adds 10
+              (tserver-api-opts (:api test) node)
+
               ; Heartbeats
               ;:--heartbeat_interval_ms 100
               ;:--heartbeat_rpc_timeout_ms 1500
@@ -402,6 +443,14 @@
     (teardown! [db test node]
       (stop! db test node)
       (wipe! db))
+
+    ; Primary node setup
+    db/Primary
+    (setup-primary! [this test node]
+      (pprint [" === this " this " ==="])
+      (pprint [" === test " test " ==="])
+      (pprint [" === node " node " ==="])
+      )
 
     db/LogFiles
     (log-files [_ _ _]

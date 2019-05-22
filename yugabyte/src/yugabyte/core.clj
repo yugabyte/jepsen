@@ -16,7 +16,8 @@
                       [multi-key-acid :as multi-key-acid]
                       [nemesis :as nemesis]
                       [single-key-acid :as single-key-acid]
-                      [set :as set]]) (:use [clojure.pprint]))
+                      [set :as set]]
+            [yugabyte.ysql.counter :as counter-ysql]))
 
 (def workloads
   "A map of workload names to functions that can take option maps and construct
@@ -25,6 +26,7 @@
    :bank              bank/workload
    :bank-multitable   bank/multitable-workload
    :counter           counter/workload
+   :counter-ysql      counter-ysql/workload ; TODO: make common workload and differentiate clients
    :long-fork         long-fork/workload
 
    :multi-key-acid    multi-key-acid/workload

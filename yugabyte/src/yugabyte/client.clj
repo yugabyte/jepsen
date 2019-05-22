@@ -5,7 +5,7 @@
                                      [policies :as policies]
                                      [cql :as cql]]
             [clojure.tools.logging :refer [info]]
-			      [clojure.pprint :refer [pprint]]
+            [clojure.pprint :refer [pprint]]
             [jepsen [util :as util]]
             [jepsen.control.net :as cn]
             [dom-top.core :as dt]
