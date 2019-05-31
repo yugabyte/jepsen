@@ -146,7 +146,7 @@
                               (throw (RuntimeException.
                                        (str "Connection to " node " timed out")))
                               (util/retry 0.1
-                                          ;(info " === Connecting to" (db-conn-spec node) "===")
+                                          (info " === Connecting to" (db-conn-spec node) "===")
                                           (let [spec  (db-conn-spec node)
                                                 conn  (j/get-connection spec)
                                                 spec' (j/add-connection spec conn)]

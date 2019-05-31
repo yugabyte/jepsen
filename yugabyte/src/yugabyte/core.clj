@@ -2,6 +2,7 @@
   "Integrates workloads, nemeses, and automation to construct test maps."
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
+            [clojure.pprint :refer [pprint]]
             [jepsen [checker :as checker]
                     [client :as client]
                     [generator :as gen]
@@ -17,22 +18,35 @@
                       [nemesis :as nemesis]
                       [single-key-acid :as single-key-acid]
                       [set :as set]]
+            [yugabyte.ycql.counter :as counter-ycql]
             [yugabyte.ysql.counter :as counter-ysql]))
 
 (def workloads
-  "A map of workload names to functions that can take option maps and construct
-  workloads."
-  {:none              (fn [opts] (merge tests/noop-test opts)) ; Just setup and teardown the DB
-   :bank              bank/workload
-   :bank-multitable   bank/multitable-workload
-   :counter           counter/workload
-   :counter-ysql      counter-ysql/workload ; TODO: make common workload and differentiate clients
-   :long-fork         long-fork/workload
+  "A map of workload names to functions that can take option maps and construct workloads.
+  Clients are contained in :clients map which contains map from API to a specific client"
+  (let [with-clients (fn [workload client-map]
+                       ; Wraps a workload function to add :clients entry to the result
+                       (fn [opts]
+                         (assoc (workload opts) :clients client-map)))
+        legacy       (fn [workload]
+                       ; Wraps a workload function to copy resulting :client as YCQL inside :clients
+                       (fn [opts]
+                         (let [w (workload opts)] (assoc w :clients {:ycql (:client w)}))))
+        noop-test    (legacy (fn [opts] (merge tests/noop-test opts)))]
 
-   :multi-key-acid    multi-key-acid/workload
-   :set               set/workload
-   :set-index         set/index-workload
-   :single-key-acid   single-key-acid/workload})
+    {:none            (legacy noop-test)
+     :bank            (legacy bank/workload)
+     :bank-multitable (legacy bank/multitable-workload)
+     :counter         (with-clients counter/workload
+                                    {:ycql (counter-ycql/->CQLCounterClient)
+                                     ; FIXME!!!!
+                                     :ysql (counter-ysql/->YSQLCounterClient nil)}) ; FIXME!!!!
+     :counter-ysql    (legacy counter/workload)
+     :long-fork       (legacy long-fork/workload)
+     :multi-key-acid  (legacy multi-key-acid/workload)
+     :set             (legacy set/workload)
+     :set-index       (legacy set/index-workload)
+     :single-key-acid (legacy single-key-acid/workload)}))
 
 (def workload-options
   "For each workload, a map of workload options to all the values that option
@@ -155,7 +169,10 @@
   "Second phase of test construction. Builds the workload and nemesis, and
   finalizes the test."
   [opts]
-  (let [workload ((get workloads (:workload opts)) opts)
+  (let [api      (:api opts)
+        workload ((get workloads (:workload opts)) opts)
+        client   (get (:clients workload) api)
+        workload (assoc workload :client client)
         nemesis  (nemesis/nemesis opts)
         gen      (->> (:generator workload)
                       (gen/nemesis (:generator nemesis))

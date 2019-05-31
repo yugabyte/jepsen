@@ -107,11 +107,11 @@
     :validate [core/workloads (cli/one-of core/workloads)]]])
 
 (def single-test-opts
-	"Command line options for single tests"
-	[["-w" "--workload NAME" "Test workload to run"
-		:parse-fn keyword
-		:missing (str "--workload " (cli/one-of core/workloads))
-		:validate [core/workloads (cli/one-of core/workloads)]]])
+  "Command line options for single tests"
+  [["-w" "--workload NAME" "Test workload to run"
+    :parse-fn keyword
+    :missing (str "--workload " (cli/one-of core/workloads))
+    :validate [core/workloads (cli/one-of core/workloads)]]])
 
 (defn log-test
   [t attempt]
@@ -119,41 +119,43 @@
   t)
 
 (defn test-all-cmd
-	"A command that runs a whole suite of tests in one go."
-	[]
-	{"test-all"
-	 {:opt-spec (concat cli/test-opt-spec cli-opts test-all-opts)
-		:opt-fn   cli/test-opt-fn
-		:usage    "Runs all tests"
-		:run      (fn [{:keys [options]}]
-								(info "CLI options:\n" (with-out-str (pprint options)))
-								(let [w             (:workload options)
-											workload-opts (if (:only-workloads-expected-to-pass options)
+  "A command that runs a whole suite of tests in one go."
+  []
+  {"test-all"
+   {:opt-spec (concat cli/test-opt-spec cli-opts test-all-opts)
+    :opt-fn   cli/test-opt-fn
+    :usage    "Runs all tests"
+    :run      (fn [{:keys [options]}]
+                (info "CLI options:\n" (with-out-str (pprint options)))
+                (let [api           (:api options)
+                      w             (:workload options)
+                      workload-opts (if (:only-workloads-expected-to-pass options)
                                       core/workload-options-expected-to-pass
                                       core/workload-options)
-											workloads (cond->> (core/all-workload-options
-                                           workload-opts)
-																	w (filter (comp #{w} :workload)))
-											tests (for [nemesis   core/all-nemeses
-                                  workload  workloads
-																	i         (range (:test-count options))]
-                              (-> options
-                                  (merge workload)
-                                  (update :nemesis merge nemesis)))
-                      results (->> tests
-                                   (map-indexed
-                                     (fn [i test-opts]
-                                       (let [test (core/yb-test test-opts)]
-                                         (try
-                                           (info "\n\n\nTest "
-                                                 (inc i) "/" (count tests))
-                                           (let [test' (jepsen/run! test)]
-                                             [(.getPath (store/path test'))
-                                              (:valid? (:results test'))])
-                                           (catch Exception e
-                                             (warn e "Test crashed")
-                                             [(:name test) :crashed])))))
-                                   (group-by second))]
+                      workloads     (cond->> (core/all-workload-options
+                                               workload-opts)
+                                             w (filter (comp #{w} :workload)))
+                      tests         (for [nemesis  core/all-nemeses
+                                          workload workloads
+                                          i        (range (:test-count options))]
+                                      (-> options
+                                          (merge workload)
+                                          (assoc :client (get (:clients workload) api))
+                                          (update :nemesis merge nemesis)))
+                      results       (->> tests
+                                         (map-indexed
+                                           (fn [i test-opts]
+                                             (let [test (core/yb-test test-opts)]
+                                               (try
+                                                 (info "\n\n\nTest "
+                                                       (inc i) "/" (count tests))
+                                                 (let [test' (jepsen/run! test)]
+                                                   [(.getPath (store/path test'))
+                                                    (:valid? (:results test'))])
+                                                 (catch Exception e
+                                                   (warn e "Test crashed")
+                                                   [(:name test) :crashed])))))
+                                         (group-by second))]
 
                   (println "\n")
 
@@ -174,10 +176,10 @@
                     (dorun (map (comp println first) (results false))))
 
                   (println)
-                  (println (count (results true))      "successes")
-                  (println (count (results :unknown))  "unknown")
-                  (println (count (results :crashed))  "crashed")
-                  (println (count (results false))     "failures")))}})
+                  (println (count (results true)) "successes")
+                  (println (count (results :unknown)) "unknown")
+                  (println (count (results :crashed)) "crashed")
+                  (println (count (results false)) "failures")))}})
 
 (defn -main
   "Handles CLI arguments"

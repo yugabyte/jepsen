@@ -409,7 +409,7 @@
               :--leader_failure_exp_backoff_max_delta_ms      120000
               :--rpc_default_keepalive_time_ms                120000
               :--rpc_connection_timeout_ms                    120000
-              :--pg_yb_session_timeout_ms                     120000
+              ;:--pg_yb_session_timeout_ms                     120000
               ; ----------------------------------------------------------------------
               :--load_balancer_max_concurrent_adds 10
               (tserver-api-opts (:api test) node)
