@@ -447,10 +447,11 @@
     ; Primary node setup
     db/Primary
     (setup-primary! [this test node]
+      ; NOOP placeholder
       (pprint [" === this " this " ==="])
       (pprint [" === test " test " ==="])
       (pprint [" === node " node " ==="])
-      )
+      ())
 
     db/LogFiles
     (log-files [_ _ _]

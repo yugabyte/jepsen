@@ -21,32 +21,40 @@
             [yugabyte.ycql.counter :as counter-ycql]
             [yugabyte.ysql.counter :as counter-ysql]))
 
-(def workloads
-  "A map of workload names to functions that can take option maps and construct workloads.
-  Clients are contained in :clients map which contains map from API to a specific client"
-  (let [with-clients (fn [workload client-map]
-                       ; Wraps a workload function to add :clients entry to the result
-                       (fn [opts]
-                         (assoc (workload opts) :clients client-map)))
-        legacy       (fn [workload]
-                       ; Wraps a workload function to copy resulting :client as YCQL inside :clients
-                       (fn [opts]
-                         (let [w (workload opts)] (assoc w :clients {:ycql (:client w)}))))
-        noop-test    (legacy (fn [opts] (merge tests/noop-test opts)))]
+(def noop-test (fn [opts] (merge tests/noop-test opts)))
 
-    {:none            (legacy noop-test)
-     :bank            (legacy bank/workload)
-     :bank-multitable (legacy bank/multitable-workload)
-     :counter         (with-clients counter/workload
-                                    {:ycql (counter-ycql/->CQLCounterClient)
-                                     ; FIXME!!!!
-                                     :ysql (counter-ysql/->YSQLCounterClient nil)}) ; FIXME!!!!
-     :counter-ysql    (legacy counter/workload)
-     :long-fork       (legacy long-fork/workload)
-     :multi-key-acid  (legacy multi-key-acid/workload)
-     :set             (legacy set/workload)
-     :set-index       (legacy set/index-workload)
-     :single-key-acid (legacy single-key-acid/workload)}))
+(defn with-client
+  [workload client]
+  "Wraps a workload function to add :client entry to the result"
+  (fn [opts] (assoc (workload opts) :client client)))
+
+(def workloads-ycql
+  "A map of workload names to functions that can take option maps and construct workloads."
+  {:none            noop-test
+   :bank            bank/workload
+   :bank-multitable bank/multitable-workload
+   :counter         (with-client counter/workload (counter-ycql/->CQLCounterClient))
+   :long-fork       long-fork/workload
+   :multi-key-acid  multi-key-acid/workload
+   :set             set/workload
+   :set-index       set/index-workload
+   :single-key-acid single-key-acid/workload})
+
+(def workloads-ysql
+  "A map of workload names to functions that can take option maps and construct workloads."
+  {:none            noop-test
+   :counter         (with-client counter/workload (counter-ysql/->YSQLCounterClient nil))})
+
+(def workloads-all-apis
+  {:ycql workloads-ycql
+   :ysql workloads-ysql})
+
+(def workload-names
+  (->> workloads-all-apis
+       (vals)
+       (map #(keys %))
+       (flatten)
+       (distinct)))
 
 (def workload-options
   "For each workload, a map of workload options to all the values that option
@@ -137,13 +145,13 @@
                vs))
      (list m))))
 
-(defn all-workload-options
-  "Expands workload-options into all possible CLI opts for each combination of
-  workload options."
-  [workload-options]
-  (mapcat (fn [[workload opts]]
-            (all-combos {:workload workload} opts))
-          workload-options))
+;(defn all-workload-options
+;  "Expands workload-options into all possible CLI opts for each combination of
+;  workload options."
+;  [workload-options]
+;  (mapcat (fn [[workload opts]]
+;            (all-combos {:workload workload} opts))
+;          workload-options))
 
 (defn test-1
   "Initial test construction from a map of CLI options. Establishes the test
@@ -169,52 +177,51 @@
   "Second phase of test construction. Builds the workload and nemesis, and
   finalizes the test."
   [opts]
-  (let [api      (:api opts)
-        workload ((get workloads (:workload opts)) opts)
-        client   (get (:clients workload) api)
-        workload (assoc workload :client client)
-        nemesis  (nemesis/nemesis opts)
-        gen      (->> (:generator workload)
-                      (gen/nemesis (:generator nemesis))
-                      (gen/time-limit (:time-limit opts)))
-        gen      (if (:final-generator workload)
-                   (gen/phases gen
-                               (gen/log "Healing cluster")
-                               (gen/nemesis (:final-generator nemesis))
-                               (gen/log "Waiting for recovery...")
-                               (gen/sleep (:final-recovery-time opts))
-                               (gen/clients (:final-generator workload)))
-                   gen)
-        perf     (checker/perf
-                   {:nemeses #{{:name       "kill master"
-                                :start      #{:kill-master :stop-master}
-                                :stop       #{:start-master}
-                                :fill-color "#E9A4A0"}
-                               {:name       "kill tserver"
-                                :start      #{:kill-tserver :stop-tserver}
-                                :stop       #{:start-tserver}
-                                :fill-color "#E9C3A0"}
-                               {:name       "pause master"
-                                :start      #{:pause-master}
-                                :stop       #{:resume-master}
-                                :fill-color "#A0B1E9"}
-                               {:name       "pause tserver"
-                                :start      #{:pause-tserver}
-                                :stop       #{:resume-tserver}
-                                :fill-color "#B8A0E9"}
-                               {:name       "clock skew"
-                                :start      #{:bump-clock :strobe-clock}
-                                :stop       #{:reset-clock}
-                                :fill-color "#D2E9A0"}
-                               {:name       "partition"
-                                :start      #{:start-partition}
-                                :stop       #{:stop-partition}
-                                :fill-color "#888888"}}})
-        checker  (if (= (:workload opts) :none)
-                   (:checker workload)
-                   (checker/compose {:perf     perf
-                                     :clock    (checker/clock-plot)
-                                     :workload (:checker workload)}))]
+  (let [api       (:api opts)
+        workloads (get workloads-all-apis api)
+        workload  ((get workloads (:workload opts)) opts)
+        nemesis   (nemesis/nemesis opts)
+        gen       (->> (:generator workload)
+                       (gen/nemesis (:generator nemesis))
+                       (gen/time-limit (:time-limit opts)))
+        gen       (if (:final-generator workload)
+                    (gen/phases gen
+                                (gen/log "Healing cluster")
+                                (gen/nemesis (:final-generator nemesis))
+                                (gen/log "Waiting for recovery...")
+                                (gen/sleep (:final-recovery-time opts))
+                                (gen/clients (:final-generator workload)))
+                    gen)
+        perf      (checker/perf
+                    {:nemeses #{{:name       "kill master"
+                                 :start      #{:kill-master :stop-master}
+                                 :stop       #{:start-master}
+                                 :fill-color "#E9A4A0"}
+                                {:name       "kill tserver"
+                                 :start      #{:kill-tserver :stop-tserver}
+                                 :stop       #{:start-tserver}
+                                 :fill-color "#E9C3A0"}
+                                {:name       "pause master"
+                                 :start      #{:pause-master}
+                                 :stop       #{:resume-master}
+                                 :fill-color "#A0B1E9"}
+                                {:name       "pause tserver"
+                                 :start      #{:pause-tserver}
+                                 :stop       #{:resume-tserver}
+                                 :fill-color "#B8A0E9"}
+                                {:name       "clock skew"
+                                 :start      #{:bump-clock :strobe-clock}
+                                 :stop       #{:reset-clock}
+                                 :fill-color "#D2E9A0"}
+                                {:name       "partition"
+                                 :start      #{:start-partition}
+                                 :stop       #{:stop-partition}
+                                 :fill-color "#888888"}}})
+        checker   (if (= (:workload opts) :none)
+                    (:checker workload)
+                    (checker/compose {:perf     perf
+                                      :clock    (checker/clock-plot)
+                                      :workload (:checker workload)}))]
     (merge tests/noop-test
            opts
            (dissoc workload

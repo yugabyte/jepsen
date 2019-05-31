@@ -104,19 +104,27 @@
     "Test workload to run. If omitted, runs all workloads"
     :parse-fn keyword
     :default nil
-    :validate [core/workloads (cli/one-of core/workloads)]]])
+    :validate [#(some #{%} core/workload-names) (cli/one-of core/workload-names)]]])
 
 (def single-test-opts
   "Command line options for single tests"
   [["-w" "--workload NAME" "Test workload to run"
     :parse-fn keyword
-    :missing (str "--workload " (cli/one-of core/workloads))
-    :validate [core/workloads (cli/one-of core/workloads)]]])
+    :missing (str "--workload " (cli/one-of core/workload-names))
+    :validate [#(some #{%} core/workload-names) (cli/one-of core/workload-names)]]])
 
 (defn log-test
   [t attempt]
   (info "Testing" (:name t) "attempt #" attempt)
   t)
+
+;(defn workload-for-api-or-bust
+;  "Jepsen has no multi-field validation, so we either retrieve"
+;  [workloads api]
+;  (let [value (get core/workloads-all-apis api)]
+;    (if-not (= value nil)
+;      value
+;      (throw (RuntimeException. (str "Workload '" w "' is not defined for an API '" api "'"))))))
 
 (defn test-all-cmd
   "A command that runs a whole suite of tests in one go."
@@ -128,13 +136,14 @@
     :run      (fn [{:keys [options]}]
                 (info "CLI options:\n" (with-out-str (pprint options)))
                 (let [api           (:api options)
-                      w             (:workload options)
-                      workload-opts (if (:only-workloads-expected-to-pass options)
-                                      core/workload-options-expected-to-pass
-                                      core/workload-options)
-                      workloads     (cond->> (core/all-workload-options
-                                               workload-opts)
-                                             w (filter (comp #{w} :workload)))
+                      w             (:workload options) ; FIXME: Unused?
+                      ;workload-opts (if (:only-workloads-expected-to-pass options)
+                      ;                core/workload-options-expected-to-pass
+                      ;                core/workload-options)
+                      ;workloads     (cond->> (core/all-workload-options
+                      ;                         workload-opts)
+                      ;                       w (filter (comp #{w} :workload)))
+                      workloads     (get core/workloads-all-apis api)
                       tests         (for [nemesis  core/all-nemeses
                                           workload workloads
                                           i        (range (:test-count options))]
