@@ -153,6 +153,15 @@
 ;            (all-combos {:workload workload} opts))
 ;          workload-options))
 
+(defn workload-for-api-or-bust
+  "Jepsen has no multi-field validation, so we either retrieve"
+  [w api]
+  (let [workloads-for-api (get workloads-all-apis api)
+        workload          (get workloads-for-api w)]
+    (if-not (= workload nil)
+      workload
+      (throw (RuntimeException. (str "Workload '" w "' is not defined for an API '" (name api) "'"))))))
+
 (defn test-1
   "Initial test construction from a map of CLI options. Establishes the test
   name, OS, DB."
@@ -177,9 +186,7 @@
   "Second phase of test construction. Builds the workload and nemesis, and
   finalizes the test."
   [opts]
-  (let [api       (:api opts)
-        workloads (get workloads-all-apis api)
-        workload  ((get workloads (:workload opts)) opts)
+  (let [workload  (workload-for-api-or-bust (:workload opts) (:api opts))
         nemesis   (nemesis/nemesis opts)
         gen       (->> (:generator workload)
                        (gen/nemesis (:generator nemesis))

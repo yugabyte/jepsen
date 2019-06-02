@@ -118,14 +118,6 @@
   (info "Testing" (:name t) "attempt #" attempt)
   t)
 
-;(defn workload-for-api-or-bust
-;  "Jepsen has no multi-field validation, so we either retrieve"
-;  [workloads api]
-;  (let [value (get core/workloads-all-apis api)]
-;    (if-not (= value nil)
-;      value
-;      (throw (RuntimeException. (str "Workload '" w "' is not defined for an API '" api "'"))))))
-
 (defn test-all-cmd
   "A command that runs a whole suite of tests in one go."
   []
