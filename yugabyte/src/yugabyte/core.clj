@@ -18,6 +18,7 @@
                       [nemesis :as nemesis]
                       [single-key-acid :as single-key-acid]
                       [set :as set]]
+            [yugabyte.utils :refer :all]
             [yugabyte.ycql.counter :as counter-ycql]
             [yugabyte.ysql.counter :as counter-ysql]))
 
@@ -30,49 +31,36 @@
 
 (def workloads-ycql
   "A map of workload names to functions that can take option maps and construct workloads."
-  {:none            noop-test
-   :bank            bank/workload
-   :bank-multitable bank/multitable-workload
-   :counter         (with-client counter/workload (counter-ycql/->CQLCounterClient))
-   :long-fork       long-fork/workload
-   :multi-key-acid  multi-key-acid/workload
-   :set             set/workload
-   :set-index       set/index-workload
-   :single-key-acid single-key-acid/workload})
+  #:ycql{:none            noop-test
+         :bank            bank/workload
+         :bank-multitable bank/multitable-workload
+         :counter         (with-client counter/workload (counter-ycql/->CQLCounterClient))
+         :long-fork       long-fork/workload
+         :multi-key-acid  multi-key-acid/workload
+         :set             set/workload
+         :set-index       set/index-workload
+         :single-key-acid single-key-acid/workload})
 
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."
-  {:none            noop-test
-   :counter         (with-client counter/workload (counter-ysql/->YSQLCounterClient nil))})
+  #:ysql{:none    noop-test
+         :counter (with-client counter/workload (counter-ysql/->YSQLCounterClient nil))})
 
-(def workloads-all-apis
-  {:ycql workloads-ycql
-   :ysql workloads-ysql})
-
-(def workload-names
-  (->> workloads-all-apis
-       (vals)
-       (map #(keys %))
-       (flatten)
-       (distinct)))
+(def workloads
+  (merge workloads-ycql workloads-ysql))
 
 (def workload-options
   "For each workload, a map of workload options to all the values that option
   supports. Used for test-all."
-  {:bank            {}
-   :bank-multitable {}
-   :counter         {}
-   :long-fork       {}
-   :multi-key-acid  {}
-   :set             {}
-   :set-index       {}
-   :single-key-acid {}})
+  ; If we ever need additional options - merge them onto this base set
+  (merge (map-values workloads-ycql (fn [_] {}))
+         (map-values workloads-ysql (fn [_] {}))))
 
 (def workload-options-expected-to-pass
   "Only workloads and options that we think should pass. Also used for
   test-all."
   (-> workload-options
-      (dissoc :bank-multitable)))
+      (dissoc :ycql/bank-multitable)))
 
 (def nemesis-specs
   "These are the types of failures that the nemesis can perform."
@@ -145,48 +133,39 @@
                vs))
      (list m))))
 
-;(defn all-workload-options
-;  "Expands workload-options into all possible CLI opts for each combination of
-;  workload options."
-;  [workload-options]
-;  (mapcat (fn [[workload opts]]
-;            (all-combos {:workload workload} opts))
-;          workload-options))
-
-(defn workload-for-api-or-bust
-  "Jepsen has no multi-field validation, so we either retrieve"
-  [w api]
-  (let [workloads-for-api (get workloads-all-apis api)
-        workload          (get workloads-for-api w)]
-    (if-not (= workload nil)
-      workload
-      (throw (RuntimeException. (str "Workload '" w "' is not defined for an API '" (name api) "'"))))))
+(defn all-workload-options
+  "Expands workload-options into all possible CLI opts for each combination of
+  workload options."
+  [workload-options]
+  (mapcat (fn [[workload opts]]
+            (all-combos {:workload workload} opts))
+          workload-options))
 
 (defn test-1
   "Initial test construction from a map of CLI options. Establishes the test
   name, OS, DB."
   [opts]
   (assoc opts
-         :name (str "yb " (:version opts)
-                    " " (name (:workload opts))
-                    (when-not (= [:interval] (keys (:nemesis opts)))
-                      (str " nemesis " (->> (dissoc (:nemesis opts) :interval)
-                                            keys
-                                            (map name)
-                                            sort
-                                            (str/join ",")))))
-         :os (case (:os opts)
-               :centos centos/os
-               :debian debian/os)
-         :db (case (:db opts)
-               :community-edition   (auto/community-edition)
-               :enterprise-edition  (auto/enterprise-edition))))
+    :name (str "yb " (:version opts)
+               " " (name (:workload opts))
+               (when-not (= [:interval] (keys (:nemesis opts)))
+                 (str " nemesis " (->> (dissoc (:nemesis opts) :interval)
+                                       keys
+                                       (map name)
+                                       sort
+                                       (str/join ",")))))
+    :os (case (:os opts)
+          :centos centos/os
+          :debian debian/os)
+    :db (case (:db opts)
+          :community-edition (auto/community-edition)
+          :enterprise-edition (auto/enterprise-edition))))
 
 (defn test-2
   "Second phase of test construction. Builds the workload and nemesis, and
   finalizes the test."
   [opts]
-  (let [workload  (workload-for-api-or-bust (:workload opts) (:api opts))
+  (let [workload  ((get workloads (:workload opts)) opts)
         nemesis   (nemesis/nemesis opts)
         gen       (->> (:generator workload)
                        (gen/nemesis (:generator nemesis))

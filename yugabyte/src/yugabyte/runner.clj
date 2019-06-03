@@ -22,11 +22,32 @@
          (map (fn [o] [(keyword o) true]))
          (into {}))))
 
+(defn one-of
+  "Like jepsen.cli/one-of but doesn't 'eat' namespaces"
+  [coll]
+  (let [stringify      (fn [s] (if (qualified-keyword? s)
+                                 (str (namespace s) "/" (name s))
+                                 (name s)))
+        coll-keys      (if (map? coll) (keys coll) coll)
+        coll-key-names (sort (map stringify coll-keys))]
+    (str "Must be one of " (str/join ", " coll-key-names))))
+
+
+(defn log-test
+  [t attempt]
+  (info "Testing" (:name t) "attempt #" attempt)
+  t)
+
+;
 ; Options
+;
+; For the options format, see clojure.tools.cli/parse-opts
+;
+
 (def cli-opts
   "Options for single or multiple tests."
   [["-o" "--os NAME" "Operating system: either centos or debian."
-    :default  :centos
+    :default :centos
     :parse-fn keyword
     :validate [#{:centos :debian} "One of `centos` or `debian`"]]
 
@@ -38,11 +59,6 @@
                "enterprise-edition" :enterprise-edition}
     :validate [#{:community-edition :enterprise-edition}
                "Either community-edition or enterprise edition"]]
-
-   [nil "--api NAME" "Database API to use, either ycql or ysql"
-    :parse-fn keyword
-    :validate [#{:ycql :ysql}]
-    :missing "Please specify --api to be either ycql or ysql"]
 
    [nil "--experimental-tuning-flags" "Enable some experimental tuning flags which are supposed to help YB recover faster"
     :default false]
@@ -104,19 +120,18 @@
     "Test workload to run. If omitted, runs all workloads"
     :parse-fn keyword
     :default nil
-    :validate [#(some #{%} core/workload-names) (cli/one-of core/workload-names)]]])
+    :validate [core/workloads (one-of core/workloads)]]])
 
 (def single-test-opts
   "Command line options for single tests"
   [["-w" "--workload NAME" "Test workload to run"
     :parse-fn keyword
-    :missing (str "--workload " (cli/one-of core/workload-names))
-    :validate [#(some #{%} core/workload-names) (cli/one-of core/workload-names)]]])
+    :missing (str "--workload " (one-of core/workloads))
+    :validate [core/workloads (one-of core/workloads)]]])
 
-(defn log-test
-  [t attempt]
-  (info "Testing" (:name t) "attempt #" attempt)
-  t)
+;
+; Subcommands
+;
 
 (defn test-all-cmd
   "A command that runs a whole suite of tests in one go."
@@ -127,21 +142,18 @@
     :usage    "Runs all tests"
     :run      (fn [{:keys [options]}]
                 (info "CLI options:\n" (with-out-str (pprint options)))
-                (let [api           (:api options)
-                      w             (:workload options) ; FIXME: Unused?
-                      ;workload-opts (if (:only-workloads-expected-to-pass options)
-                      ;                core/workload-options-expected-to-pass
-                      ;                core/workload-options)
-                      ;workloads     (cond->> (core/all-workload-options
-                      ;                         workload-opts)
-                      ;                       w (filter (comp #{w} :workload)))
-                      workloads     (get core/workloads-all-apis api)
+                (let [w             (:workload options)
+                      workload-opts (if (:only-workloads-expected-to-pass options)
+                                      core/workload-options-expected-to-pass
+                                      core/workload-options)
+                      workloads     (cond->> (core/all-workload-options
+                                               workload-opts)
+                                             w (filter (comp #{w} :workload)))
                       tests         (for [nemesis  core/all-nemeses
                                           workload workloads
                                           i        (range (:test-count options))]
                                       (-> options
                                           (merge workload)
-                                          (assoc :client (get (:clients workload) api))
                                           (update :nemesis merge nemesis)))
                       results       (->> tests
                                          (map-indexed
