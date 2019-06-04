@@ -7,7 +7,7 @@
             [clojurewerkz.cassaforte [client :as cass]
                                      [query :as q]
                                      [cql :as cql]]
-            [yugabyte [client :as c]]))
+            [yugabyte.ycql.client :as c]))
 
 (def keyspace "jepsen")
 (def table "elements")

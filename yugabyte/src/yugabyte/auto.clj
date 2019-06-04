@@ -14,7 +14,7 @@
                             [util :as cu]]
             [jepsen.os [debian :as debian]
                        [centos :as centos]]
-            [yugabyte.client :as yc])
+            [yugabyte.ycql.client])
   (:import jepsen.os.debian.Debian
            jepsen.os.centos.CentOS))
 
@@ -177,6 +177,7 @@
 (defn start! [db test node]
   "Start both master and tserver. Only starts master if this node is a master
   node. Waits for masters and tservers."
+  (info "Starting master and tserver for" (name (:api test)) "API")
   (when (master-node? test node)
     (start-master! db test node)
     (await-masters test))
@@ -184,9 +185,10 @@
   (start-tserver! db test node)
   (await-tservers test)
 
+  ; FIXME!
   (if (= (:api test) :ycql)
-    (yc/await-setup node)
-    ()) ; TODO: Fixme!
+    (yugabyte.ycql.client/await-setup node)
+    ())
   :started)
 
 (defn stop! [db test node]
@@ -448,9 +450,6 @@
     db/Primary
     (setup-primary! [this test node]
       ; NOOP placeholder
-      (pprint [" === this " this " ==="])
-      (pprint [" === test " test " ==="])
-      (pprint [" === node " node " ==="])
       ())
 
     db/LogFiles

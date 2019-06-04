@@ -11,7 +11,7 @@
                                      [query :refer :all]
                                      [policies :refer :all]
                                      [cql :as cql]]
-            [yugabyte [client :as c]]))
+            [yugabyte.ycql.client :as c]))
 
 (def keyspace "jepsen")
 (def table-name "single_key_acid")

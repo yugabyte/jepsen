@@ -1,4 +1,4 @@
-(ns yugabyte.client
+(ns yugabyte.ycql.client
   "Helper functions for working with Cassaforte clients."
   (:require [clojurewerkz.cassaforte [client :as c]
                                      [query :as q]

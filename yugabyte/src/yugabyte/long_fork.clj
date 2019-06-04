@@ -9,7 +9,7 @@
             [jepsen [checker    :as checker]
                     [generator  :as gen]]
             [jepsen.tests.long-fork :as lf]
-            [yugabyte [client :as c]]))
+            [yugabyte.ycql.client :as c]))
 
 (def keyspace "jepsen")
 (def table "long_fork")

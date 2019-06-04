@@ -12,7 +12,7 @@
             [clojurewerkz.cassaforte [client :as cassandra]
              [query :as q :refer :all]
              [cql   :as cql]]
-            [yugabyte [client :as c]]))
+            [yugabyte.ycql.client :as c]))
 
 (def setup-lock (Object.))
 (def keyspace   "jepsen")

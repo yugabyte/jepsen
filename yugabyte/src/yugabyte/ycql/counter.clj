@@ -5,7 +5,7 @@
             [clojurewerkz.cassaforte.query :refer :all]
             [clojurewerkz.cassaforte.policies :refer :all]
             [clojurewerkz.cassaforte.cql :as cql]
-            [yugabyte [client :as c]]))
+            [yugabyte.ycql.client :as c]))
 
 (def table-name "counter")
 (def keyspace "jepsen")

@@ -29,6 +29,11 @@
   "Wraps a workload function to add :client entry to the result"
   (fn [opts] (assoc (workload opts) :client client)))
 
+(defn is-stub-workload
+  "Whether workload defined by the given keyword is a real one, or just a stub"
+  [w]
+  (not (= (name w) "none")))
+
 (def workloads-ycql
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ycql{:none            noop-test
@@ -167,6 +172,7 @@
   [opts]
   (let [workload  ((get workloads (:workload opts)) opts)
         nemesis   (nemesis/nemesis opts)
+        api       (keyword (namespace (:workload opts)))
         gen       (->> (:generator workload)
                        (gen/nemesis (:generator nemesis))
                        (gen/time-limit (:time-limit opts)))
@@ -203,11 +209,11 @@
                                  :start      #{:start-partition}
                                  :stop       #{:stop-partition}
                                  :fill-color "#888888"}}})
-        checker   (if (= (:workload opts) :none)
-                    (:checker workload)
+        checker   (if (is-stub-workload (:workload opts))
                     (checker/compose {:perf     perf
                                       :clock    (checker/clock-plot)
-                                      :workload (:checker workload)}))]
+                                      :workload (:checker workload)})
+                    (:checker workload))]
     (merge tests/noop-test
            opts
            (dissoc workload
@@ -216,7 +222,8 @@
                    :checker)
            (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
            (when (:trace-cql opts)    (trace-logging))
-           {:client    (:client workload)
+           {:api       api
+            :client    (:client workload)
             :nemesis   (:nemesis nemesis)
             :generator gen
             :checker   checker})))
