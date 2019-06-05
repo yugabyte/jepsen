@@ -63,7 +63,7 @@
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ysql{:none    noop-test
          :sleep   sleep-test
-         :counter (with-client counter/workload (counter-ysql/->YSQLCounterClient nil))})
+         :counter (with-client counter/workload (counter-ysql/->YSQLCounterClient (atom false) nil))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))

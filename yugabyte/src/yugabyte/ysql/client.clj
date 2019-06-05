@@ -1,27 +1,23 @@
 (ns yugabyte.ysql.client
   "Helper functions for working with Cassaforte clients."
-  (:require [clojurewerkz.cassaforte [client :as c]
-             [query :as q]
-             [policies :as policies]
-             [cql :as cql]]
-            [clojure.java.jdbc :as j]
+  (:require [clojure.java.jdbc :as j]
             [clojure.pprint :refer [pprint]]
             [clojure.string :as str]
-            [clojure.tools.logging :refer [info]]
+            [clojure.tools.logging :refer [info warn]]
             [jepsen.util :as util]
             [jepsen.control.net :as cn]
             [jepsen.reconnect :as rc]
             [dom-top.core :as dt]
             [wall.hack :as wh]
-            [slingshot.slingshot :refer [try+ throw+]]
-            [yugabyte.auto :refer [db-name]]))
+            [slingshot.slingshot :refer [try+ throw+]]))
 
-(def timeout-delay "Default timeout for operations in ms" 10000)
-(def max-timeout "Longest timeout, in ms" 30000)
+(def timeout-delay "Default timeout for operations in ms" 20000)
+(def max-timeout "Longest timeout, in ms" 40000)
 
 (def isolation-level "Default isolation level for txns" :serializable)
 
 (def ysql-port 5433)
+(def db-name "jepsen")
 
 ;(defmacro with-retry
 ;  "Retries CQL unavailable/timeout errors for up to 120 seconds. Helpful for
@@ -115,11 +111,11 @@
 ;           (assoc ~op :type crash#, :error [:rpc-timed-out (.getMessage e#)])
 ;           (throw e#))))))
 
-(defn db-conn-spec
+(defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
   [node]
   {:dbtype         "postgresql"
-   :dbname         db-name
+   :dbname         "postgres"
    :classname      "org.postgresql.Driver"
    :host           (name node)
    :port           ysql-port
@@ -136,11 +132,20 @@
     (.close c))
   (dissoc conn :connection))
 
+(defn setup-primary
+  "Initializes the primary node, creating a database"
+  [node]
+  ;(j/execute! (db-spec node) (str "CREATE DATABASE " db-name) {:transaction? false})
+  (let [spec  (assoc (db-spec node) :dbname "")
+        conn  (j/get-connection spec)
+        spec' (assoc spec :connection conn)]
+    (j/db-do-commands spec' false (str "CREATE DATABASE " db-name))
+    (.close conn))
+  (info " === yay! === "))
+
 (defn client
   "Constructs a network client for a node, and opens it"
   [node]
-  (info " === (defn client === " node)
-
   (rc/open!
     (rc/wrapper
       {:name  node
@@ -148,15 +153,23 @@
                 (util/timeout max-timeout
                               (throw (RuntimeException.
                                        (str "Connection to " node " timed out")))
-                              (util/retry 1.1
-                                          (info " === Connecting to" (db-conn-spec node) "===")
-                                          (let [spec  (db-conn-spec node)
+                              (util/retry 0.1
+                                          (let [spec  (db-spec node)
                                                 conn  (j/get-connection spec)
                                                 spec' (j/add-connection spec conn)]
                                             (assert spec')
                                             spec'))))
        :close close-conn
        :log?  true})))
+
+(defmacro setup-once
+  "Runs the setup code once per cluster. Requires an atomic boolean (set to false)
+  shared across clients.
+  This is needed mainly because concurrent DDL is not supported and results in an error."
+  [atomic-bool & body]
+  `(locking ~atomic-bool
+     (when (compare-and-set! ~atomic-bool false true)
+       ~@body)))
 
 (defn drop-table [c table-name]
   (j/execute! c [(str "DROP TABLE " table-name)]))
@@ -252,46 +265,52 @@
   ...}. nil if unrecognized."
   [e]
   (when-let [m (.getMessage e)]
-    (condp instance? e
-      java.sql.SQLTransactionRollbackException
-      {:type :fail, :error [:rollback m]}
+    (let [cn (.getCanonicalName (.getClass e))]
+      (if (.contains cn "java.lang.")
+        ; If this happens - test is likely written badly, we need to report this an :fail
+        (do (warn e)
+            {:type :fail :error [:class-name cn :message m]}
+            (throw e))
+        (condp instance? e
+          java.sql.SQLTransactionRollbackException
+          {:type :fail, :error [:rollback m]}
 
-      java.sql.BatchUpdateException
-      (if (re-find #"getNextExc" m)
-        ; Wrap underlying exception error with [:batch ...]
-        (when-let [op (exception->op (.getNextException e))]
-          (update op :error (partial vector :batch)))
-        {:type :info, :error [:batch-update m]})
+          java.sql.BatchUpdateException
+          (if (re-find #"getNextExc" m)
+            ; Wrap underlying exception error with [:batch ...]
+            (when-let [op (exception->op (.getNextException e))]
+              (update op :error (partial vector :batch)))
+            {:type :info, :error [:batch-update m]})
 
-      org.postgresql.util.PSQLException
-      (condp re-find (.getMessage e)
-        #"Connection .+? refused"
-        {:type :fail, :error :connection-refused}
+          org.postgresql.util.PSQLException
+          (condp re-find (.getMessage e)
+            #"Connection .+? refused"
+            {:type :fail, :error :connection-refused}
 
-        #"context deadline exceeded"
-        {:type :fail, :error :context-deadline-exceeded}
+            #"context deadline exceeded"
+            {:type :fail, :error :context-deadline-exceeded}
 
-        #"rejecting command with timestamp in the future"
-        {:type :fail, :error :reject-command-future-timestamp}
+            #"rejecting command with timestamp in the future"
+            {:type :fail, :error :reject-command-future-timestamp}
 
-        #"encountered previous write with future timestamp"
-        {:type :fail, :error :previous-write-future-timestamp}
+            #"encountered previous write with future timestamp"
+            {:type :fail, :error :previous-write-future-timestamp}
 
-        #"restart transaction"
-        {:type :fail, :error [:restart-transaction m]}
+            #"restart transaction"
+            {:type :fail, :error [:restart-transaction m]}
 
-        {:type :info, :error [:psql-exception m]})
+            {:type :info, :error [:psql-exception m]})
 
-      clojure.lang.ExceptionInfo
-      (condp = (:type (ex-data e))
-        :conn-not-ready {:type :fail, :error :conn-not-ready}
-        nil)
+          clojure.lang.ExceptionInfo
+          (condp = (:type (ex-data e))
+            :conn-not-ready {:type :fail, :error :conn-not-ready}
+            nil)
 
-      (condp re-find m
-        #"^timeout$"
-        {:type :info, :error :timeout}
+          (condp re-find m
+            #"^timeout$"
+            {:type :info, :error :timeout}
 
-        nil))))
+            nil))))))
 
 
 (defmacro with-exception->op
@@ -354,63 +373,3 @@
   (j/update! conn table values where {:timeout timeout-delay}))
 
 
-;(defn await-setup
-;  "Used at the start of a test. Takes a node, opens a connection to it, and
-;  evalulates some basic commands to make sure the cluster is ready to accept
-;  requests. Retries when necessary."
-;  [node]
-;  (let [max-tries 1000]
-;    (dt/with-retry [tries max-tries]
-;      (when (< 0 tries max-tries)
-;        (Thread/sleep 1000))
-;
-;      (when (zero? tries)
-;        (info "Zero?, tries " tries)
-;        (throw (RuntimeException.
-;                 "Client gave up waiting for cluster setup.")))
-;
-;      (let [conn (connect node)]
-;        (try
-;          ; We need to do this serially to avoid a race in table creation
-;          (locking await-setup
-;            ; This... doesn't actually seem to guarantee that subsequent
-;            ; attempts to create keyspaces, tables, and rows will work. Grrr.
-;            (cql/create-keyspace conn "jepsen_setup"
-;                                 (q/if-not-exists)
-;                                 (q/with
-;                                   {:replication
-;                                    {"class"              "SimpleStrategy"
-;                                     "replication_factor" 3}}))
-;
-;            (execute-with-timeout!
-;              conn 10000
-;              (str "CREATE TABLE IF NOT EXISTS jepsen_setup.waiting"
-;                   " (id INT PRIMARY KEY, balance BIGINT)"
-;                   " WITH transactions = { 'enabled': true }"))
-;
-;            (cql/insert-with-ks conn "jepsen_setup" "waiting"
-;                                {:id 0, :balance 5}))
-;          (info "Cluster ready")
-;
-;          (finally
-;            (c/disconnect! conn))))
-;
-;      (catch com.datastax.driver.core.exceptions.InvalidQueryException e
-;        (condp re-find (.getMessage e)
-;          #"num_tablets should be greater than 0"
-;          (do (info "Waiting for cluster setup: num_tablets was 0")
-;              (retry (dec tries)))
-;
-;          #"Not enough live tablet servers to create table with replication factor"
-;          (do (info "Waiting for cluster setup: Not enough live tablet servers")
-;              (retry (dec tries)))
-;
-;          (throw e)))
-;
-;      (catch OperationTimedOutException e
-;        (info "Waiting for cluster setup: Timed out")
-;        (retry (dec tries)))
-;
-;      (catch NoHostAvailableException e
-;        (info "Waiting for cluster setup: No host available")
-;        (retry (dec tries))))))

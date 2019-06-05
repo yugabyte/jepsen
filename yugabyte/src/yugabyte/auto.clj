@@ -14,7 +14,8 @@
                             [util :as cu]]
             [jepsen.os [debian :as debian]
                        [centos :as centos]]
-            [yugabyte.ycql.client])
+            [yugabyte.ycql.client]
+            [yugabyte.ysql.client])
   (:import jepsen.os.debian.Debian
            jepsen.os.centos.CentOS))
 
@@ -22,17 +23,15 @@
   "Where we unpack the Yugabyte package"
   "/home/yugabyte")
 
-(def db-name "jepsen")
-
 (def master-log-dir  (str dir "/master/logs"))
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def tserver-conf    (str dir "/tserver/conf/server.conf"))
 (def installed-url-file (str dir "/installed-url"))
 
 (def max-bump-time-ops-per-test
-   "Upper bound on number of bump time ops per test, needed to estimate max
-   clock skew between servers"
-   100)
+  "Upper bound on number of bump time ops per test, needed to estimate max
+  clock skew between servers"
+  100)
 
 ; OS-level polymorphic functions for Yugabyte
 (defprotocol OS
@@ -312,28 +311,6 @@
    :--rpc_connection_timeout_ms                   1500
    ])
 
-(defn cluster-wide-initdb!
-  "Run initdb on a single node to initialize the whole cluster,
-  doing exactly what yb-ctl does - except we don't restore env vars back."
-  [test]
-  ;(println " ================= ")
-  ;(let [env-vars-to-remove (->> (System/getenv)
-  ;                              (.keySet)
-  ;                              (seq)
-  ;                              (filter (fn [s] (or (= "LANG" s) (str/starts-with? s "LC_")))))]
-  ;  (doseq [v env-vars-to-remove]
-  ;    (println (c/exec* (str "echo \"Before: " v " = $" v "\"")))
-  ;    ;(c/exec :unset v)
-  ;    (println (c/exec* (str "unset " v)))
-  ;    (println (c/exec* (str "echo \"After:  " v " = $" v "\"")))))
-  ;(println " ================= ")
-  (pprint [" === Running initdb ==="])
-  (println (c/exec (str dir "/bin/yb-ctl")
-                   :--data_dir ce-data-dir
-                   :--master_addresses (master-addresses test)
-                   :run_initdb))
-  ())
-
 (defn stop-local-ntp-services!
   "Try to stop ntp/ntpd, because it won't let ntpdate to sync clocks."
   []
@@ -352,7 +329,7 @@
         (c/cd dir
               ; Post-install takes forever, so let's try and skip this on
               ; subsequent runs
-              (let [url (or (:url test) (get-ce-url (:version test)))
+              (let [url           (or (:url test) (get-ce-url (:version test)))
                     installed-url (get-installed-url)]
                 (when-not (= url installed-url)
                   (info "Replacing version" installed-url "with" url)
@@ -380,15 +357,15 @@
                 experimental-tuning-flags)
               :--master_addresses   (master-addresses test)
               :--replication_factor (:replication-factor test)
-              ; ----------------------------------------------------------------------
-              :--rpc_slow_query_threshold_ms                  120000
-              :--retryable_rpc_single_call_timeout_ms         120000
-              :--client_read_write_timeout_ms                 120000
-              :--leader_failure_exp_backoff_max_delta_ms      120000
-              :--rpc_default_keepalive_time_ms                120000
-              :--rpc_connection_timeout_ms                    120000
-              ; ----------------------------------------------------------------------
-              :--v 3)))
+              ;; ----------------------------------------------------------------------
+              ;:--rpc_slow_query_threshold_ms                  120000
+              ;:--retryable_rpc_single_call_timeout_ms         120000
+              ;:--client_read_write_timeout_ms                 120000
+              ;:--leader_failure_exp_backoff_max_delta_ms      120000
+              ;:--rpc_default_keepalive_time_ms                120000
+              ;:--rpc_connection_timeout_ms                    120000
+              ;; ----------------------------------------------------------------------
+              )))
 
     (start-tserver! [db test node]
       (c/su (c/exec :mkdir :-p ce-tserver-log-dir)
@@ -403,16 +380,16 @@
               :--tserver_master_addrs (master-addresses test)
               ; Tracing
               :--enable_tracing
-;              :--rpc_slow_query_threshold_ms 1000
-              ; ----------------------------------------------------------------------
-              :--rpc_slow_query_threshold_ms                  120000
-              :--retryable_rpc_single_call_timeout_ms         120000
-              :--client_read_write_timeout_ms                 120000
-              :--leader_failure_exp_backoff_max_delta_ms      120000
-              :--rpc_default_keepalive_time_ms                120000
-              :--rpc_connection_timeout_ms                    120000
-              ;:--pg_yb_session_timeout_ms                     120000
-              ; ----------------------------------------------------------------------
+              :--rpc_slow_query_threshold_ms 1000
+              ;; ----------------------------------------------------------------------
+              ;:--rpc_slow_query_threshold_ms                  120000
+              ;:--retryable_rpc_single_call_timeout_ms         120000
+              ;:--client_read_write_timeout_ms                 120000
+              ;:--leader_failure_exp_backoff_max_delta_ms      120000
+              ;:--rpc_default_keepalive_time_ms                120000
+              ;:--rpc_connection_timeout_ms                    120000
+              ;;:--pg_yb_session_timeout_ms                     120000
+              ;; ----------------------------------------------------------------------
               :--load_balancer_max_concurrent_adds 10
               (tserver-api-opts (:api test) node)
 
@@ -449,8 +426,10 @@
     ; Primary node setup
     db/Primary
     (setup-primary! [this test node]
-      ; NOOP placeholder
-      ())
+      (case (:api test)
+        :ycql ()                                            ; NOOP
+        :ysql () ;yugabyte.ysql.client/setup-primary node)
+        ))
 
     db/LogFiles
     (log-files [_ _ _]

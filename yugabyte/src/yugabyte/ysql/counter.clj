@@ -1,29 +1,28 @@
 (ns yugabyte.ysql.counter
+  "Something like YCQL 'counter' test. SQL does not have counter type though, so we just use int."
   (:require [clojure.tools.logging :refer [debug info warn]]
             [jepsen.client :as client]
             [jepsen.reconnect :as rc]
+            [jepsen.util :refer [meh]]
             [clojure.java.jdbc :as j]
             [yugabyte.ysql.client :as c]))
 
 (def table-name "counter")
 
-(defrecord YSQLCounterClient [conn]
+(defrecord YSQLCounterClient [tbl-created? conn]
   client/Client
 
   (open! [this test node]
-    (info " === Open conn... ===")
-    (assoc node :conn (c/client node)))
+    (assoc this :conn (c/client node)))
 
   (setup! [this test]
-    (info " === Setup running... ===")
-    (c/with-conn [c conn]
-                 (info " === j/execute! ===")
-                 (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
-                                                               [:count :counter]]))
+    (c/setup-once tbl-created?
+                  (c/with-conn [c conn]
+                               (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
+                                                                             [:count :int]]))
 
-                 (info " === c/update! ===")
-                 (c/update! c table-name {:count "count + 1"} ["id = ?" 0])
-                 (info " === Setup done! ===")))
+                               (c/insert! c table-name {:id 0 :count 1}))))
+
 
   (invoke! [this test op]
     (c/with-exception->op op
@@ -40,8 +39,8 @@
 
   (teardown! [this test]
     (c/with-timeout
-      (c/with-conn [c conn]
-                   (c/drop-table c table-name))))
+      (meh (c/with-conn [c conn]
+                        (c/drop-table c table-name)))))
 
   (close! [this test]
     (rc/close! conn)))
