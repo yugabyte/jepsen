@@ -3,26 +3,39 @@
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
-            [jepsen [checker :as checker]
-                    [client :as client]
-                    [generator :as gen]
-                    [tests :as tests]]
+            [jepsen.checker :as checker]
+            [jepsen.client :as client]
+            [jepsen.generator :as gen]
+            [jepsen.tests :as tests]
             [jepsen.control.util :as cu]
-            [jepsen.os [debian :as debian]
-                       [centos :as centos]]
-            [yugabyte [auto :as auto]
-                      [bank :as bank]
-                      [counter :as counter]
-                      [long-fork :as long-fork]
-                      [multi-key-acid :as multi-key-acid]
-                      [nemesis :as nemesis]
-                      [single-key-acid :as single-key-acid]
-                      [set :as set]]
+            [jepsen.os.debian :as debian]
+            [jepsen.os.centos :as centos]
+            [yugabyte.auto :as auto]
+            [yugabyte.bank :as bank]
+            [yugabyte.counter :as counter]
+            [yugabyte.long-fork :as long-fork]
+            [yugabyte.multi-key-acid :as multi-key-acid]
+            [yugabyte.nemesis :as nemesis]
+            [yugabyte.single-key-acid :as single-key-acid]
+            [yugabyte.set :as set]
             [yugabyte.utils :refer :all]
             [yugabyte.ycql.counter :as counter-ycql]
-            [yugabyte.ysql.counter :as counter-ysql]))
+            [yugabyte.ysql.counter :as counter-ysql])
+  (:import (jepsen.client Client)))
 
 (def noop-test (fn [opts] (merge tests/noop-test opts)))
+
+(def sleep-test
+  (fn [opts] (merge tests/noop-test
+                    {:client (reify Client
+                               (setup! [this test]
+                                 (let [wait-sec 120] (info " === Sleeping for" wait-sec "s ===")
+                                                     (Thread/sleep (* wait-sec 1000))))
+                               (teardown! [this test])
+                               (invoke! [this test op] (assoc op :type :ok))
+                               (open! [this test node] this)
+                               (close! [this test]))}
+                    opts)))
 
 (defn with-client
   [workload client]
@@ -32,7 +45,7 @@
 (defn is-stub-workload
   "Whether workload defined by the given keyword is a real one, or just a stub"
   [w]
-  (not (= (name w) "none")))
+  (not (or (= (name w) "none") (= (name w) "sleep"))))
 
 (def workloads-ycql
   "A map of workload names to functions that can take option maps and construct workloads."
@@ -49,6 +62,7 @@
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ysql{:none    noop-test
+         :sleep   sleep-test
          :counter (with-client counter/workload (counter-ysql/->YSQLCounterClient nil))})
 
 (def workloads
@@ -86,13 +100,13 @@
 
 (def all-nemeses
   "All nemesis specs to run as a part of a complete test suite."
-  (->> [[] ; No faults
-        [:kill-tserver] ; Just tserver
-        [:kill-master]  ; Just master
-        [:pause-tserver] ; Just pause tserver
-        [:pause-master] ; Just pause master
-        [:clock-skew]   ; Just clocks
-        [:partition-one ; Just partitions
+  (->> [[]                                                  ; No faults
+        [:kill-tserver]                                     ; Just tserver
+        [:kill-master]                                      ; Just master
+        [:pause-tserver]                                    ; Just pause tserver
+        [:pause-master]                                     ; Just pause master
+        [:clock-skew]                                       ; Just clocks
+        [:partition-one                                     ; Just partitions
          :partition-half
          :partition-ring]
         [:kill-tserver
@@ -113,8 +127,8 @@
   {:ssh {:port                     54422
          :strict-host-key-checking false
          :username                 "yugabyte"
-         :private-key-path (str (System/getenv "HOME")
-                                "/.yugabyte/yugabyte-dev-aws-keypair.pem")}})
+         :private-key-path         (str (System/getenv "HOME")
+                                        "/.yugabyte/yugabyte-dev-aws-keypair.pem")}})
 
 (def trace-logging
   "Logging configuration for the test which sets up traces for queries."
@@ -170,50 +184,50 @@
   "Second phase of test construction. Builds the workload and nemesis, and
   finalizes the test."
   [opts]
-  (let [workload  ((get workloads (:workload opts)) opts)
-        nemesis   (nemesis/nemesis opts)
-        api       (keyword (namespace (:workload opts)))
-        gen       (->> (:generator workload)
-                       (gen/nemesis (:generator nemesis))
-                       (gen/time-limit (:time-limit opts)))
-        gen       (if (:final-generator workload)
-                    (gen/phases gen
-                                (gen/log "Healing cluster")
-                                (gen/nemesis (:final-generator nemesis))
-                                (gen/log "Waiting for recovery...")
-                                (gen/sleep (:final-recovery-time opts))
-                                (gen/clients (:final-generator workload)))
-                    gen)
-        perf      (checker/perf
-                    {:nemeses #{{:name       "kill master"
-                                 :start      #{:kill-master :stop-master}
-                                 :stop       #{:start-master}
-                                 :fill-color "#E9A4A0"}
-                                {:name       "kill tserver"
-                                 :start      #{:kill-tserver :stop-tserver}
-                                 :stop       #{:start-tserver}
-                                 :fill-color "#E9C3A0"}
-                                {:name       "pause master"
-                                 :start      #{:pause-master}
-                                 :stop       #{:resume-master}
-                                 :fill-color "#A0B1E9"}
-                                {:name       "pause tserver"
-                                 :start      #{:pause-tserver}
-                                 :stop       #{:resume-tserver}
-                                 :fill-color "#B8A0E9"}
-                                {:name       "clock skew"
-                                 :start      #{:bump-clock :strobe-clock}
-                                 :stop       #{:reset-clock}
-                                 :fill-color "#D2E9A0"}
-                                {:name       "partition"
-                                 :start      #{:start-partition}
-                                 :stop       #{:stop-partition}
-                                 :fill-color "#888888"}}})
-        checker   (if (is-stub-workload (:workload opts))
-                    (checker/compose {:perf     perf
-                                      :clock    (checker/clock-plot)
-                                      :workload (:checker workload)})
-                    (:checker workload))]
+  (let [workload ((get workloads (:workload opts)) opts)
+        nemesis  (nemesis/nemesis opts)
+        api      (keyword (namespace (:workload opts)))
+        gen      (->> (:generator workload)
+                      (gen/nemesis (:generator nemesis))
+                      (gen/time-limit (:time-limit opts)))
+        gen      (if (:final-generator workload)
+                   (gen/phases gen
+                               (gen/log "Healing cluster")
+                               (gen/nemesis (:final-generator nemesis))
+                               (gen/log "Waiting for recovery...")
+                               (gen/sleep (:final-recovery-time opts))
+                               (gen/clients (:final-generator workload)))
+                   gen)
+        perf     (checker/perf
+                   {:nemeses #{{:name       "kill master"
+                                :start      #{:kill-master :stop-master}
+                                :stop       #{:start-master}
+                                :fill-color "#E9A4A0"}
+                               {:name       "kill tserver"
+                                :start      #{:kill-tserver :stop-tserver}
+                                :stop       #{:start-tserver}
+                                :fill-color "#E9C3A0"}
+                               {:name       "pause master"
+                                :start      #{:pause-master}
+                                :stop       #{:resume-master}
+                                :fill-color "#A0B1E9"}
+                               {:name       "pause tserver"
+                                :start      #{:pause-tserver}
+                                :stop       #{:resume-tserver}
+                                :fill-color "#B8A0E9"}
+                               {:name       "clock skew"
+                                :start      #{:bump-clock :strobe-clock}
+                                :stop       #{:reset-clock}
+                                :fill-color "#D2E9A0"}
+                               {:name       "partition"
+                                :start      #{:start-partition}
+                                :stop       #{:stop-partition}
+                                :fill-color "#888888"}}})
+        checker  (if (is-stub-workload (:workload opts))
+                   (checker/compose {:perf     perf
+                                     :clock    (checker/clock-plot)
+                                     :workload (:checker workload)})
+                   (:checker workload))]
     (merge tests/noop-test
            opts
            (dissoc workload
@@ -221,7 +235,7 @@
                    :final-generator
                    :checker)
            (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
-           (when (:trace-cql opts)    (trace-logging))
+           (when (:trace-cql opts) (trace-logging))
            {:api       api
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)

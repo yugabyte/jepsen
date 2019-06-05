@@ -118,14 +118,16 @@
 (defn db-conn-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
   [node]
-  {:classname      "org.postgresql.Driver"
-   :subprotocol    "postgresql"
+  {:dbtype         "postgresql"
+   :dbname         db-name
+   :classname      "org.postgresql.Driver"
+   :host           (name node)
+   :port           ysql-port
+   :user           "postgres"
+   :password       ""
    :loginTimeout   (/ max-timeout 1000)
    :connectTimeout (/ max-timeout 1000)
-   :socketTimeout  (/ max-timeout 1000)
-   :subname        (str "//" (name node) ":" ysql-port "/" db-name)
-   :user           "postgres"
-   :password       ""})
+   :socketTimeout  (/ max-timeout 1000)})
 
 (defn close-conn
   "Given a JDBC connection, closes it and returns the underlying spec."
@@ -138,6 +140,7 @@
   "Constructs a network client for a node, and opens it"
   [node]
   (info " === (defn client === " node)
+
   (rc/open!
     (rc/wrapper
       {:name  node
@@ -145,7 +148,7 @@
                 (util/timeout max-timeout
                               (throw (RuntimeException.
                                        (str "Connection to " node " timed out")))
-                              (util/retry 0.1
+                              (util/retry 1.1
                                           (info " === Connecting to" (db-conn-spec node) "===")
                                           (let [spec  (db-conn-spec node)
                                                 conn  (j/get-connection spec)
