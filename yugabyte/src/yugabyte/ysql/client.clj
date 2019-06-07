@@ -1,5 +1,5 @@
 (ns yugabyte.ysql.client
-  "Helper functions for working with Cassaforte clients."
+  "Helper functions for working with YSQL clients."
   (:require [clojure.java.jdbc :as j]
             [clojure.pprint :refer [pprint]]
             [clojure.string :as str]
@@ -39,27 +39,6 @@
 ;           (do (info "Timed out, retrying")
 ;               (Thread/sleep (rand-int sleep#))
 ;               (~'retry)))))))
-
-;(defn create-index
-;  "Index creation is also slow in YB, so we run it with a custom timeout. Works
-;  just like cql/create-index, or you can pass a string if you need to use YB
-;  custom syntax.
-;
-;  Also you, like, literally *can't* tell Cassaforte (or maybe Cassandra's
-;  client or CQL or YB?) to create an index if it doesn't exist, so we're
-;  swallowing the duplicate table execeptions here.
-;  TODO: update YB Cassaforte fork, so we can use `CREATE INDEX IF NOT EXISTS`.
-;  "
-;  [conn & index-args]
-;  (let [statement (if (and (= 1 (count index-args))
-;                           (string? (first index-args)))
-;                    (first index-args)
-;                    (apply q/create-index index-args))]
-;    (try (execute-with-timeout! conn 30000 statement)
-;         (catch InvalidQueryException e
-;           (if (re-find #"already exists" (.getMessage e))
-;             :already-exists
-;             (throw e))))))
 
 ;(defmacro with-errors
 ;  "Takes an op, a set of idempotent operation :fs, and a body. Evalates body,
@@ -131,7 +110,7 @@
     (.close c))
   (dissoc conn :connection))
 
-(defn client
+(defn conn-wrapper
   "Constructs a network client for a node, and opens it"
   [node]
   (rc/open!
@@ -168,13 +147,13 @@
 
       org.postgresql.util.PSQLException
       (condp re-find (.getMessage e)
-        #"Conflicts with [a-z]+ transaction"
+        #"(?i)Conflicts with [a-z]+ transaction"
         {:type :fail, :error [:conflicting-transaction m]}
 
-        #"Catalog Version Mismatch"
+        #"(?i)Catalog Version Mismatch"
         {:type :fail, :error [:catalog-version-mismatch m]}
 
-        #"Operation expired"
+        #"(?i)Operation expired"
         {:type :fail, :error [:operation-expired m]}
 
         {:type :info, :error [:psql-exception m]})
@@ -195,19 +174,21 @@
   [ex]
   (let [op     (exception->op ex)                           ; either {:type ... :error ...} or nil
         op-str (str op)]
-    (re-find #"Try again" op-str)))
+    (re-find #"(?i)try again" op-str)))
 
-(defmacro setup-once
-  "Runs the setup code once per cluster. Requires an atomic boolean (set to false)
+(defmacro once-per-cluster
+  "Runs the given code once per cluster. Requires an atomic boolean (set to false)
   shared across clients.
   This is needed mainly because concurrent DDL is not supported and results in an error."
   [atomic-bool & body]
   `(locking ~atomic-bool
-     (when (compare-and-set! ~atomic-bool false true)
-       ~@body)))
+     (when (compare-and-set! ~atomic-bool false true) ~@body)))
 
-(defn drop-table [c table-name]
-  (j/execute! c [(str "DROP TABLE " table-name)]))
+(defn drop-table
+  ([c table-name]
+   (drop-table c table-name false))
+  ([c table-name if-exists?]
+   (j/execute! c [(str "DROP TABLE " (if if-exists? "IF EXISTS " "") table-name)])))
 
 (defmacro with-conn
   "Like jepsen.reconnect/with-conn, but also asserts that the connection has
@@ -221,6 +202,49 @@
                                    {:type :conn-not-ready})))
                  ~@body))
 
+;(defmacro with-conn
+;  "Acquires a read lock, takes a connection from the wrapper, and evaluates
+;  body with that connection bound to c. If any Exception is thrown, closes the
+;  connection and opens a new one."
+;  [[c wrapper] & body]
+;  ; We want to hold the read lock while executing the body, but we're going to
+;  ; release it in complicated ways, so we can't use the with-read-lock macro
+;  ; here.
+;  `(let [read-lock# (.readLock ^java.util.concurrent.locks.ReentrantReadWriteLock (:lock ~wrapper))]
+;     (.lock read-lock#)
+;     (let [~c (rc/conn ~wrapper)]
+;       (try ~@body
+;            (catch Exception e#
+;              (warn " === with-conn ex 1 ===")
+;              (warn e#)
+;              ; We can't acquire the write lock until we release our read lock,
+;              ; because ???
+;              (.unlock read-lock#)
+;              (try
+;                (rc/with-write-lock ~wrapper
+;                                    (when (identical? ~c (rc/conn ~wrapper))
+;                                      ; This is the same conn that yielded the error
+;                                      (when (:log? ~wrapper)
+;                                        (warn (str "Encountered error with conn "
+;                                                   (pr-str (:name ~wrapper))
+;                                                   "; reopening")))
+;                                      (rc/reopen! ~wrapper)))
+;                (catch Exception e2#
+;                  (warn " === with-conn ex 2 ===")
+;                  (warn e2#)
+;                  ; We don't want to lose the original exception, but we will
+;                  ; log the reconnect error here. If we don't throw the
+;                  ; original exception, our caller might not know what kind of
+;                  ; error occurred in their transaction logic!
+;                  (when (:log? ~wrapper)
+;                    (warn e2# "Error reopening" (pr-str (:name ~wrapper)))))
+;                (finally
+;                  (.lock read-lock#)))
+;              ; Right, that's done with, now we can propagate the exception
+;              (throw e#))
+;            (finally
+;              (.unlock read-lock#))))))
+
 (defn with-idempotent
   "Takes a predicate on operation functions, and an op, presumably resulting
   from a client call. If (idempotent? (:f op)) is truthy, remaps :info types to
@@ -229,7 +253,6 @@
   (if (and (idempotent? (:f op)) (= :info (:type op)))
     (assoc op :type :fail)
     op))
-
 
 (defmacro with-timeout
   "Like util/timeout, but throws (RuntimeException. \"timeout\") for timeouts.
@@ -242,12 +265,23 @@
                  ~@body))
 
 (defmacro with-txn-retry
-  "Catches YSQL 'ERROR: Operation failed. Try again' errors and retries body a bunch of times,
+  "Catches YSQL \"try again\"-style errors and retries body a bunch of times,
   with exponential backoffs."
   [& body]
   `(util/with-retry [attempts# 30
                      backoff# 20]
+                    ;(try
+                    ;  (if (< attempts# 30) (info " === RETRYING... ==="))
+                    ;  (let [res# ~@body]
+                    ;    (if (< attempts# 30) (info " === RETRY SUCCEEDED ==="))
+                    ;    res#)
+                    ;  (catch Throwable th#
+                    ;    (if (< attempts# 30)
+                    ;      (do (info " === RETRY FAILED ===")
+                    ;          (info th#)))
+                    ;    (throw th#)))
                     ~@body
+
                     (catch java.sql.SQLException e#
                       (if (and (pos? attempts#)
                                (retryable? e#))

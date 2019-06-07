@@ -19,8 +19,8 @@
             [yugabyte.single-key-acid :as single-key-acid]
             [yugabyte.set :as set]
             [yugabyte.utils :refer :all]
-            [yugabyte.ycql.counter :as counter-ycql]
-            [yugabyte.ysql.counter :as counter-ysql])
+            [yugabyte.ycql.counter]
+            [yugabyte.ysql.counter])
   (:import (jepsen.client Client)))
 
 (def noop-test (fn [opts] (merge tests/noop-test opts)))
@@ -52,7 +52,7 @@
   #:ycql{:none            noop-test
          :bank            bank/workload
          :bank-multitable bank/multitable-workload
-         :counter         (with-client counter/workload (counter-ycql/->CQLCounterClient))
+         :counter         (with-client counter/workload (yugabyte.ycql.counter/->CQLCounterClient))
          :long-fork       long-fork/workload
          :multi-key-acid  multi-key-acid/workload
          :set             set/workload
@@ -63,7 +63,8 @@
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ysql{:none    noop-test
          :sleep   sleep-test
-         :counter (with-client counter/workload (counter-ysql/->YSQLCounterClient (atom false) nil))})
+         :counter (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient
+                                                  nil (atom false) (atom false)))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
