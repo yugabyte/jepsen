@@ -17,7 +17,6 @@
 (def isolation-level "Default isolation level for txns" :serializable)
 
 (def ysql-port 5433)
-(def db-name "jepsen")
 
 ;(defmacro with-retry
 ;  "Retries CQL unavailable/timeout errors for up to 120 seconds. Helpful for
@@ -132,17 +131,6 @@
     (.close c))
   (dissoc conn :connection))
 
-(defn setup-primary
-  "Initializes the primary node, creating a database"
-  [node]
-  ;(j/execute! (db-spec node) (str "CREATE DATABASE " db-name) {:transaction? false})
-  (let [spec  (assoc (db-spec node) :dbname "")
-        conn  (j/get-connection spec)
-        spec' (assoc spec :connection conn)]
-    (j/db-do-commands spec' false (str "CREATE DATABASE " db-name))
-    (.close conn))
-  (info " === yay! === "))
-
 (defn client
   "Constructs a network client for a node, and opens it"
   [node]
@@ -161,6 +149,53 @@
                                             spec'))))
        :close close-conn
        :log?  true})))
+
+(defn exception->op
+  "Takes an exception and maps it to a partial op, like {:type :info, :error
+  ...}. nil if unrecognized."
+  [e]
+  (when-let [m (.getMessage e)]
+    (condp instance? e
+      java.sql.SQLTransactionRollbackException
+      {:type :fail, :error [:rollback m]}
+
+      java.sql.BatchUpdateException
+      (if (re-find #"getNextExc" m)
+        ; Wrap underlying exception error with [:batch ...]
+        (when-let [op (exception->op (.getNextException e))]
+          (update op :error (partial vector :batch)))
+        {:type :info, :error [:batch-update m]})
+
+      org.postgresql.util.PSQLException
+      (condp re-find (.getMessage e)
+        #"Conflicts with [a-z]+ transaction"
+        {:type :fail, :error [:conflicting-transaction m]}
+
+        #"Catalog Version Mismatch"
+        {:type :fail, :error [:catalog-version-mismatch m]}
+
+        #"Operation expired"
+        {:type :fail, :error [:operation-expired m]}
+
+        {:type :info, :error [:psql-exception m]})
+
+      clojure.lang.ExceptionInfo
+      (condp = (:type (ex-data e))
+        :conn-not-ready {:type :fail, :error :conn-not-ready}
+        nil)
+
+      (condp re-find m
+        #"^timeout$"
+        {:type :info, :error :timeout}
+
+        nil))))
+
+(defn retryable?
+  "Whether given exception indicates that an operation can be retried"
+  [ex]
+  (let [op     (exception->op ex)                           ; either {:type ... :error ...} or nil
+        op-str (str op)]
+    (re-find #"Try again" op-str)))
 
 (defmacro setup-once
   "Runs the setup code once per cluster. Requires an atomic boolean (set to false)
@@ -206,22 +241,8 @@
                  (throw (RuntimeException. "timeout"))
                  ~@body))
 
-(defmacro with-txn-retry-as-fail
-  "Takes an op, runs body, catches PSQL 'restart transaction' errors, and
-  converts them to :fails"
-  [op & body]
-  `(try ~@body
-        (catch java.sql.SQLException e#
-          (if (re-find #"ERROR: restart transaction"
-                       (str (exception->op e#)))
-            (assoc ~op
-              :type :fail
-              :error (str/replace
-                       (.getMessage e#) #"ERROR: restart transaction: " ""))
-            (throw e#)))))
-
 (defmacro with-txn-retry
-  "Catches PSQL 'restart transaction' errors and retries body a bunch of times,
+  "Catches YSQL 'ERROR: Operation failed. Try again' errors and retries body a bunch of times,
   with exponential backoffs."
   [& body]
   `(util/with-retry [attempts# 30
@@ -229,8 +250,7 @@
                     ~@body
                     (catch java.sql.SQLException e#
                       (if (and (pos? attempts#)
-                               (re-find #"ERROR: restart transaction"
-                                        (str (exception->op e#))))
+                               (retryable? e#))
                         (do (Thread/sleep backoff#)
                             (~'retry (dec attempts#)
                               (* backoff# (+ 4 (* 0.5 (- (rand) 0.5))))))
@@ -241,76 +261,6 @@
   [[c conn] & body]
   `(j/with-db-transaction [~c ~conn {:isolation isolation-level}]
                           ~@body))
-
-(defmacro with-restart
-  "Wrap an evaluation within a CockroachDB retry block."
-  [c & body]
-  `(util/with-retry [attempts# 10
-                     backoff# 20]
-                    (j/execute! ~c ["savepoint cockroach_restart"])
-                    ~@body
-                    (catch java.sql.SQLException e#
-                      (if (and (pos? attempts#)
-                               (re-find #"ERROR: restart transaction"
-                                        (str (exception->op e#))))
-                        (do (j/execute! ~c ["rollback to savepoint cockroach_restart"])
-                            (Thread/sleep backoff#)
-                            (info "txn-restart" attempts#)
-                            (~'retry (dec attempts#)
-                              (* backoff# (+ 4 (* 0.5 (- (rand) 0.5))))))
-                        (throw e#)))))
-
-(defn exception->op
-  "Takes an exception and maps it to a partial op, like {:type :info, :error
-  ...}. nil if unrecognized."
-  [e]
-  (when-let [m (.getMessage e)]
-    (let [cn (.getCanonicalName (.getClass e))]
-      (if (.contains cn "java.lang.")
-        ; If this happens - test is likely written badly, we need to report this an :fail
-        (do (warn e)
-            {:type :fail :error [:class-name cn :message m]}
-            (throw e))
-        (condp instance? e
-          java.sql.SQLTransactionRollbackException
-          {:type :fail, :error [:rollback m]}
-
-          java.sql.BatchUpdateException
-          (if (re-find #"getNextExc" m)
-            ; Wrap underlying exception error with [:batch ...]
-            (when-let [op (exception->op (.getNextException e))]
-              (update op :error (partial vector :batch)))
-            {:type :info, :error [:batch-update m]})
-
-          org.postgresql.util.PSQLException
-          (condp re-find (.getMessage e)
-            #"Connection .+? refused"
-            {:type :fail, :error :connection-refused}
-
-            #"context deadline exceeded"
-            {:type :fail, :error :context-deadline-exceeded}
-
-            #"rejecting command with timestamp in the future"
-            {:type :fail, :error :reject-command-future-timestamp}
-
-            #"encountered previous write with future timestamp"
-            {:type :fail, :error :previous-write-future-timestamp}
-
-            #"restart transaction"
-            {:type :fail, :error [:restart-transaction m]}
-
-            {:type :info, :error [:psql-exception m]})
-
-          clojure.lang.ExceptionInfo
-          (condp = (:type (ex-data e))
-            :conn-not-ready {:type :fail, :error :conn-not-ready}
-            nil)
-
-          (condp re-find m
-            #"^timeout$"
-            {:type :info, :error :timeout}
-
-            nil))))))
 
 
 (defmacro with-exception->op
@@ -335,41 +285,25 @@
                            true)))))
 
 (defn query
-  "Like jdbc query, but includes a default timeout in ms."
-  ([conn expr]
-   (query conn expr {}))
-  ([conn [sql & params] opts]
-   (let [s (j/prepare-statement (j/db-find-connection conn)
-                                sql
-                                {:timeout (/ timeout-delay 1000)})]
-     (try
-       (j/query conn (into [s] params) opts)
-       (finally
-         (.close s))))))
+  "Like jdbc query, but includes a default timeout in ms.
+  Requires query to be wrapped in a vector."
+  [conn sql-params]
+  (j/query conn sql-params {:timeout timeout-delay}))
 
 (defn insert!
   "Like jdbc insert!, but includes a default timeout."
   [conn table values]
   (j/insert! conn table values {:timeout timeout-delay}))
 
-(defn insert-with-rowid!
-  "Like insert!, but includes the auto-generated :rowid."
-  [conn table record]
-  (let [keys        (->> record
-                         keys
-                         (map name)
-                         (str/join ", "))
-        placeholder (str/join ", " (repeat (count record) "?"))]
-    (merge record
-           (first (query conn
-                         (into [(str "insert into " table " (" keys
-                                     ") values (" placeholder
-                                     ") returning rowid;")]
-                               (vals record)))))))
-
 (defn update!
   "Like jdbc update!, but includes a default timeout."
   [conn table values where]
   (j/update! conn table values where {:timeout timeout-delay}))
+
+(defn execute!
+  "Like jdbc execute!!, but includes a default timeout."
+  [conn sql-params]
+  (j/execute! conn sql-params {:timeout timeout-delay}))
+
 
 

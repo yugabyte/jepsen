@@ -29,12 +29,14 @@
                           (c/with-conn [c conn]
                                        (c/with-txn-retry
                                          (case (:f op)
-                                           :add (do (c/update! c table-name
-                                                               {:count (str "count + " (:value op))}
-                                                               ["id = ?" 0])
+                                           ; update! can't handle references to columns
+                                           :add (do (c/execute! c (str "UPDATE " table-name " SET count = count + " (:value op) " WHERE id = 0"))
                                                     (assoc op :type :ok))
 
-                                           :read (let [value (c/query c (str "SELECT count(*) FROM " table-name " WHERE id = 0"))]
+                                           :read (let [value (->> (str "SELECT count FROM " table-name " WHERE id = 0")
+                                                                  (c/query c)
+                                                                  first
+                                                                  (:count))]
                                                    (assoc op :type :ok :value value)))))))
 
   (teardown! [this test]
