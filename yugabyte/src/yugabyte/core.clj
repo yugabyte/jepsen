@@ -20,6 +20,7 @@
             [yugabyte.set :as set]
             [yugabyte.utils :refer :all]
             [yugabyte.ycql.counter]
+            [yugabyte.ycql.set]
             [yugabyte.ysql.counter])
   (:import (jepsen.client Client)))
 
@@ -55,8 +56,8 @@
          :counter         (with-client counter/workload (yugabyte.ycql.counter/->CQLCounterClient))
          :long-fork       long-fork/workload
          :multi-key-acid  multi-key-acid/workload
-         :set             set/workload
-         :set-index       set/index-workload
+         :set             (with-client set/workload (yugabyte.ycql.set/->CQLSetClient))
+         :set-index       (with-client set/workload (yugabyte.ycql.set/->CQLSetIndexClient))
          :single-key-acid single-key-acid/workload})
 
 (def workloads-ysql
