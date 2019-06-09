@@ -293,6 +293,13 @@
    ;:--follower_unavailable_considered_failed_sec 10)
    ])
 
+(defn master-api-opts
+  "API-specific options for master"
+  [api node]
+  (if (= api :ysql)
+    [:--use_initial_sys_catalog_snapshot=true]
+    []))
+
 (defn tserver-api-opts
   "API-specific options for tserver"
   [api node]
@@ -365,6 +372,7 @@
               ;:--rpc_default_keepalive_time_ms                120000
               ;:--rpc_connection_timeout_ms                    120000
               ;; ----------------------------------------------------------------------
+              (master-api-opts (:api test) node)
               )))
 
     (start-tserver! [db test node]
