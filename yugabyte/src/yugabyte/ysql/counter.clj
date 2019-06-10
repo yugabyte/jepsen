@@ -8,18 +8,18 @@
 
 (def table-name "counter")
 
-(defrecord YSQLCounterClient [conn setup? teardown?]
+(defrecord YSQLCounterClient [conn-wrapper setup? teardown?]
   client/Client
 
   (open! [this test node]
-    (assoc this :conn (c/conn-wrapper node)))
+    (assoc this :conn-wrapper (c/conn-wrapper node)))
 
   (setup! [this test]
     (c/once-per-cluster
       setup?
       (info "Running setup")
       (c/with-conn
-        [c conn]
+        [c conn-wrapper]
         (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                       [:count :int]]))
 
@@ -30,8 +30,8 @@
     (c/with-errors
       op
       (c/with-conn
-        [c conn]
-        (c/with-txn-retry
+        [c conn-wrapper]
+        (c/with-retry
           (case (:f op)
             ; update! can't handle column references
             :add (do (c/execute! c [(str "UPDATE " table-name " SET count = count + ? WHERE id = 0") (:value op)])
@@ -49,9 +49,9 @@
       (info "Running teardown")
       (c/with-timeout
         (c/with-conn
-          [c conn]
-          (c/with-txn-retry
-            (c/drop-table c table-name true))))))
+          [c conn-wrapper]
+          (c/with-retry
+            (c/drop-table c table-name))))))
 
   (close! [this test]
-    (rc/close! conn)))
+    (rc/close! conn-wrapper)))

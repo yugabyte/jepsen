@@ -126,8 +126,8 @@
   "Like jepsen.reconnect/with-conn, but also asserts that the connection has
   not been closed. If it has, throws an ex-info with :type :conn-not-ready.
   Delays by 1 second to allow time for the DB to recover."
-  [[c client] & body]
-  `(rc/with-conn [~c ~client]
+  [[c conn-wrapper] & body]
+  `(rc/with-conn [~c ~conn-wrapper]
                  (when (.isClosed (j/db-find-connection ~c))
                    (Thread/sleep 1000)
                    (throw (ex-info "Connection not yet ready."
@@ -153,7 +153,7 @@
                  (throw (RuntimeException. "timeout"))
                  ~@body))
 
-(defmacro with-txn-retry
+(defmacro with-retry
   "Catches YSQL \"try again\"-style errors and retries body a bunch of times,
   with exponential backoffs."
   [& body]
@@ -170,9 +170,9 @@
                         (throw e#)))))
 
 (defmacro with-txn
-  "Wrap a evaluation within a SQL transaction."
-  [[c conn] & body]
-  `(j/with-db-transaction [~c ~conn {:isolation isolation-level}]
+  "Wrap evaluation within an SQL transaction using the default isolation level."
+  [c & body]
+  `(j/with-db-transaction [~c ~c {:isolation isolation-level}]
                           ~@body))
 
 

@@ -25,6 +25,7 @@
             [yugabyte.ycql.multi-key-acid]
             [yugabyte.ycql.set]
             [yugabyte.ycql.single-key-acid]
+            [yugabyte.ysql.bank]
             [yugabyte.ysql.counter])
   (:import (jepsen.client Client)))
 
@@ -69,7 +70,9 @@
   #:ysql{:none    noop-test
          :sleep   sleep-test
          :counter (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient
-                                                  nil (atom false) (atom false)))})
+                                                  nil (atom false) (atom false)))
+         :bank    (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient
+                                                         nil true (atom false) (atom false)))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
