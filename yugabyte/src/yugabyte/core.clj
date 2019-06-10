@@ -19,8 +19,12 @@
             [yugabyte.single-key-acid :as single-key-acid]
             [yugabyte.set :as set]
             [yugabyte.utils :refer :all]
+            [yugabyte.ycql.bank]
             [yugabyte.ycql.counter]
+            [yugabyte.ycql.long-fork]
+            [yugabyte.ycql.multi-key-acid]
             [yugabyte.ycql.set]
+            [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql.counter])
   (:import (jepsen.client Client)))
 
@@ -51,14 +55,14 @@
 (def workloads-ycql
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ycql{:none            noop-test
-         :bank            bank/workload
-         :bank-multitable bank/multitable-workload
          :counter         (with-client counter/workload (yugabyte.ycql.counter/->CQLCounterClient))
-         :long-fork       long-fork/workload
-         :multi-key-acid  multi-key-acid/workload
          :set             (with-client set/workload (yugabyte.ycql.set/->CQLSetClient))
          :set-index       (with-client set/workload (yugabyte.ycql.set/->CQLSetIndexClient))
-         :single-key-acid single-key-acid/workload})
+         :bank            (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLBank))
+         :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLMultiBank))
+         :long-fork       (with-client long-fork/workload (yugabyte.ycql.long-fork/->CQLLongForkIndexClient))
+         :single-key-acid (with-client single-key-acid/workload (yugabyte.ycql.single-key-acid/->CQLSingleKey))
+         :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ycql.multi-key-acid/->CQLMultiKey))})
 
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."
