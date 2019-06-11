@@ -27,7 +27,7 @@
 
 
   (invoke! [this test op]
-    (c/with-exception->op
+    (c/with-errors
       op
       (c/with-conn
         [c conn]

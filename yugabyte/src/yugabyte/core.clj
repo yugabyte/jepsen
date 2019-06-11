@@ -48,9 +48,9 @@
   (fn [opts] (assoc (workload opts) :client client)))
 
 (defn is-stub-workload
-  "Whether workload defined by the given keyword is a real one, or just a stub"
+  "Whether workload defined by the given keyword is just a stub, or is a real one"
   [w]
-  (not (or (= (name w) "none") (= (name w) "sleep"))))
+  (or (= (name w) "none") (= (name w) "sleep")))
 
 (def workloads-ycql
   "A map of workload names to functions that can take option maps and construct workloads."
@@ -230,10 +230,10 @@
                                 :stop       #{:stop-partition}
                                 :fill-color "#888888"}}})
         checker  (if (is-stub-workload (:workload opts))
+                   (:checker workload)
                    (checker/compose {:perf     perf
                                      :clock    (checker/clock-plot)
-                                     :workload (:checker workload)})
-                   (:checker workload))]
+                                     :workload (:checker workload)}))]
     (merge tests/noop-test
            opts
            (dissoc workload

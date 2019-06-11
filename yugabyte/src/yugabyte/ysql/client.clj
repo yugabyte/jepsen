@@ -11,8 +11,7 @@
             [wall.hack :as wh]
             [slingshot.slingshot :refer [try+ throw+]]))
 
-(def timeout-delay "Default timeout for operations in ms" 20000)
-(def max-timeout "Longest timeout, in ms" 40000)
+(def default-timeout "Default timeout for operations in ms" 30000)
 
 (def isolation-level "Default isolation level for txns" :serializable)
 
@@ -28,9 +27,9 @@
    :port           ysql-port
    :user           "postgres"
    :password       ""
-   :loginTimeout   (/ max-timeout 1000)
-   :connectTimeout (/ max-timeout 1000)
-   :socketTimeout  (/ max-timeout 1000)})
+   :loginTimeout   (/ default-timeout 1000)
+   :connectTimeout (/ default-timeout 1000)
+   :socketTimeout  (/ default-timeout 1000)})
 
 (defn close-conn
   "Given a JDBC connection, closes it and returns the underlying spec."
@@ -46,7 +45,7 @@
     (rc/wrapper
       {:name  node
        :open  (fn open []
-                (util/timeout max-timeout
+                (util/timeout default-timeout
                               (throw (RuntimeException.
                                        (str "Connection to " node " timed out")))
                               (util/retry 0.1
@@ -58,7 +57,7 @@
        :close close-conn
        :log?  true})))
 
-(defn exception->op
+(defn exception-to-op
   "Takes an exception and maps it to a partial op, like {:type :info, :error
   ...}. nil if unrecognized."
   [e]
@@ -70,13 +69,13 @@
       java.sql.BatchUpdateException
       (if (re-find #"getNextExc" m)
         ; Wrap underlying exception error with [:batch ...]
-        (when-let [op (exception->op (.getNextException e))]
+        (when-let [op (exception-to-op (.getNextException e))]
           (update op :error (partial vector :batch)))
         {:type :info, :error [:batch-update m]})
 
       org.postgresql.util.PSQLException
       (condp re-find (.getMessage e)
-        #"(?i)Conflicts with [a-z]+ transaction"
+        #"(?i)Conflicts with [- a-z]+ transaction"
         {:type :fail, :error [:conflicting-transaction m]}
 
         #"(?i)Catalog Version Mismatch"
@@ -101,7 +100,7 @@
 (defn retryable?
   "Whether given exception indicates that an operation can be retried"
   [ex]
-  (let [op     (exception->op ex)                           ; either {:type ... :error ...} or nil
+  (let [op     (exception-to-op ex)                           ; either {:type ... :error ...} or nil
         op-str (str op)]
     (re-find #"(?i)try again" op-str)))
 
@@ -146,7 +145,7 @@
   gets reset, so we don't accidentally hand off the connection to a later
   invocation with some incomplete transaction."
   [& body]
-  `(util/timeout timeout-delay
+  `(util/timeout default-timeout
                  (throw (RuntimeException. "timeout"))
                  ~@body))
 
@@ -173,13 +172,13 @@
                           ~@body))
 
 
-(defmacro with-exception->op
+(defmacro with-errors
   "Takes an operation and a body. Evaluates body, catches exceptions, and maps
   them to ops with :type :info and a descriptive :error."
   [op & body]
   `(try ~@body
         (catch Exception e#
-          (if-let [ex-op# (exception->op e#)]
+          (if-let [ex-op# (exception-to-op e#)]
             (merge ~op ex-op#)
             (throw e#)))))
 
@@ -187,19 +186,19 @@
   "Like jdbc query, but includes a default timeout in ms.
   Requires query to be wrapped in a vector."
   [conn sql-params]
-  (j/query conn sql-params {:timeout timeout-delay}))
+  (j/query conn sql-params {:timeout default-timeout}))
 
 (defn insert!
   "Like jdbc insert!, but includes a default timeout."
   [conn table values]
-  (j/insert! conn table values {:timeout timeout-delay}))
+  (j/insert! conn table values {:timeout default-timeout}))
 
 (defn update!
   "Like jdbc update!, but includes a default timeout."
   [conn table values where]
-  (j/update! conn table values where {:timeout timeout-delay}))
+  (j/update! conn table values where {:timeout default-timeout}))
 
 (defn execute!
   "Like jdbc execute!!, but includes a default timeout."
   [conn sql-params]
-  (j/execute! conn sql-params {:timeout timeout-delay}))
+  (j/execute! conn sql-params {:timeout default-timeout}))

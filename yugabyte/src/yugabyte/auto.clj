@@ -7,13 +7,13 @@
             [clojure.pprint :refer [pprint]]
             [clj-http.client :as http]
             [dom-top.core :as dt]
-            [jepsen [control :as c]
-                    [db :as db]
-                    [util :as util :refer [meh timeout]]]
-            [jepsen.control [net :as cn]
-                            [util :as cu]]
-            [jepsen.os [debian :as debian]
-                       [centos :as centos]]
+            [jepsen.control :as c]
+            [jepsen.db :as db]
+            [jepsen.util :as util :refer [meh timeout]]
+            [jepsen.control.net :as cn]
+            [jepsen.control.util :as cu]
+            [jepsen.os.debian :as debian]
+            [jepsen.os.centos :as centos]
             [yugabyte.ycql.client]
             [yugabyte.ysql.client])
   (:import jepsen.os.debian.Debian
@@ -324,14 +324,6 @@
    :--rpc_connection_timeout_ms                   1500
    ])
 
-(defn stop-local-ntp-services!
-  "Try to stop ntp/ntpd, because it won't let ntpdate to sync clocks."
-  []
-  (do (try (c/su (c/exec :service :ntp :stop))
-           (catch RuntimeException e))
-      (try (c/su (c/exec :service :ntpd :stop))
-           (catch RuntimeException e))))
-
 (defn community-edition
   "Constructs a DB for installing and running the community edition"
   []
@@ -370,14 +362,6 @@
                 experimental-tuning-flags)
               :--master_addresses   (master-addresses test)
               :--replication_factor (:replication-factor test)
-              ;; ----------------------------------------------------------------------
-              ;:--rpc_slow_query_threshold_ms                  120000
-              ;:--retryable_rpc_single_call_timeout_ms         120000
-              ;:--client_read_write_timeout_ms                 120000
-              ;:--leader_failure_exp_backoff_max_delta_ms      120000
-              ;:--rpc_default_keepalive_time_ms                120000
-              ;:--rpc_connection_timeout_ms                    120000
-              ;; ----------------------------------------------------------------------
               (master-api-opts (:api test) node)
               )))
 
@@ -395,15 +379,6 @@
               ; Tracing
               :--enable_tracing
               :--rpc_slow_query_threshold_ms 1000
-              ;; ----------------------------------------------------------------------
-              ;:--rpc_slow_query_threshold_ms                  120000
-              ;:--retryable_rpc_single_call_timeout_ms         120000
-              ;:--client_read_write_timeout_ms                 120000
-              ;:--leader_failure_exp_backoff_max_delta_ms      120000
-              ;:--rpc_default_keepalive_time_ms                120000
-              ;:--rpc_connection_timeout_ms                    120000
-              ;;:--pg_yb_session_timeout_ms                     120000
-              ;; ----------------------------------------------------------------------
               :--load_balancer_max_concurrent_adds 10
               (tserver-api-opts (:api test) node)
 
@@ -430,7 +405,6 @@
     db/DB
     (setup! [db test node]
       (install! db test)
-      (stop-local-ntp-services!)
       (start! db test node))
 
     (teardown! [db test node]
@@ -487,7 +461,6 @@
     (setup! [this test node]
       (install! this test)
 
-      (stop-local-ntp-services!)
       (c/exec :sed :-i "/--max_clock_skew_usec/d" tserver-conf)
       (let [max-skew-ms (test :max-clock-skew-ms)]
         (if (some? max-skew-ms)

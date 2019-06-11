@@ -1,14 +1,14 @@
 (ns yugabyte.runner
   "Runs YugaByteDB tests."
   (:gen-class)
-  (:require [clojure [pprint :refer [pprint]]
-                     [string :as str]]
+  (:require [clojure.pprint :refer [pprint]]
+            [clojure.string :as str]
             [clojure.tools.logging :refer :all]
-            [jepsen [core :as jepsen]
-                    [cli :as cli]
-                    [store :as store]]
-            [yugabyte [core :as core]
-                      [nemesis :as nemesis]]))
+            [jepsen.core :as jepsen]
+            [jepsen.cli :as cli]
+            [jepsen.store :as store]
+            [yugabyte.core :as core]
+            [yugabyte.nemesis :as nemesis]))
 
 (defn parse-long [x] (Long/parseLong x))
 
