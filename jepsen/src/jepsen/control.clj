@@ -4,8 +4,8 @@
   scripts to open connections to various nodes."
   (:import java.io.File)
   (:require [clj-ssh.ssh    :as ssh]
-            [jepsen.util    :as util :refer [with-thread-name]]
-            [dom-top.core :refer [real-pmap with-retry]]
+            [jepsen.util    :as util :refer [real-pmap with-thread-name]]
+            [dom-top.core :refer [with-retry]]
             [jepsen.reconnect :as rc]
             [clojure.string :as str]
             [clojure.tools.logging :refer [warn info debug error]]
@@ -227,6 +227,13 @@
   (with-retry [tries *retries*]
     (rc/with-conn [s *session*]
       (apply ssh/scp-from s args))
+    (catch clojure.lang.ExceptionInfo e
+      (if (and (pos? tries)
+               (re-find #"disconnect error" (.getMessage e)))
+        (do (Thread/sleep (+ 1000 (rand-int 1000)))
+            (retry (dec tries)))
+        (throw+ (assoc (debug-data)
+                       :type ::download-failed))))
     (catch com.jcraft.jsch.JSchException e
       (if (and (pos? tries)
                (or (= "session is down" (.getMessage e))

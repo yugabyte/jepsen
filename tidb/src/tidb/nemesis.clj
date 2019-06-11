@@ -13,7 +13,8 @@
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [tidb.db :as db]
-            [clojure.tools.logging :refer :all]))
+            [clojure.tools.logging :refer :all]
+            [slingshot.slingshot :refer [try+ throw+]]))
 
 (defn process-nemesis
   "A nemesis that can pause, resume, start, stop, and kill tidb, tikv, and pd."
@@ -84,6 +85,67 @@
 
     (teardown! [this test])))
 
+(defn slow-primary-nemesis
+  "A nemesis for creating slow, isolated primaries."
+  []
+  (reify nemesis/Nemesis
+    (setup! [this test] this)
+
+    (invoke! [this test op]
+      (try+
+        ; Figure out who we're going to slow down
+        (let [contact     (first (:nodes test))
+              members     (:members (db/pd-members contact))
+              slow-leader (rand-nth members)
+              slow-node   (->> test db/tidb-map
+                               (keep (fn [[node m]]
+                                       (when (= (:name slow-leader) (:pd m))
+                                         node)))
+                               first)]
+          (info :members members)
+          (info :slow-leader slow-node slow-leader)
+
+          ; Slow down slow-leader and make sure other nodes are all running
+          ; normally.
+          (c/on-nodes test
+                      (fn [test node]
+                        (db/setup-faketime! db/pd-bin (if (= node slow-node)
+                                                        0.1
+                                                        1))
+                        (db/stop-pd! test node)
+                        (db/start-pd! test node)))
+
+          ; Transfer leadership to slow node
+          (info :leader (db/await-http (db/pd-leader contact)))
+          (db/pd-transfer-leader! contact slow-leader)
+          (info :leader' (db/await-http (db/pd-leader contact)))
+
+          ; Isolate slow node
+          (let [fast-nodes  (shuffle (remove #{slow-node} (:nodes test)))
+                nodes       (cons slow-node fast-nodes)
+                components  (nemesis/bisect nodes)
+                grudge      (nemesis/complete-grudge components)]
+            (info :partitioning components)
+            (net/drop-all! test grudge)
+
+            ; Report on transition
+            (dotimes [i 30]
+              (info :leader (db/await-http
+                              (info "asking" (last nodes) "for current leader")
+                              (db/pd-leader (last nodes))))
+              (Thread/sleep 100))
+
+            (info :final-leader (db/await-http (db/pd-leader (last nodes)))))
+
+          (assoc op :value :done))
+        (catch [:status 503] e
+          (assoc op
+                 :type  :info
+                 :value :failed
+                 :error (dissoc e :http-client)))))
+
+    (teardown! [this test])))
+
 (defn full-nemesis
   "Merges together all nemeses"
   []
@@ -95,6 +157,7 @@
      #{:shuffle-leader  :del-shuffle-leader
        :shuffle-region  :del-shuffle-region
        :random-merge    :del-random-merge}  (schedule-nemesis)
+     #{:slow-primary}                       (slow-primary-nemesis)
      {:start-partition :start
       :stop-partition  :stop}               (nemesis/partitioner nil)
      {:reset-clock          :reset
@@ -119,6 +182,18 @@
   (op :start-partition
      (->> test :nodes nemesis/split-one nemesis/complete-grudge)
      :partition-type :single-node))
+
+(defn partition-pd-leader-gen
+  "A generator for a partition that isolates the current PD leader in a
+  minority."
+  [test process]
+  (let [leader (db/await-http
+                 (db/pd-leader-node test (rand-nth (:nodes test))))
+        followers (shuffle (remove #{leader} (:nodes test)))
+        nodes       (cons leader followers)
+        components  (split-at 1 nodes) ; Maybe later rand(n/2+1?)
+        grudge      (nemesis/complete-grudge components)]
+    (op :start-partition, grudge, :partition-type :pd-leader)))
 
 (defn partition-half-gen
   "A generator for a partition that cuts the network in half."
@@ -194,9 +269,10 @@
              (op :del-shuffle-region))
           (o {:random-merge (op :random-merge)}
              (op :del-random-merge))
-          (o {:partition-one  partition-one-gen
-              :partition-half partition-half-gen
-              :partition-ring partition-ring-gen}
+          (o {:partition-one        partition-one-gen
+              :partition-pd-leader  partition-pd-leader-gen
+              :partition-half       partition-half-gen
+              :partition-ring       partition-ring-gen}
              (op :stop-partition))
           (opt-mix n {:clock-skew (clock-gen)})]
          ; For all options relevant for this nemesis, mix them together
@@ -242,6 +318,30 @@
             (gen/sleep 70)
             (op :resume-pd)]))
 
+(defn slow-primary-generator
+  "A special generator which tries to create a situation in which a primary,
+  running slower than the rest of the cluster, is isolated from a majority
+  component of the cluster, which elects a new, faster primary. Because the old
+  primary's clock runs slow, we expect that the slow node may fail to step down
+  before the new primary comes to power, allowing the two to issue timestamps
+  concurrently."
+  []
+  ; First, pick a node to be our slow primary.
+  ; Force that node to
+  ; run at speed 2.
+  ; Make that node run at speed 2
+  ; Force that node to be the primary by...
+    ; Restarting every other node at speed 1
+  ; Force that node to be slow *and* the leader by...
+    ; Restarting every other node at speed 3
+  ; Isolate that node into a minority partition
+  (->> [{:type :info, :f :slow-primary}
+        (gen/sleep 30)
+        {:type :info, :f :stop-partition}
+        (gen/sleep 30)]
+       cycle
+       gen/seq))
+
 (defn full-generator
   "Takes a nemesis options map `n`. If `n` has a :long-recovery option, builds
   a generator which alternates between faults (mixed-generator) and long
@@ -250,6 +350,9 @@
   [n]
   (cond (:restart-kv-without-pd n)
         (restart-kv-without-pd-generator)
+
+        (:slow-primary n)
+        (slow-primary-generator)
 
         (:long-recovery n)
         (let [mix     #(gen/time-limit 120 (mixed-generator n))
@@ -278,9 +381,10 @@
     (:schedules n) (assoc :shuffle-leader true
                           :shuffle-region true
                           :random-merge true)
-    (:partition n) (assoc :partition-one true
-                           :partition-half true
-                           :partition-ring true)))
+    (:partition n) (assoc :partition-one        true
+                          :partition-pd-leader  true
+                          :partition-half      true
+                          :partition-ring      true)))
 
 (defn nemesis
   "Composite nemesis and generator, given test options."

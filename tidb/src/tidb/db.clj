@@ -2,7 +2,10 @@
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
             [clojure.java.io :as io]
+            [clj-http.client :as http]
+            [cheshire.core :as json]
             [dom-top.core :refer [with-retry]]
+            [fipp.edn :refer [pprint]]
             [jepsen [core :as jepsen]
                     [control :as c]
                     [db :as db]
@@ -11,6 +14,11 @@
             [jepsen.control.util :as cu]
             [slingshot.slingshot :refer [try+ throw+]]
             [tidb.sql :as sql]))
+
+(def replica-count
+  "This should probably be used to generate max-replicas in pd.conf as well,
+  but for now we'll just write it in both places."
+  3)
 
 (def tidb-dir       "/opt/tidb")
 (def tidb-bin-dir   "/opt/tidb/bin")
@@ -30,6 +38,7 @@
 (def kv-data-dir    (str tidb-dir "/data/kv"))
 (def db-config-file (str tidb-dir "/db.conf"))
 (def db-log-file    (str tidb-dir "/db.log"))
+(def db-slow-file   (str tidb-dir "/slow.log"))
 (def db-stdout      (str tidb-dir "/db.stdout"))
 (def db-pid-file    (str tidb-dir "/db.pid"))
 
@@ -98,6 +107,60 @@
   (configure-pd!)
   (configure-kv!)
   (configure-db!))
+
+(defn pd-api-path
+  "Constructs an API path for the PD located on the given node."
+  [node & path-components]
+  (str "http://" node ":2379/pd/api/v1/" (str/join "/" path-components)))
+
+(defn pd-members
+  "All members of the cluster"
+  [node]
+  (-> (pd-api-path node "members")
+      (http/get {:as :json})
+      :body))
+
+(defn pd-leader
+  "Gets the current PD leader."
+  [node]
+  (-> (pd-api-path node "leader")
+      (http/get {:as :json})
+      :body))
+
+(defn pd-leader-node
+  "Returns the name of the node which is the current PD leader."
+  [test node]
+  (let [leader-name (:name (pd-leader node))]
+    (->> (tidb-map test)
+         (keep (fn [[node m]]
+                 (when (= leader-name (:pd m))
+                   node)))
+         first)))
+
+(defn pd-transfer-leader!
+  "Transfer leadership to the given leader map."
+  [node next-leader]
+  (assert (map? next-leader))
+  (-> (pd-api-path node "leader" "transfer" (:name next-leader))
+      (http/post)))
+
+(defn pd-regions
+  "All PD regions"
+  [node]
+  (-> (pd-api-path node "regions")
+      (http/get {:as :json})
+      :body))
+
+(defmacro await-http
+  "Loops body until HTTP call returns, retrying 500 and 503 errors."
+  [& body]
+  `(loop []
+     (let [res# (try+ ~@body
+                      (catch [:status 500] _# ::retry)
+                      (catch [:status 503] _# ::retry))]
+       (if (= ::retry res#)
+         (recur)
+         res#))))
 
 (defn start-pd!
   "Starts the placement driver daemon"
@@ -221,21 +284,25 @@
                   (fn ~'start!     [] ~start!)
                   (fn ~'get-status [] ~get-status)))
 
-(defn start!
-  "Starts all daemons, waiting for each one's health page in turn. Uses
-  synchronization barriers, and should be called concurrently on ALL nodes."
+(defn start-wait-pd!
+  "Starts PD, waiting for the health page to come online."
   [test node]
   (restart-loop :pd (start-pd! test node)
                 (cond (pd-ready?)                       :ready
                       (cu/daemon-running? pd-pid-file)  :starting
-                      true                              :crashed))
-  (jepsen/synchronize test)
+                      true                              :crashed)))
+
+(defn start-wait-kv!
+  "Starts TiKV, waiting for the health page to come online."
+  [test node]
   (restart-loop :kv (start-kv! test node)
                 (cond (kv-ready?)                       :ready
                       (cu/daemon-running? kv-pid-file)  :starting
-                      true                              :crashed))
+                      true                              :crashed)))
 
-  (jepsen/synchronize test)
+(defn start-wait-db!
+  "Starts TiDB, waiting for the health page to come online."
+  [test node]
   (restart-loop :db (start-db! test node)
                 (cond (db-ready?)                       :ready
                       (cu/daemon-running? db-pid-file)  :starting
@@ -265,8 +332,15 @@
   constructing one from the version."
   [test]
   (or (:tarball-url test)
-      (str "http://download.pingcap.org/tidb-" (:version test)
+      (str "http://download.pingcap.org/tidb-v" (:version test)
            "-linux-amd64.tar.gz")))
+
+(defn setup-faketime!
+  "Configures the faketime wrapper for this node, so that the given binary runs
+  at the given rate."
+  [bin rate]
+  (info "Configuring" bin "to run at" (str rate "x realtime"))
+  (c/su (faketime/wrap! (str tidb-bin-dir "/" bin) 0 rate)))
 
 (defn install!
   "Downloads archive and extracts it to our local tidb-dir, if it doesn't exist
@@ -278,7 +352,8 @@
   cluster."
   [test node]
   (c/su
-    (when (or (:force-reinstall test) (not (cu/exists? tidb-dir)))
+    (when (or (:force-reinstall test)
+              (not (cu/exists? tidb-dir)))
       (info node "installing TiDB")
       (info (tarball-url test))
       (cu/install-archive! (tarball-url test) tidb-dir)
@@ -290,17 +365,47 @@
           ; jemalloc (segfaults on 0.9.7).
           (faketime/install-0.9.6-jepsen1!)
           ; Add faketime wrappers
-          (faketime/wrap! (str tidb-bin-dir "/" pd-bin) 0
-                          (faketime/rand-factor ratio))
-          (faketime/wrap! (str tidb-bin-dir "/" kv-bin) 0
-                          (faketime/rand-factor ratio))
-          (faketime/wrap! (str tidb-bin-dir "/" db-bin) 0
-                          (faketime/rand-factor ratio)))
+          (setup-faketime! pd-bin (faketime/rand-factor ratio))
+          (setup-faketime! kv-bin (faketime/rand-factor ratio))
+          (setup-faketime! db-bin (faketime/rand-factor ratio)))
       (c/cd tidb-bin-dir
             ; Destroy faketime wrappers, if applicable.
             (faketime/unwrap! pd-bin)
             (faketime/unwrap! kv-bin)
             (faketime/unwrap! db-bin)))))
+
+(defn region-ready?
+  "Does the given region have enough replicas?"
+  [region]
+  (->> (:peers region)
+       (remove :is_learner)
+       count
+       (<= replica-count)))
+
+(defn wait-for-replica-count
+  "TiDB start with a single replica, and only adds more later. We have to wait
+  for it to do that before starting our tests if we want to be able to test
+  things like failover. <sigh>"
+  [node]
+  (loop [tries 1000]
+    (when (zero? tries)
+      (throw+ {:type :gave-up-waiting-for-replica-count}))
+
+    (let [regions (await-http (pd-regions node))]
+      ;(info :regions (with-out-str (pprint regions)))
+      (info :region-replicas (->> (:regions regions)
+                                  (map (fn [region]
+                                         [(:id region)
+                                          (->> (:peers region)
+                                               (remove :is_learner)
+                                               count)]))
+                                  (into (sorted-map))
+                                  pprint
+                                  with-out-str))
+      (if (every? region-ready? (:regions regions))
+        true
+        (do (Thread/sleep 10000)
+            (recur (dec tries)))))))
 
 (defn db
   "TiDB"
@@ -311,19 +416,42 @@
         (install! test node)
         (configure!)
 
-        (start! test node)
+        (try+ (start-wait-pd! test node)
+              ; If we don't synchronize, KV might explode because PD isn't
+              ; fully available
+              (jepsen/synchronize test)
 
-        ; For reasons I cannot explain, sometimes TiDB just... fails to reach a
-        ; usable state despite waiting hundreds of seconds to open a
-        ; connection. I've lowered the await-node timeout, and if we fail here,
-        ; we'll nuke the entire setup process and try again. <sigh>
-        (try+ (sql/await-node node)
-              (catch java.sql.SQLException e
-                ; siiiiiiiigh
+              (start-wait-kv! test node)
+              (jepsen/synchronize test)
+
+              ; We have to wait for every region to become totally replicated
+              ; before starting TiDB: if we start TiDB first, it might take 80+
+              ; minutes to converge.
+              (wait-for-replica-count node)
+              (jepsen/synchronize test)
+
+              ; OK, now we can start TiDB itself
+              (start-wait-db! test node)
+
+              ; For reasons I cannot explain, sometimes TiDB just... fails to
+              ; reach a usable state despite waiting hundreds of seconds to
+              ; open a connection. I've lowered the await-node timeout, and if
+              ; we fail here, we'll nuke the entire setup process and try
+              ; again. <sigh>
+              (sql/await-node node)
+
+              (catch [:type :gave-up-waiting-for-replica-count] e
                 (throw+ {:type :jepsen.db/setup-failed}))
+
               (catch [:type :restart-loop-timed-out] e
                 (throw+ {:type :jepsen.db/setup-failed}))
+
               (catch [:type :connect-timed-out] e
+                ; sigh
+                (throw+ {:type :jepsen.db/setup-failed}))
+
+              (catch java.sql.SQLException e
+                ; siiiiiiiigh
                 (throw+ {:type :jepsen.db/setup-failed})))))
 
     (teardown! [_ test node]
@@ -342,6 +470,7 @@
     db/LogFiles
     (log-files [_ test node]
       [db-log-file
+       db-slow-file
        db-stdout
        kv-log-file
        kv-stdout

@@ -31,13 +31,20 @@
 
   Returns conn."
   [conn test]
-  (j/execute! conn ["set @@tidb_disable_txn_auto_retry = ?"
-                    (if (:auto-retry test) 0 1)])
+  (when-not (= :default (:auto-retry test))
+    (info :setting-auto-retry (:auto-retry test))
+    (j/execute! conn ["set @@tidb_disable_txn_auto_retry = ?"
+                      (if (:auto-retry test) 0 1)]))
+
   ; COOL STORY: disable_txn_auto_retry doesn't actually disable all automatic
   ; transaction retries. It only disables retries on conflicts. TiDB has
   ; another retry mechanism on timeouts, which will still take effect. We have
   ; to set this limit too.
-  (j/execute! conn ["set @@tidb_retry_limit = ?" (:auto-retry-limit test 10)])
+  (when-not (= :default (:auto-retry-limit test))
+    (info :setting-auto-retry-limit (:auto-retry-limit test 10))
+    (j/execute! conn ["set @@tidb_retry_limit = ?"
+                      (:auto-retry-limit test 10)]))
+
   conn)
 
 (defn open
@@ -129,7 +136,7 @@
                   (Thread/sleep (rand-int 2000))
                   (~'retry (reopen! ~conn-sym) (dec ~tries)))]
  `(dt/with-retry [~conn-sym ~conn
-                  ~tries    16]
+                  ~tries    32]
     (let [~conn ~conn-sym] ; Rebind the conn symbol to our current connection
       ~@body)
     (catch java.sql.BatchUpdateException ~e ~retry)
@@ -137,12 +144,12 @@
     (catch java.sql.SQLNonTransientConnectionException ~e ~retry)
     (catch java.sql.SQLException ~e
       (condp re-find (.getMessage ~e)
-        #"Information schema is changed"  ~retry
-        #"called on closed connection"    ~retry
-        (do (info "with-conn-failure-retry not sure how to handle SQLException with message" ~e)
-            (throw ~e))))
-    (catch Throwable ~e
-      (throw ~e)))))
+        #"Resolve lock timeout"           ~retry ; high contention
+        #"Information schema is changed"  ~retry ; ???
+        #"called on closed connection"    ~retry ; definitely didn't happen
+        #"Region is unavailable"          ~retry ; okay fine
+        (do (info "with-conn-failure-retry isn't sure how to handle SQLException with message" (pr-str (class (.getMessage ~e))) (pr-str (.getMessage ~e)))
+            (throw ~e)))))))
 
 (def await-id
   "Used to generate unique identifiers for awaiting cluster stabilization"
@@ -224,14 +231,16 @@
         (throw e#)))
 
     (catch clojure.lang.ExceptionInfo e#
-      (cond (= "Connection is closed" (:cause (:rollback e#)))
+      (cond (= "Connection is closed" (.cause (:rollback (ex-data e#))))
             (assoc ~op :type :info, :error :conn-closed-rollback-failed)
 
             (= "createStatement() is called on closed connection"
-               (:cause (:rollback e#)))
-            (assoc ~op :type :info, :error :conn-closed-rollback-failed)
+               (.cause (:rollback (ex-data e#))))
+            (assoc ~op :type :fail, :error :conn-closed-rollback-failed)
 
             true (do (info e# :caught (pr-str (ex-data e#)))
+                     (info :caught-rollback (:rollback (ex-data e#)))
+                     (info :caught-cause    (.cause (:rollback (ex-data e#))))
                      (throw e#))))))
 
 (defmacro with-txn
