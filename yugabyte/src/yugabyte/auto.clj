@@ -184,10 +184,9 @@
   (start-tserver! db test node)
   (await-tservers test)
 
-  ; FIXME!
   (if (= (:api test) :ycql)
     (yugabyte.ycql.client/await-setup node)
-    ())
+    ()) ; So far it looks like we don't need that for YSQL?
   :started)
 
 (defn stop! [db test node]
@@ -304,7 +303,7 @@
   "API-specific options for master"
   [api node]
   (if (= api :ysql)
-    [:--use_initial_sys_catalog_snapshot=true]
+    [:--use_initial_sys_catalog_snapshot]
     []))
 
 (defn tserver-api-opts
@@ -441,10 +440,8 @@
     ; Primary node setup
     db/Primary
     (setup-primary! [this test node]
-      (case (:api test)
-        :ycql ()                                            ; NOOP
-        :ysql () ;yugabyte.ysql.client/setup-primary node)
-        ))
+      ; NOOP placeholder, can be used to initialize cluster for different APIs
+      )
 
     db/LogFiles
     (log-files [_ _ _]

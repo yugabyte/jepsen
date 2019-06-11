@@ -18,77 +18,6 @@
 
 (def ysql-port 5433)
 
-;(defmacro with-retry
-;  "Retries CQL unavailable/timeout errors for up to 120 seconds. Helpful for
-;  setting up initial data; YugaByte loves to throw 10+ second latencies at us
-;  early in the test."
-;  [& body]
-;  `(let [deadline# (+ (util/linear-time-nanos) (util/secs->nanos 120))
-;         sleep#    100] ; ms
-;     (dt/with-retry []
-;       ~@body
-;       (catch NoHostAvailableException e#
-;         (if (< deadline# (util/linear-time-nanos))
-;           (throw e#)
-;           (do (info "Timed out, retrying")
-;               (Thread/sleep (rand-int sleep#))
-;               (~'retry))))
-;       (catch OperationTimedOutException e#
-;         (if (< deadline# (util/linear-time-nanos))
-;           (throw e#)
-;           (do (info "Timed out, retrying")
-;               (Thread/sleep (rand-int sleep#))
-;               (~'retry)))))))
-
-;(defmacro with-errors
-;  "Takes an op, a set of idempotent operation :fs, and a body. Evalates body,
-;  and catches common errors, returning an appropriate completion for `op`."
-;  [op idempotent & body]
-;  `(let [crash# (if (~idempotent (:f ~op)) :fail :info)]
-;     (try
-;       ~@body
-;       (catch UnavailableException e#
-;         ; I think this was used back when we blocked on all nodes being online
-;         ; (info "Not enough replicas - failing")
-;         (assoc ~op :type :fail, :error [:unavailable (.getMessage e#)]))
-;
-;       (catch WriteTimeoutException e#
-;         (assoc ~op :type crash#, :error :write-timed-out))
-;
-;       (catch ReadTimeoutException e#
-;         (assoc ~op :type crash#, :error :read-timed-out))
-;
-;       (catch OperationTimedOutException e#
-;         (assoc ~op :type crash#, :error :operation-timed-out))
-;
-;       (catch TransportException e#
-;         (condp re-find (.getMessage e#)
-;           #"Connection has been closed"
-;           (assoc ~op :type crash#, :error :connection-closed)
-;
-;           (throw e#)))
-;
-;       (catch NoHostAvailableException e#
-;         (condp re-find (.getMessage e#)
-;           #"no host was tried"
-;           (do (info "All nodes are down - sleeping 2s")
-;               (Thread/sleep 2000)
-;               (assoc ~op :type :fail :error [:no-host-available (.getMessage e#)]))
-;           (assoc ~op :type crash#, :error [:no-host-available (.getMessage e#)])))
-;
-;       (catch DriverException e#
-;         (if (re-find #"Value write after transaction start|Conflicts with higher priority transaction|Conflicts with committed transaction|Operation expired: Failed UpdateTransaction.* status: COMMITTED .*: Transaction expired"
-;                      (.getMessage e#))
-;           ; Definitely failed
-;           (assoc ~op :type :fail, :error (.getMessage e#))
-;           (throw e#)))
-;
-;       (catch InvalidQueryException e#
-;         ; This can actually mean timeout
-;         (if (re-find #"RPC to .+ timed out after " (.getMessage e#))
-;           (assoc ~op :type crash#, :error [:rpc-timed-out (.getMessage e#)])
-;           (throw e#))))))
-
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
   [node]
@@ -202,49 +131,6 @@
                                    {:type :conn-not-ready})))
                  ~@body))
 
-;(defmacro with-conn
-;  "Acquires a read lock, takes a connection from the wrapper, and evaluates
-;  body with that connection bound to c. If any Exception is thrown, closes the
-;  connection and opens a new one."
-;  [[c wrapper] & body]
-;  ; We want to hold the read lock while executing the body, but we're going to
-;  ; release it in complicated ways, so we can't use the with-read-lock macro
-;  ; here.
-;  `(let [read-lock# (.readLock ^java.util.concurrent.locks.ReentrantReadWriteLock (:lock ~wrapper))]
-;     (.lock read-lock#)
-;     (let [~c (rc/conn ~wrapper)]
-;       (try ~@body
-;            (catch Exception e#
-;              (warn " === with-conn ex 1 ===")
-;              (warn e#)
-;              ; We can't acquire the write lock until we release our read lock,
-;              ; because ???
-;              (.unlock read-lock#)
-;              (try
-;                (rc/with-write-lock ~wrapper
-;                                    (when (identical? ~c (rc/conn ~wrapper))
-;                                      ; This is the same conn that yielded the error
-;                                      (when (:log? ~wrapper)
-;                                        (warn (str "Encountered error with conn "
-;                                                   (pr-str (:name ~wrapper))
-;                                                   "; reopening")))
-;                                      (rc/reopen! ~wrapper)))
-;                (catch Exception e2#
-;                  (warn " === with-conn ex 2 ===")
-;                  (warn e2#)
-;                  ; We don't want to lose the original exception, but we will
-;                  ; log the reconnect error here. If we don't throw the
-;                  ; original exception, our caller might not know what kind of
-;                  ; error occurred in their transaction logic!
-;                  (when (:log? ~wrapper)
-;                    (warn e2# "Error reopening" (pr-str (:name ~wrapper)))))
-;                (finally
-;                  (.lock read-lock#)))
-;              ; Right, that's done with, now we can propagate the exception
-;              (throw e#))
-;            (finally
-;              (.unlock read-lock#))))))
-
 (defn with-idempotent
   "Takes a predicate on operation functions, and an op, presumably resulting
   from a client call. If (idempotent? (:f op)) is truthy, remaps :info types to
@@ -270,16 +156,6 @@
   [& body]
   `(util/with-retry [attempts# 30
                      backoff# 20]
-                    ;(try
-                    ;  (if (< attempts# 30) (info " === RETRYING... ==="))
-                    ;  (let [res# ~@body]
-                    ;    (if (< attempts# 30) (info " === RETRY SUCCEEDED ==="))
-                    ;    res#)
-                    ;  (catch Throwable th#
-                    ;    (if (< attempts# 30)
-                    ;      (do (info " === RETRY FAILED ===")
-                    ;          (info th#)))
-                    ;    (throw th#)))
                     ~@body
 
                     (catch java.sql.SQLException e#
@@ -307,17 +183,6 @@
             (merge ~op ex-op#)
             (throw e#)))))
 
-(defn wait-for-conn
-  "Spins until a client is ready. Somehow, I think exceptions escape from this."
-  [client]
-  (util/timeout 60000 (throw (RuntimeException. "Timed out waiting for conn"))
-                (while (try
-                         (with-conn [c client]
-                                    (j/query c ["select 1"])
-                                    false)
-                         (catch RuntimeException e
-                           true)))))
-
 (defn query
   "Like jdbc query, but includes a default timeout in ms.
   Requires query to be wrapped in a vector."
@@ -338,6 +203,3 @@
   "Like jdbc execute!!, but includes a default timeout."
   [conn sql-params]
   (j/execute! conn sql-params {:timeout timeout-delay}))
-
-
-
