@@ -69,10 +69,9 @@
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ysql{:none    noop-test
          :sleep   sleep-test
-         :counter (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient
-                                                  nil (atom false) (atom false)))
-         :bank    (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient
-                                                         nil true (atom false) (atom false)))})
+         :counter (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
+         ; We'd rather allow negatives for now because it makes reproducing error easier
+         :bank    (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
