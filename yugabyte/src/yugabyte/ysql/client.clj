@@ -64,8 +64,10 @@
   (when-let [m (.getMessage e)]
     (condp instance? e
       java.sql.SQLTransactionRollbackException
+
       {:type :fail, :error [:rollback m]}
 
+      ; So far it looks like all SQL exception are wrapped in BatchUpdateException
       java.sql.BatchUpdateException
       (if (re-find #"getNextExc" m)
         ; Wrap underlying exception error with [:batch ...]
@@ -81,11 +83,13 @@
         #"(?i)Catalog Version Mismatch"
         {:type :fail, :error [:catalog-version-mismatch m]}
 
+        ; Happens upon concurrent updates even without explicit transactions
         #"(?i)Operation expired"
         {:type :fail, :error [:operation-expired m]}
 
         {:type :info, :error [:psql-exception m]})
 
+      ; Happens when with-conn macro detects a closed connection
       clojure.lang.ExceptionInfo
       (condp = (:type (ex-data e))
         :conn-not-ready {:type :fail, :error :conn-not-ready}
@@ -100,7 +104,7 @@
 (defn retryable?
   "Whether given exception indicates that an operation can be retried"
   [ex]
-  (let [op     (exception-to-op ex)                           ; either {:type ... :error ...} or nil
+  (let [op     (exception-to-op ex)                         ; either {:type ... :error ...} or nil
         op-str (str op)]
     (re-find #"(?i)try again" op-str)))
 

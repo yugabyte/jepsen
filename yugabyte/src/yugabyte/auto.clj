@@ -411,9 +411,9 @@
       (stop! db test node)
       (wipe! db))
 
-    ; Primary node setup
     db/Primary
     (setup-primary! [this test node]
+      "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
       ; NOOP placeholder, can be used to initialize cluster for different APIs
       )
 
