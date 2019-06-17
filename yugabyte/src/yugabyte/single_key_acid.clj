@@ -1,4 +1,7 @@
 (ns yugabyte.single-key-acid
+  "Given a single table of hash column primary key and one value column with 5 rows,
+  verify that concurrent reads, writes and read-modify-write (UPDATE IF) operations
+  results in linearizable history"
   (:require [clojure [pprint :refer :all]]
             [clojure.tools.logging :refer [debug info warn]]
             [jepsen.client :as client]

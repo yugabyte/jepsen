@@ -41,9 +41,8 @@
       (let [{:keys [from to amount]} (:value op)]
         (c/with-txn
           c
-          (let [query-str     (str "SELECT balance FROM " table-name " WHERE id = ?")
-                b-from-before (:balance (first (c/query c [query-str from])))
-                b-to-before   (:balance (first (c/query c [query-str to])))
+          (let [b-from-before (c/select-single-value c table-name :balance (str "id = " from))
+                b-to-before   (c/select-single-value c table-name :balance (str "id = " to))
                 b-from-after  (- b-from-before amount)
                 b-to-after    (+ b-to-before amount)
                 allowed?      (or allow-negatives? (pos? b-from-after))]
@@ -93,9 +92,7 @@
         (let [accs (shuffle (:accounts test))]
           (->> accs
                (mapv (fn [a]
-                       (->> (c/query c [(str "SELECT id, balance FROM " (str table-name a) " WHERE id = ?") a])
-                            first
-                            :balance)))
+                       (c/select-single-value c (str table-name a) :balance (str "id = " a))))
                (zipmap accs)
                (assoc op :type :ok, :value))))
 
@@ -103,9 +100,8 @@
       (let [{:keys [from to amount]} (:value op)]
         (c/with-txn
           c
-          (let [query-str-fn  #(str "SELECT balance FROM " table-name % " WHERE id = ?")
-                b-from-before (:balance (first (c/query c [(query-str-fn from) from])))
-                b-to-before   (:balance (first (c/query c [(query-str-fn to) to])))
+          (let [b-from-before (c/select-single-value c (str table-name from) :balance (str "id = " from))
+                b-to-before   (c/select-single-value c (str table-name to) :balance (str "id = " to))
                 b-from-after  (- b-from-before amount)
                 b-to-after    (+ b-to-before amount)
                 allowed?      (or allow-negatives? (pos? b-from-after))]

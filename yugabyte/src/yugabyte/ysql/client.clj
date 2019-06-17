@@ -53,6 +53,14 @@
   [conn sql-params]
   (j/execute! conn sql-params {:timeout default-timeout}))
 
+(defn select-single-value
+  "Selects a single value from table with a WHERE-clause yielding single row"
+  [conn table-name column-kw where-clause]
+  (let [query-string (str "SELECT " (name column-kw) " FROM " table-name " WHERE " where-clause)
+        query-res    (query conn query-string)
+        res          (get (first query-res) column-kw)]
+    res))
+
 (defn in
   "Constructs an SQL IN clause string"
   [coll]

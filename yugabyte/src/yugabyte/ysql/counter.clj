@@ -23,10 +23,7 @@
       :add (do (c/execute! c [(str "UPDATE " table-name " SET count = count + ? WHERE id = 0") (:value op)])
                (assoc op :type :ok))
 
-      :read (let [value (->> (str "SELECT count FROM " table-name " WHERE id = 0")
-                             (c/query c)
-                             first
-                             (:count))]
+      :read (let [value (c/select-single-value c table-name :count "id = 0")]
               (assoc op :type :ok :value value))))
 
   (teardown-cluster! [this test c conn-wrapper]

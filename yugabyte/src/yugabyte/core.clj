@@ -28,7 +28,8 @@
             [yugabyte.ysql.bank]
             [yugabyte.ysql.counter]
             [yugabyte.ysql.long-fork]
-            [yugabyte.ysql.set])
+            [yugabyte.ysql.set]
+            [yugabyte.ysql.single-key-acid])
   (:import (jepsen.client Client)))
 
 (def noop-test (fn [opts] (merge tests/noop-test opts)))
@@ -73,11 +74,13 @@
          :sleep           sleep-test
          :counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
          :set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient))
-         :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
+         ; This one doesn't work because of https://github.com/YugaByte/yugabyte-db/issues/1554
+         ; :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
          :bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
          :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))
-         :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))})
+         :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
+         :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
