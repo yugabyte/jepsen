@@ -1,9 +1,10 @@
 (ns yugabyte.ysql.bank
   "Simulates transfers between bank accounts"
-  (:require [clojure.tools.logging :refer [debug info warn]]
+  (:require [clojure.java.jdbc :as j]
+            [clojure.string :as str]
+            [clojure.tools.logging :refer [debug info warn]]
             [jepsen.client :as client]
             [jepsen.reconnect :as rc]
-            [clojure.java.jdbc :as j]
             [yugabyte.ysql.client :as c]))
 
 (def table-name "accounts")
@@ -16,7 +17,7 @@
   c/YSQLClientBase
 
   (setup-cluster! [this test c conn-wrapper]
-    (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
+    (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:balance :bigint]]))
     (c/with-retry
       (info "Creating accounts")
@@ -75,7 +76,7 @@
                              (:total-amount test)
                              0)]
         (info "Creating table" a)
-        (j/execute! c (j/create-table-ddl acc-table-name [[:id :int "PRIMARY KEY"]
+        (c/execute! c (j/create-table-ddl acc-table-name [[:id :int "PRIMARY KEY"]
                                                           [:balance :bigint]]))
 
         (info "Populating account" a " (balance =" balance ")")

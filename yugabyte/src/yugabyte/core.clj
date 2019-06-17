@@ -26,7 +26,8 @@
             [yugabyte.ycql.set]
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql.bank]
-            [yugabyte.ysql.counter])
+            [yugabyte.ysql.counter]
+            [yugabyte.ysql.set])
   (:import (jepsen.client Client)))
 
 (def noop-test (fn [opts] (merge tests/noop-test opts)))
@@ -70,6 +71,8 @@
   #:ysql{:none            noop-test
          :sleep           sleep-test
          :counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
+         :set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient))
+         :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
          :bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
          :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))})

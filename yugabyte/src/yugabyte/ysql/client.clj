@@ -198,6 +198,19 @@
             (merge ~op ex-op#)
             (throw e#)))))
 
+(defn assert-involves-index
+  "Verifies that executing given query uses index with the given name"
+  [c query index-name]
+  (assert
+    (.contains (str (query c (str "EXPLAIN " query))) index-name)
+    (str "Query '" query "' does not involve index '" index-name "'!")))
+
+(defn in
+  "Constructs an SQL IN clause string"
+  [coll]
+  (assert (not-empty coll) "Cannot create IN clause for empty values collection")
+  (str "IN (" (str/join ", " coll) ")"))
+
 (defn query
   "Like jdbc query, but includes a default timeout in ms.
   Requires query to be wrapped in a vector."

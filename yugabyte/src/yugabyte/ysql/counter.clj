@@ -1,9 +1,10 @@
 (ns yugabyte.ysql.counter
   "Something like YCQL 'counter' test. SQL does not have counter type though, so we just use int."
-  (:require [clojure.tools.logging :refer [debug info warn]]
+  (:require [clojure.java.jdbc :as j]
+            [clojure.string :as str]
+            [clojure.tools.logging :refer [debug info warn]]
             [jepsen.client :as client]
             [jepsen.reconnect :as rc]
-            [clojure.java.jdbc :as j]
             [yugabyte.ysql.client :as c]))
 
 (def table-name "counter")
@@ -12,10 +13,9 @@
   c/YSQLClientBase
 
   (setup-cluster! [this test c conn-wrapper]
-    (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
+    (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:count :int]]))
     (c/insert! c table-name {:id 0 :count 0}))
-
 
   (invoke-inner! [this test op c conn-wrapper]
     (case (:f op)
@@ -31,5 +31,6 @@
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))
+
 
 (c/defclient YSQLCounterClient YSQLCounterClientInner)
