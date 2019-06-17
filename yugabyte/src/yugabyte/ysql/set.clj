@@ -43,6 +43,7 @@
 ;
 
 ; NOTE: This doesn't work as intended yet as index isn't used for this query
+; See https://github.com/YugaByte/yugabyte-db/issues/1554
 
 (def index-name "elements_idx")
 
@@ -76,7 +77,7 @@
               (assoc op :type :ok, :value value))))
 
   (teardown-cluster! [this test c conn-wrapper]
-    (j/execute! c (str "DROP INDEX " index-name))
+    (c/drop-index c index-name)
     (c/drop-table c table-name)))
 
 

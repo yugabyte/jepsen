@@ -27,6 +27,7 @@
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql.bank]
             [yugabyte.ysql.counter]
+            [yugabyte.ysql.long-fork]
             [yugabyte.ysql.set])
   (:import (jepsen.client Client)))
 
@@ -75,7 +76,8 @@
          :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
          :bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
-         :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))})
+         :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))
+         :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
