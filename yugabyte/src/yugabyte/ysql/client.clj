@@ -229,6 +229,8 @@
   Example:
 
     (defrecord YSQLMyClientInner [arg1 arg2 arg3]
+      c/YSQLClientBase
+
       (setup-cluster! [this test c conn-wrapper]
         (do-stuff-once-with c))
 

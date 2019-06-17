@@ -11,7 +11,6 @@
 (defrecord YSQLBankClientInner [allow-negatives?]
   c/YSQLClientBase
 
-
   (setup-cluster! [this test c conn-wrapper]
     (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:balance :bigint]]))
