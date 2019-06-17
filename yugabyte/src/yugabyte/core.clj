@@ -67,11 +67,12 @@
 
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."
-  #:ysql{:none    noop-test
-         :sleep   sleep-test
-         :counter (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
+  #:ysql{:none            noop-test
+         :sleep           sleep-test
+         :counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
-         :bank    (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))})
+         :bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
+         :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
