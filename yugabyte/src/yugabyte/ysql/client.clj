@@ -58,7 +58,7 @@
        :close close-conn
        :log?  true})))
 
-(defprotocol YSQLClientBase
+(defprotocol YSQLYbClient
   "Used by defclient macro in conjunction with jepsen.client/Client specifying actual logic"
   (setup-cluster! [client test c conn-wrapper]
     "Called once on a random node to set up database/cluster state for testing.")
@@ -228,8 +228,8 @@
 
   Example:
 
-    (defrecord YSQLMyClientInner [arg1 arg2 arg3]
-      c/YSQLClientBase
+    (defrecord YSQLMyYbClient [arg1 arg2 arg3]
+      c/YSQLYbClient
 
       (setup-cluster! [this test c conn-wrapper]
         (do-stuff-once-with c))
@@ -242,7 +242,7 @@
         (c/drop-table c \"my-table\"))
 
 
-    (c/defclient YSQLMyClient YSQLMyClientInner)
+    (c/defclient YSQLMyClient YSQLMyYbClient)
 
 
     ; To create a client instance:

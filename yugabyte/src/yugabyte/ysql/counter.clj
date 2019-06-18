@@ -8,8 +8,8 @@
 
 (def table-name "counter")
 
-(defrecord YSQLCounterClientInner []
-  c/YSQLClientBase
+(defrecord YSQLCounterYbClient []
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
@@ -32,4 +32,4 @@
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))
 
-(c/defclient YSQLCounterClient YSQLCounterClientInner)
+(c/defclient YSQLCounterClient YSQLCounterYbClient)

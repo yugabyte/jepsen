@@ -8,8 +8,8 @@
 
 (def table-name "accounts")
 
-(defrecord YSQLBankClientInner [allow-negatives?]
-  c/YSQLClientBase
+(defrecord YSQLBankYbClient [allow-negatives?]
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (j/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
@@ -53,4 +53,4 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLBankClient YSQLBankClientInner)
+(c/defclient YSQLBankClient YSQLBankYbClient)
