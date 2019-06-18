@@ -53,6 +53,14 @@
   [conn sql-params]
   (j/execute! conn sql-params {:timeout default-timeout}))
 
+(defn select-first-row
+  "Selects a first row from table with a WHERE-clause, returning nil if no rows were found"
+  [conn table-name where-clause]
+  (let [query-string (str "SELECT * FROM " table-name " WHERE " where-clause)
+        query-res    (query conn query-string)
+        res          (first query-res)]
+    res))
+
 (defn select-single-value
   "Selects a single value from table with a WHERE-clause yielding single row"
   [conn table-name column-kw where-clause]
@@ -134,6 +142,17 @@
         #"(?i)Operation expired"
         {:type :fail, :error [:operation-expired m]}
 
+        ;
+        ; Errors in test spec, do not suppress throwing
+        ;
+
+        #"(?i)Syntax error"
+        nil
+
+        #"(?i)Column .+ does not exist"
+        nil
+
+        ; Unknown (other) SQL error
         {:type :info, :error [:psql-exception m]})
 
       ; Happens when with-conn macro detects a closed connection
