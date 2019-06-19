@@ -23,7 +23,7 @@
                                  :balance 0}))))
 
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
       (->> (str "SELECT id, balance FROM " table-name)

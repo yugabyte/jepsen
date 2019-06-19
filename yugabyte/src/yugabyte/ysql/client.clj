@@ -62,12 +62,12 @@
   "Used by defclient macro in conjunction with jepsen.client/Client specifying actual logic"
   (setup-cluster! [client test c conn-wrapper]
     "Called once on a random node to set up database/cluster state for testing.")
-  (invoke-inner! [client test operation c conn-wrapper]
+  (invoke-op! [client test operation c conn-wrapper]
     "Apply an operation to the client, returning an operation to be appended to the history.
-    This function is wrapped in with-errors, with-conn and with-retry")
+    If it throws retryable error, can be called again.")
   (teardown-cluster! [client test c conn-wrapper]
     "Called once on a random node to tear down the client/database/cluster when work is complete.
-    This function is wrapped in with-timeout, with-conn and with-retry"))
+    If it throws retryable error, can be called again."))
 
 (defn exception-to-op
   "Takes an exception and maps it to a partial op, like {:type :info, :error
@@ -225,6 +225,8 @@
   Takes a new class name symbol and a definition of YSQLClientBase record
   whose methods will be wrapped and called.
   This approach is (arguably) cleaner than the one used for YCQL defclient.
+  Separate defrecord, among other things, allows to clearly see
+  compile-time errors caused by protocol misusage.
 
   Example:
 
@@ -289,7 +291,7 @@
                (with-conn
                  [~'c ~'conn-wrapper]
                  (with-retry
-                   (invoke-inner! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))))
+                   (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))))
 
            (teardown! [~'this ~'test]
              (once-per-cluster
