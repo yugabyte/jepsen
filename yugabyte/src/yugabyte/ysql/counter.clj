@@ -9,15 +9,15 @@
 
 (def table-name "counter")
 
-(defrecord YSQLCounterClientInner []
-  c/YSQLClientBase
+(defrecord YSQLCounterYbClient []
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:count :int]]))
     (c/insert! c table-name {:id 0 :count 0}))
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       ; update! can't handle column references
       :add (do (c/execute! c [(str "UPDATE " table-name " SET count = count + ? WHERE id = 0") (:value op)])
@@ -30,4 +30,4 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLCounterClient YSQLCounterClientInner)
+(c/defclient YSQLCounterClient YSQLCounterYbClient)

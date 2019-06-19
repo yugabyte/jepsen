@@ -13,8 +13,8 @@
 ; Single-table bank test
 ;
 
-(defrecord YSQLBankClientInner [allow-negatives?]
-  c/YSQLClientBase
+(defrecord YSQLBankYbClient [allow-negatives?]
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
@@ -28,7 +28,7 @@
                                  :balance 0}))))
 
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
       (->> (str "SELECT id, balance FROM " table-name)
@@ -57,7 +57,7 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLBankClient YSQLBankClientInner)
+(c/defclient YSQLBankClient YSQLBankYbClient)
 
 
 ;
