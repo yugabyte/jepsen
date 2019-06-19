@@ -236,7 +236,7 @@
       (setup-cluster! [this test c conn-wrapper]
         (do-stuff-once-with c))
 
-      (invoke-inner! [this test op c conn-wrapper]
+      (invoke-op! [this test op c conn-wrapper]
         (case (:f op)
           ...))
 
