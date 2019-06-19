@@ -33,29 +33,34 @@
             [yugabyte.ysql.single-key-acid])
   (:import (jepsen.client Client)))
 
-(def noop-test (fn [opts] (merge tests/noop-test opts)))
+(defn noop-test
+  "NOOP test, exists to validate setup/teardown phases"
+  [opts]
+  (merge tests/noop-test opts))
 
-(def sleep-test
-  (fn [opts] (merge tests/noop-test
-                    {:client (reify Client
-                               (setup! [this test]
-                                 (let [wait-sec 120] (info " === Sleeping for" wait-sec "s ===")
-                                                     (Thread/sleep (* wait-sec 1000))))
-                               (teardown! [this test])
-                               (invoke! [this test op] (assoc op :type :ok))
-                               (open! [this test node] this)
-                               (close! [this test]))}
-                    opts)))
-
-(defn with-client
-  [workload client]
-  "Wraps a workload function to add :client entry to the result"
-  (fn [opts] (assoc (workload opts) :client client)))
+(defn sleep-test
+  "NOOP test that gives you time to log into nodes and poke around, trying stuff manually"
+  [opts]
+  (merge tests/noop-test
+         {:client (reify Client
+                    (setup! [this test]
+                      (let [wait-sec 600] (info "Sleeping for" wait-sec "s...")
+                                          (Thread/sleep (* wait-sec 1000))))
+                    (teardown! [this test])
+                    (invoke! [this test op] (assoc op :type :ok))
+                    (open! [this test node] this)
+                    (close! [this test]))}
+         opts))
 
 (defn is-stub-workload
   "Whether workload defined by the given keyword is just a stub, or is a real one"
   [w]
   (or (= (name w) "none") (= (name w) "sleep")))
+
+(defn with-client
+  [workload client]
+  "Wraps a workload function to add :client entry to the result"
+  (fn [opts] (assoc (workload opts) :client client)))
 
 (def workloads-ycql
   "A map of workload names to functions that can take option maps and construct workloads."
