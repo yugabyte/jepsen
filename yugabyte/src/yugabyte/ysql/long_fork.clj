@@ -15,8 +15,8 @@
   [key-seq]
   (str "SElECT key2, val FROM " table-name " WHERE key2 " (c/in key-seq)))
 
-(defrecord YSQLLongForkClientInner []
-  c/YSQLClientBase
+(defrecord YSQLLongForkYbClient []
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:key :int "PRIMARY KEY"]
@@ -29,7 +29,7 @@
     )
 
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
 
     (let [txn (:value op)]
       (case (:f op)
@@ -57,4 +57,4 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLLongForkClient YSQLLongForkClientInner)
+(c/defclient YSQLLongForkClient YSQLLongForkYbClient)

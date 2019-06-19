@@ -64,8 +64,8 @@
 ; Multi-table bank test
 ;
 
-(defrecord YSQLMultiBankClientInner [allow-negatives?]
-  c/YSQLClientBase
+(defrecord YSQLMultiBankYbClient [allow-negatives?]
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
 
@@ -84,7 +84,7 @@
                                        :balance balance})))))
 
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
       (c/with-txn
@@ -117,4 +117,4 @@
       (c/drop-table c (str table-name a)))))
 
 
-(c/defclient YSQLMultiBankClient YSQLMultiBankClientInner)
+(c/defclient YSQLMultiBankClient YSQLMultiBankYbClient)

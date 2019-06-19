@@ -15,8 +15,8 @@
 
 (def table-name "multi_key_acid")
 
-(defrecord YSQLMultiKeyAcidClientInner []
-  c/YSQLClientBase
+(defrecord YSQLMultiKeyAcidYbClient []
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:k1 :int]
@@ -24,7 +24,7 @@
                                                   [:val :int]
                                                   ["PRIMARY KEY" "(k1, k2)"]])))
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (let [[k2 ops] (:value op)]
       (case (:f op)
         :read
@@ -55,4 +55,4 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLMultiKeyAcidClient YSQLMultiKeyAcidClientInner)
+(c/defclient YSQLMultiKeyAcidClient YSQLMultiKeyAcidYbClient)

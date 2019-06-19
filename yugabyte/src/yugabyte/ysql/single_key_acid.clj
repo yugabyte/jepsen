@@ -12,8 +12,8 @@
 
 (def table-name "single_key_acid")
 
-(defrecord YSQLSingleKeyAcidClientInner []
-  c/YSQLClientBase
+(defrecord YSQLSingleKeyAcidYbClient []
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
@@ -21,7 +21,7 @@
     (doseq [id (range 5)]
       (c/insert! c table-name {:id id :val 0})))
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (let [[id val] (:value op)]
       (case (:f op)
         :write
@@ -44,4 +44,4 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLSingleKeyAcidClient YSQLSingleKeyAcidClientInner)
+(c/defclient YSQLSingleKeyAcidClient YSQLSingleKeyAcidYbClient)

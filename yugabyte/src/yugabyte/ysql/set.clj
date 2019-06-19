@@ -13,14 +13,14 @@
 ; Regular set test
 ;
 
-(defrecord YSQLSetClientInner []
-  c/YSQLClientBase
+(defrecord YSQLSetYbClient []
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:val :int "PRIMARY KEY"]])))
 
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :add (do (c/insert! c table-name {:val (:value op)})
                (assoc op :type :ok))
@@ -35,7 +35,7 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLSetClient YSQLSetClientInner)
+(c/defclient YSQLSetClient YSQLSetYbClient)
 
 
 ;
@@ -54,8 +54,8 @@
 (def set-index-query
   (str "SELECT val FROM " table-name " WHERE grp " (c/in (range group-count))))
 
-(defrecord YSQLSetIndexClientInner []
-  c/YSQLClientBase
+(defrecord YSQLSetIndexYbClient []
+  c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
@@ -64,7 +64,7 @@
     (c/execute! c (str "CREATE INDEX " index-name " ON " table-name " (grp) INCLUDE (val)"))
     (c/assert-involves-index c set-index-query index-name))
 
-  (invoke-inner! [this test op c conn-wrapper]
+  (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :add (do (c/insert! c table-name {:id  (:value op)
                                         :val (:value op)
@@ -81,4 +81,4 @@
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLSetIndexClient YSQLSetIndexClientInner)
+(c/defclient YSQLSetIndexClient YSQLSetIndexYbClient)
