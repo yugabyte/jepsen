@@ -53,11 +53,14 @@ The following tests are available for both YCQL and YSQL:
 - `multi-key-acid` - concurrent writes to 2 different keys with the same value and reads.
 - `counter` - concurrent counter increments.
 - `bank` - concurrent transfers between rows of a shared table.
-- `bank-multitable` - like bank, but across different tables.
 
 YCQL-specific tests:
 
 - `set-index` - like set, but reads from a small pool of indices
+
+YSQL-specific tests:
+
+- `bank-multitable` - like bank, but across different tables.
 
 #### Nemeses
 
