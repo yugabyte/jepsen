@@ -106,7 +106,8 @@
   "Only workloads and options that we think should pass. Also used for
   test-all."
   (-> workload-options
-      (dissoc :ycql/bank-multitable)))
+      (dissoc :ycql/bank-multitable
+              :ysql/sleep)))
 
 (def nemesis-specs
   "These are the types of failures that the nemesis can perform."
