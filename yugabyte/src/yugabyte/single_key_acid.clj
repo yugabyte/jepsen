@@ -20,8 +20,8 @@
   [opts]
   (let [n (count (:nodes opts))]
     {:generator (independent/concurrent-generator
-                  (* 2 n)
-                  (range)                                   ; Use two rows
+                  (* 2 n)                                   ; Will use two rows
+                  (range)
                   (fn [k]
                     (->> (gen/reserve n (gen/mix [w cas cas]) r)
                          (gen/stagger 1)
