@@ -1,6 +1,4 @@
 (ns yugabyte.ysql.long-fork
-  "Looks for instances of long fork: a snapshot isolation violation involving
-  incompatible orders of writes to disparate objects"
   (:require [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [debug info warn]]
             [jepsen.client :as client]

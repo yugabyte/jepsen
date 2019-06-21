@@ -1,5 +1,4 @@
 (ns yugabyte.ysql.bank
-  "Simulates transfers between bank accounts"
   (:require [clojure.java.jdbc :as j]
             [clojure.string :as str]
             [clojure.tools.logging :refer [debug info warn]]

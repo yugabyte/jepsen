@@ -47,12 +47,12 @@ Workloads have format `<api-name>/<test-name>`, where `<api-name>` is either `yc
 
 The following tests are available for both YCQL and YSQL:
 
-- `set` - inserts single records and concurrently reads all of them back.
-- `long-fork` - looks for a snapshot isolation violation due to incompatible read orders.
-- `single-key-acid` - concurrent read, write, update if operations on a single row.
-- `multi-key-acid` - concurrent writes to 2 different keys with the same value and reads.
 - `counter` - concurrent counter increments.
+- `set` - inserts single records and concurrently reads all of them back.
 - `bank` - concurrent transfers between rows of a shared table.
+- `long-fork` - looks for a snapshot isolation violation due to incompatible read orders.
+- `single-key-acid` - concurrent read, write, update-if operations on two rows.
+- `multi-key-acid` - concurrent reads and write batches to a table with two-column composite key.
 
 YCQL-specific tests:
 

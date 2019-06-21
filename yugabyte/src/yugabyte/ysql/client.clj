@@ -56,7 +56,7 @@
 (defn select-first-row
   "Selects a first row from table with a WHERE-clause, returning nil if no rows were found"
   [conn table-name where-clause]
-  (let [query-string (str "SELECT * FROM " table-name " WHERE " where-clause)
+  (let [query-string (str "SELECT * FROM " table-name " WHERE " where-clause " LIMIT 1")
         query-res    (query conn query-string)
         res          (first query-res)]
     res))
@@ -64,7 +64,7 @@
 (defn select-single-value
   "Selects a single value from table with a WHERE-clause yielding single row"
   [conn table-name column-kw where-clause]
-  (let [query-string (str "SELECT " (name column-kw) " FROM " table-name " WHERE " where-clause)
+  (let [query-string (str "SELECT " (name column-kw) " FROM " table-name " WHERE " where-clause " LIMIT 1")
         query-res    (query conn query-string)
         res          (get (first query-res) column-kw)]
     res))
@@ -330,7 +330,8 @@
                (info "Running setup")
                (with-conn
                  [~'c ~'conn-wrapper]
-                 (setup-cluster! ~'inner-client ~'test ~'c ~'conn-wrapper))))
+                 (setup-cluster! ~'inner-client ~'test ~'c ~'conn-wrapper))
+               (info "Setup sucessful")))
 
            (invoke! [~'this ~'test ~'op]
              (with-errors

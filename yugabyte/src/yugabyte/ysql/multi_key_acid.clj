@@ -1,9 +1,5 @@
 (ns yugabyte.ysql.multi-key-acid
-  "Given a single table of two-column composite key and one value column,
-  execute reads and transactional batches of writes.
-  Verify that history remains linearizable.
-
-  This test uses INSERT ... ON CONFLICT DO UPDATE"
+  "This test uses INSERT ... ON CONFLICT DO UPDATE"
   (:require [clojure.java.jdbc :as j]
             [clojure.string :as str]
             [clojure.tools.logging :refer [debug info warn]]

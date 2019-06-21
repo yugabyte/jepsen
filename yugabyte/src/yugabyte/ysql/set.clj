@@ -1,5 +1,4 @@
 (ns yugabyte.ysql.set
-  "Adds elements to sets and reads them back"
   (:require [clojure.java.jdbc :as j]
             [clojure.string :as str]
             [clojure.tools.logging :refer [debug info warn]]

@@ -1,5 +1,5 @@
 (ns yugabyte.single-key-acid
-  "Given a single table of hash column primary key and one value column with 5 rows,
+  "Given a single table of hash column primary key and one value column with two rows,
   verify that concurrent reads, writes and read-modify-write (UPDATE IF) operations
   results in linearizable history"
   (:require [clojure [pprint :refer :all]]
@@ -21,7 +21,7 @@
   (let [n (count (:nodes opts))]
     {:generator (independent/concurrent-generator
                   (* 2 n)
-                  (range)
+                  (range)                                   ; Use two rows
                   (fn [k]
                     (->> (gen/reserve n (gen/mix [w cas cas]) r)
                          (gen/stagger 1)
