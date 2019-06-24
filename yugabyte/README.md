@@ -51,7 +51,7 @@ The following tests are available for both YCQL and YSQL:
 - `set` - inserts single records and concurrently reads all of them back.
 - `bank` - concurrent transfers between rows of a shared table.
 - `long-fork` - looks for a snapshot isolation violation due to incompatible read orders.
-- `single-key-acid` - concurrent read, write, update-if operations on configurable number of rows independently.
+- `single-key-acid` - each workers group is doing concurrent read, write, update-if operations on on their designated row.
 - `multi-key-acid` - concurrent reads and write batches to a table with two-column composite key.
 
 YCQL-specific tests:
