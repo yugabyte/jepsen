@@ -39,13 +39,15 @@
   (merge tests/noop-test opts))
 
 (defn sleep-test
-  "NOOP test that gives you time to log into nodes and poke around, trying stuff manually"
+  "NOOP test that gives you time to log into nodes and poke around, trying stuff manually.
+  Sleeps for durations specified by --time-limit (in seconds), defaults to 60."
   [opts]
   (merge tests/noop-test
          {:client (reify Client
                     (setup! [this test]
-                      (let [wait-sec 600] (info "Sleeping for" wait-sec "s...")
-                                          (Thread/sleep (* wait-sec 1000))))
+                      (let [wait-sec (:time-limit opts)]
+                        (info "Sleeping for" wait-sec "s...")
+                        (Thread/sleep (* wait-sec 1000))))
                     (teardown! [this test])
                     (invoke! [this test op] (assoc op :type :ok))
                     (open! [this test node] this)
