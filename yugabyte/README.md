@@ -60,6 +60,7 @@ YCQL-specific tests:
 
 YSQL-specific tests:
 
+- `adya` - given a bunch of keys and two identical tables, insert a given key in the given table iff it isn't already present in either
 - `bank-multitable` - like bank, but across different tables.
 
 #### Nemeses
