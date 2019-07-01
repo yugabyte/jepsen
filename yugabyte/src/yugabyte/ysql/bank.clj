@@ -31,7 +31,7 @@
     (case (:f op)
       :read
       (->> (str "SELECT id, balance FROM " table-name)
-           (c/query c)
+           (c/query op c)
            (map (juxt :id :balance))
            (into (sorted-map))
            (assoc op :type :ok, :value))
@@ -40,15 +40,15 @@
       (let [{:keys [from to amount]} (:value op)]
         (c/with-txn
           c
-          (let [b-from-before (c/select-single-value c table-name :balance (str "id = " from))
-                b-to-before   (c/select-single-value c table-name :balance (str "id = " to))
+          (let [b-from-before (c/select-single-value op c table-name :balance (str "id = " from))
+                b-to-before   (c/select-single-value op c table-name :balance (str "id = " to))
                 b-from-after  (- b-from-before amount)
                 b-to-after    (+ b-to-before amount)
                 allowed?      (or allow-negatives? (pos? b-from-after))]
             (if (not allowed?)
               (assoc op :type :fail, :error [:negative from b-from-after])
-              (do (c/update! c table-name {:balance b-from-after} ["id = ?" from])
-                  (c/update! c table-name {:balance b-to-after} ["id = ?" to])
+              (do (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+                  (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
                   (assoc op :type :ok))))))))
 
 
@@ -91,7 +91,7 @@
         (let [accs (shuffle (:accounts test))]
           (->> accs
                (mapv (fn [a]
-                       (c/select-single-value c (str table-name a) :balance (str "id = " a))))
+                       (c/select-single-value op c (str table-name a) :balance (str "id = " a))))
                (zipmap accs)
                (assoc op :type :ok, :value))))
 
@@ -99,15 +99,15 @@
       (let [{:keys [from to amount]} (:value op)]
         (c/with-txn
           c
-          (let [b-from-before (c/select-single-value c (str table-name from) :balance (str "id = " from))
-                b-to-before   (c/select-single-value c (str table-name to) :balance (str "id = " to))
+          (let [b-from-before (c/select-single-value op c (str table-name from) :balance (str "id = " from))
+                b-to-before   (c/select-single-value op c (str table-name to) :balance (str "id = " to))
                 b-from-after  (- b-from-before amount)
                 b-to-after    (+ b-to-before amount)
                 allowed?      (or allow-negatives? (pos? b-from-after))]
             (if (not allowed?)
               (assoc op :type :fail, :error [:negative from b-from-after])
-              (do (c/update! c (str table-name from) {:balance b-from-after} ["id = ?" from])
-                  (c/update! c (str table-name to) {:balance b-to-after} ["id = ?" to])
+              (do (c/update! op c (str table-name from) {:balance b-from-after} ["id = ?" from])
+                  (c/update! op c (str table-name to) {:balance b-to-after} ["id = ?" to])
                   (assoc op :type :ok))))))))
 
 
