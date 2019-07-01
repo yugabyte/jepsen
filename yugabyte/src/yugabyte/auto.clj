@@ -23,7 +23,6 @@
 
 (def master-log-dir  (str dir "/master/logs"))
 (def tserver-log-dir (str dir "/tserver/logs"))
-(def tserver-conf    (str dir "/tserver/conf/server.conf"))
 (def installed-url-file (str dir "/installed-url"))
 
 (def max-bump-time-ops-per-test
@@ -56,8 +55,6 @@
 (defn master-nodes
   "Given a test, returns the nodes we run masters on."
   [test]
-  ; Right now you must run the same number of masters as --replication-factor.
-  ; Maybe? YB's not sure.
   (let [nodes (take (:replication-factor test)
                     (:nodes test))]
     (assert (= (count nodes) (:replication-factor test))
