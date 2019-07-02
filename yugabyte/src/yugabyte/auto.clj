@@ -314,6 +314,9 @@
    :--rpc_connection_timeout_ms                   1500
    ])
 
+(def added-log-flags
+  ["--vmodule=\"intent_aware_iterator=4,doc_rowwise_iterator=4,tablet_service=4,transaction=4\""])
+
 (defrecord YugaByteDB
   []
   Auto
@@ -369,6 +372,7 @@
             :--rpc_slow_query_threshold_ms 1000
             :--load_balancer_max_concurrent_adds 10
             (tserver-api-opts (:api test) node)
+            ;added-log-flags
 
             ; Heartbeats
             ;:--heartbeat_interval_ms 100
