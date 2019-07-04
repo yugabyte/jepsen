@@ -24,15 +24,17 @@
     (let [[k2 ops] (:value op)]
       (case (:f op)
         :read
-        (let [k1s  (map mop/key ops)
-              ; Look up values
-              vs   (->> (str "SELECT k1, val FROM " table-name " WHERE k2 = " k2 " AND k1 " (c/in k1s))
-                        (c/query c)
-                        (map (juxt :k1 :val))
-                        (into {}))
-              ; Rewrite ops to use those values
-              ops' (mapv (fn [[f k1 _]] [f k1 (get vs k1)]) ops)]
-          (assoc op :type :ok, :value (independent/tuple k2 ops')))
+        (c/with-snapshot=txn
+          c
+          (let [k1s  (map mop/key ops)
+                ; Look up values
+                vs   (->> (str "SELECT k1, val FROM " table-name " WHERE k2 = " k2 " AND k1 " (c/in k1s))
+                          (c/query c)
+                          (map (juxt :k1 :val))
+                          (into {}))
+                ; Rewrite ops to use those values
+                ops' (mapv (fn [[f k1 _]] [f k1 (get vs k1)]) ops)]
+            (assoc op :type :ok, :value (independent/tuple k2 ops'))))
 
         :write
         (c/with-txn
