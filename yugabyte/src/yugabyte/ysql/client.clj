@@ -245,6 +245,12 @@
   `(j/with-db-transaction [~c ~c {:isolation isolation-level}]
                           ~@body))
 
+(defmacro with-snapshot=txn
+  "Wrap evaluation within an SQL transaction using the SNAPSHOT isolation level.
+  Should be used for pure read transactions."
+  [c & body]
+  `(j/with-db-transaction [~c ~c {:isolation :repeatable-read}] ; aka SNAPSHOT in YB
+                          ~@body))
 
 (defmacro with-errors
   "Takes an operation and a body. Evaluates body, catches exceptions, and maps
