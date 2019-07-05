@@ -58,14 +58,16 @@
    (j/query conn sql-params {:timeout default-timeout})))
 
 (defn insert!
-  "Like jdbc insert!, but includes a default timeout."
-  [conn table values]
-  (j/insert! conn table values {:timeout default-timeout}))
+  "Like jdbc insert!, but includes a default timeout and (optionally) :op-index comment."
+  ([op conn table values]
+   (insert! conn (append-op-index op table) values))
+  ([conn table values]
+   (j/insert! conn table values {:timeout default-timeout})))
 
 (defn update!
   "Like jdbc update!, but includes a default timeout and (optionally) :op-index comment."
   ([op conn table values where]
-   (update! conn table values (append-op-index-to-first op where)))
+   (update! conn (append-op-index op table) values where))
   ([conn table values where]
    (j/update! conn table values where {:timeout default-timeout})))
 
