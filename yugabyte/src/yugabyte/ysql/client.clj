@@ -14,8 +14,8 @@
 
 (def default-timeout "Default timeout for operations in ms" 30000)
 
-(def conn-isolation-level "Default isolation level for connections" java.sql.Connection/TRANSACTION_SERIALIZABLE)
-(def txn-isolation-level "Default isolation level for txns" :serializable)
+(def conn-isolation-level "Default isolation level for connections"
+  java.sql.Connection/TRANSACTION_SERIALIZABLE)
 
 (def ysql-port 5433)
 
@@ -246,7 +246,7 @@
 (defmacro with-txn
   "Wrap evaluation within an SQL transaction using the default isolation level."
   [c & body]
-  `(j/with-db-transaction [~c ~c {:isolation txn-isolation-level}]
+  `(j/with-db-transaction [~c ~c]
                           ~@body))
 
 (defmacro with-errors
