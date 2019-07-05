@@ -38,9 +38,7 @@
   (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
-      (c/with-txn
-        c
-        (assoc op :type :ok, :value (read-accounts-map op c)))
+      (assoc op :type :ok, :value (read-accounts-map op c))
 
       :transfer
       (c/with-txn
