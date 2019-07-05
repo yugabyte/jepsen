@@ -37,7 +37,8 @@
 (defn- append-op-index
   "Append /* <:op-index> */ to a given SQL statement or its part,
   useful while digging through server-side logs.
-  If the given SQL contains a sequence, op-index will be appended to a first element."
+  If the given SQL contains a sequence, commented op-index
+  will be appended to a first element."
   [op sql]
   (if (sequential? sql)
     (concat [(append-op-index op (first sql))] (rest sql))
