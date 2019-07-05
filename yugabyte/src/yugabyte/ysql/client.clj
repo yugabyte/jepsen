@@ -36,24 +36,18 @@
 
 (defn- append-op-index
   "Append /* <:op-index> */ to a given SQL statement or its part,
-  useful while digging through server-side logs"
+  useful while digging through server-side logs.
+  If the given SQL contains a sequence, op-index will be appended to a first element."
   [op sql]
-  (str sql " /* op-index " (:op-index op) " */ "))
-
-(defn- append-op-index-to-first
-  "Append /* <:op-index> */ to a first element of a given collection
-  (which is assumed to be SQL string),
-  useful while digging through server-side logs"
-  [op coll-with-sql-first]
-  (concat [(append-op-index op (first coll-with-sql-first))] (rest coll-with-sql-first)))
+  (if (sequential? sql)
+    (concat [(append-op-index op (first sql))] (rest sql))
+    (str sql " /* op-index " (:op-index op) " */ ")))
 
 (defn query
   "Like jdbc query, but includes a default timeout in ms.
   If op is given, appends :op-index comment."
   ([op conn sql-params]
-   (query conn (if (seq? sql-params)
-                 (append-op-index-to-first op sql-params)
-                 (append-op-index op sql-params))))
+   (query conn (append-op-index op sql-params)))
   ([conn sql-params]
    (j/query conn sql-params {:timeout default-timeout})))
 
