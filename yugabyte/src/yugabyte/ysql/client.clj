@@ -170,6 +170,10 @@
         #"(?i)Operation expired"
         {:type :fail, :error [:operation-expired m]}
 
+        ; Happens upon network partition
+        #"(?i)Timed out after deadline expired"
+        {:type :fail, :error [:timeout m]}
+
         ; Happens when tserver has been stopped
         #"(?i)This connection has been closed"
         {:type :fail, :error [:conn-closed m]}
@@ -177,6 +181,10 @@
         ; Happens when tserver has been stopped
         #"(?i)Terminating connection due to administrator command"
         {:type :fail, :error [:conn-closed m]}
+
+        ; Happens when tserver has been stopped
+        #"(?i)Error occurred while sending to the backend"
+        {:type :fail, :error [:data-sending-failed m]}
 
         ;
         ; Errors in test spec, do not suppress throwing
@@ -205,7 +213,7 @@
         #"^timeout$"
         {:type :info, :error :timeout}
 
-        #"^timed out$"
+        #"timed out"
         {:type :info, :error :timeout}
 
         nil))))
@@ -215,7 +223,8 @@
   [ex]
   (let [op     (exception-to-op ex)                         ; either {:type ... :error ...} or nil
         op-str (str op)]
-    (re-find #"(?i)try again" op-str)))
+    (or (re-find #"(?i)try again" op-str)
+        (re-find #"(?i)restart read required" op-str))))
 
 (defmacro once-per-cluster
   "Runs the given code once per cluster. Requires an atomic boolean (set to false)
