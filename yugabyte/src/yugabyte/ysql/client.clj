@@ -148,7 +148,6 @@
   (when-let [m (.getMessage e)]
     (condp instance? e
       java.sql.SQLTransactionRollbackException
-
       {:type :fail, :error [:rollback m]}
 
       ; So far it looks like all SQL exception are wrapped in BatchUpdateException
@@ -160,7 +159,7 @@
         {:type :info, :error [:batch-update m]})
 
       org.postgresql.util.PSQLException
-      (condp re-find (.getMessage e)
+      (condp re-find m
         #"(?i)Conflicts with [- a-z]+ transaction"
         {:type :fail, :error [:conflicting-transaction m]}
 
@@ -170,6 +169,14 @@
         ; Happens upon concurrent updates even without explicit transactions
         #"(?i)Operation expired"
         {:type :fail, :error [:operation-expired m]}
+
+        ; Happens when tserver has been stopped
+        #"(?i)This connection has been closed"
+        {:type :fail, :error [:conn-closed m]}
+
+        ; Happens when tserver has been stopped
+        #"(?i)Terminating connection due to administrator command"
+        {:type :fail, :error [:conn-closed m]}
 
         ;
         ; Errors in test spec, do not suppress throwing
@@ -184,14 +191,21 @@
         ; Unknown (other) SQL error
         {:type :info, :error [:psql-exception m]})
 
-      ; Happens when with-conn macro detects a closed connection
       clojure.lang.ExceptionInfo
-      (condp = (:type (ex-data e))
-        :conn-not-ready {:type :fail, :error :conn-not-ready}
-        nil)
+      (if-let [e2 (:rollback (ex-data e))]
+        ; Process wrapped exception, if any - happens e.g. when tserver has been stopped
+        (exception-to-op e2)
+
+        ; Happens when with-conn macro detects a closed connection
+        (condp = (:type (ex-data e))
+          :conn-not-ready {:type :fail, :error :conn-not-ready}
+          nil))
 
       (condp re-find m
         #"^timeout$"
+        {:type :info, :error :timeout}
+
+        #"^timed out$"
         {:type :info, :error :timeout}
 
         nil))))
