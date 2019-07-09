@@ -391,11 +391,12 @@
              (once-per-cluster
                ~'teardown?
                (info "Running teardown")
-               (with-timeout
-                 (with-conn
-                   [~'c ~'conn-wrapper]
-                   (with-retry
-                     (teardown-cluster! ~'inner-client ~'test ~'c ~'conn-wrapper))))))
+               (with-errors
+                 (with-timeout
+                   (with-conn
+                     [~'c ~'conn-wrapper]
+                     (with-retry
+                       (teardown-cluster! ~'inner-client ~'test ~'c ~'conn-wrapper)))))))
 
            (close! [~'this ~'test]
              (rc/close! ~'conn-wrapper)))
