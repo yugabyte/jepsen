@@ -170,21 +170,28 @@
         #"(?i)Operation expired"
         {:type :fail, :error [:operation-expired m]}
 
-        ; Happens upon network partition
+        ; Happens upon network partition,
+        ; invoked from SyncLeaderMasterRpc and GetTableSchemaRpc
         #"(?i)Timed out after deadline expired"
         {:type :fail, :error [:timeout m]}
 
-        ; Happens when tserver has been stopped
-        #"(?i)This connection has been closed"
-        {:type :fail, :error [:conn-closed m]}
-
-        ; Happens when tserver has been stopped
+        ; Happens when tserver has been stopped,
+        ; invoked from PG backend via ProcessInterrupts as a part of CHECK_FOR_INTERRUPTS macro
         #"(?i)Terminating connection due to administrator command"
         {:type :fail, :error [:conn-closed m]}
 
-        ; Happens when tserver has been stopped
-        #"(?i)Error occurred while sending to the backend"
-        {:type :fail, :error [:data-sending-failed m]}
+        ;
+        ; PG driver-level errors
+        ; (usually results in operation failure, but we can't guarantee that)
+        ;
+
+        ; Might happen on basically any stage
+        #"(?i)This connection has been closed"
+        {:type :info, :error [:conn-closed m]}
+
+        ; Happens when there's a problem communicating with server
+        #"(?i)An I/O error occurred while sending to the backend"
+        {:type :info, :error [:data-sending-failed m]}
 
         ;
         ; Errors in test spec, do not suppress throwing
