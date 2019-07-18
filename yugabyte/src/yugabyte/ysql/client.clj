@@ -182,6 +182,7 @@
 
         ;
         ; PG driver-level errors
+        ; Happens when client connection with yb-tserver has been disrupted
         ; (usually results in operation failure, but we can't guarantee that)
         ;
 
