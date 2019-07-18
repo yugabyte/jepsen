@@ -171,9 +171,9 @@
         {:type :fail, :error [:operation-expired m]}
 
         ; Happens upon network partition,
-        ; invoked from SyncLeaderMasterRpc and GetTableSchemaRpc
+        ; usually invoked upon RPC request timeout
         #"(?i)Timed out after deadline expired"
-        {:type :fail, :error [:timeout m]}
+        {:type :info, :error [:timeout m]}
 
         ; Happens when tserver has been stopped,
         ; invoked from PG backend via ProcessInterrupts as a part of CHECK_FOR_INTERRUPTS macro
