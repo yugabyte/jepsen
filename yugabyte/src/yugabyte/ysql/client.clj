@@ -293,18 +293,16 @@
 
 (defmacro with-retry
   "Catches YSQL \"try again\"-style errors and retries body a bunch of times,
-  with exponential backoffs."
+  delaying for up to 200 ms between retries."
   [& body]
-  `(util/with-retry [attempts# max-retry-attempts
-                     backoff# 20]
+  `(util/with-retry [attempts# max-retry-attempts]
                     ~@body
 
                     (catch java.sql.SQLException e#
                       (if (and (pos? attempts#)
                                (retryable? e#))
-                        (do (Thread/sleep backoff#)
-                            (~'retry (dec attempts#)
-                              (* backoff# (+ 4 (* 0.5 (- (rand) 0.5))))))
+                        (do (Thread/sleep (rand-int 200))
+                            (~'retry (dec attempts#)))
                         (throw e#)))))
 
 (defmacro with-txn
