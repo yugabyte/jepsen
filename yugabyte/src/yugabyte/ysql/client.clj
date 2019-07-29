@@ -18,9 +18,10 @@
 (def conn-isolation-level "Default isolation level for connections"
   java.sql.Connection/TRANSACTION_SERIALIZABLE)
 
-(def max-retry-attempts 30)
-
 (def ysql-port 5433)
+
+(def max-retry-attempts "Maximum number of attempts to be performed by with-retry" 30)
+(def max-delay-between-retries-ms "Maximum delay between retries for with-retry" 200)
 
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
@@ -293,7 +294,7 @@
 
 (defmacro with-retry
   "Catches YSQL \"try again\"-style errors and retries body a bunch of times,
-  delaying for up to 200 ms between retries."
+  with randomized delays between retries."
   [& body]
   `(util/with-retry [attempts# max-retry-attempts]
                     ~@body
@@ -301,7 +302,7 @@
                     (catch java.sql.SQLException e#
                       (if (and (pos? attempts#)
                                (retryable? e#))
-                        (do (Thread/sleep (rand-int 200))
+                        (do (Thread/sleep (rand-int max-delay-between-retries-ms))
                             (~'retry (dec attempts#)))
                         (throw e#)))))
 
