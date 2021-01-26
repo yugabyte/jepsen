@@ -147,7 +147,7 @@
       {:name  node
        :open  (partial open-conn node)
        :close close-conn
-       :log?  true})))
+       :log?  false})))
 
 (defprotocol YSQLYbClient
   "Used by defclient macro in conjunction with jepsen.client/Client specifying actual logic"
