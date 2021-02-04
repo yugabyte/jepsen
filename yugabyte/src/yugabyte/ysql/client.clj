@@ -147,6 +147,7 @@
       {:name  node
        :open  (partial open-conn node)
        :close close-conn
+       ; Do not log intermediate reconnection errors (if the reconnect fails, we'll still get it)
        :log?  false})))
 
 (defprotocol YSQLYbClient
