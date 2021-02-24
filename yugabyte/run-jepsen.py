@@ -309,7 +309,7 @@ def main():
                     ]),
                     timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
                     exit_on_error=False,
-                    log_name_prefix="{}_nemesis_{}".format(test, nemesis),
+                    log_name_prefix="{}_nemesis_{}".format(test.replace('/','-'), nemesis),
                     keep_output_log_file=False,
                     num_lines_to_show=50
                 )
