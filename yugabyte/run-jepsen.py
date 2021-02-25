@@ -143,19 +143,16 @@ def run_cmd(cmd,
             timeout=None,
             exit_on_error=True,
             log_name_prefix=None,
-            keep_output_log_file=True,
             num_lines_to_show=None):
 
     logging.info("Running command: %s", cmd)
     stdout_path = None
     stderr_path = None
+    keep_output_log_file = True
     if log_name_prefix is not None:
-        timestamp_str = time.strftime('%Y-%m-%dT%H-%M-%S')
-        log_name_prefix += '_' + timestamp_str
         stdout_path = os.path.join(LOGS_DIR, log_name_prefix + '_stdout.log')
         stderr_path = os.path.join(LOGS_DIR, log_name_prefix + '_stderr.log')
-        stdout_action_str = '' if keep_output_log_file else ' (will be deleted)'
-        logging.info("stdout log: %s%s", stdout_path, stdout_action_str)
+        logging.info("stdout log: %s", stdout_path)
         logging.info("stderr log: %s", stderr_path)
 
     stdout_file = None
@@ -195,6 +192,8 @@ def run_cmd(cmd,
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
                     line.startswith('Everything looks good!') for line in last_lines_of_output)
+        if everything_looks_good:
+            keep_output_log_file = False
         return CmdResult(
                 returncode=returncode,
                 timed_out=timed_out,
@@ -310,13 +309,13 @@ def main():
                     timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
                     exit_on_error=False,
                     log_name_prefix="{}_nemesis_{}".format(test.replace('/','-'), nemesis),
-                    keep_output_log_file=False,
                     num_lines_to_show=50
                 )
 
                 test_elapsed_time_sec = time.time() - test_start_time_sec
                 if result.timed_out:
                     jepsen_log_file = os.path.join(STORE_DIR, 'current', 'jepsen.log')
+                    num_timed_out_tests += 1
                     logging.info("Test timed out. Updating the log at %s", jepsen_log_file)
                     if os.path.exists(jepsen_log_file):
                         msg = "Test run timed out!"
@@ -350,25 +349,18 @@ def main():
                 total_test_time_sec += test_elapsed_time_sec
 
                 total_elapsed_time_sec = time.time() - start_time
+                logging.info("Finished running %d tests.", num_tests_run)
+                logging.info("    In %d tests everything looks good.", num_everything_looks_good)
+                logging.info("    In %d tests something does not look good.",
+                    num_not_everything_looks_good)
+                logging.info("    %d tests timed out.", num_timed_out_tests)
+                logging.info("    %d tests returned zero exit code (OK).", num_zero_exit_code)
                 logging.info(
-                    "Finished running %d tests, "
-                    "in %d tests everything looks good, "
-                    "in %d tests something does not look good, "
-                    "%d tests timed out, "
-                    "%d tests returned zero exit code (OK), "
-                    "%d tests returned non-zero exit code (not OK -- this may includes timeouts), "
-                    "total elapsed time: %.1f sec, "
-                    "total test time: %.1f sec, "
-                    "avg test time: %.1f",
-                    num_tests_run,
-                    num_everything_looks_good,
-                    num_not_everything_looks_good,
-                    num_timed_out_tests,
-                    num_zero_exit_code,
-                    num_non_zero_exit_code,
-                    total_elapsed_time_sec,
-                    total_test_time_sec,
-                    total_test_time_sec / num_tests_run)
+                    "    %d tests returned non-zero exit code (not OK -- may includes timeouts).".
+                    num_non_zero_exit_code)
+                logging.info("Total elapsed time: %.1f sec", total_elapsed_time_sec)
+                logging.info("Total test time: %.1f sec", total_test_time_sec)
+                logging.info("Avg test time: %.1f sec", total_test_time_sec / num_tests_run)
                 if not_good_tests:
                     logging.info("Tests where something does not look good:\n    %s",
                                  "\n    ".join(not_good_tests))
