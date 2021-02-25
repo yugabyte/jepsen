@@ -360,7 +360,7 @@ def main():
             logging.info("Finished running %d tests.", num_tests_run)
             logging.info("    %d OK, %d Problems (%d Timed-Out)",
                 num_everything_looks_good, num_not_everything_looks_good, num_timed_out_tests)
-            logging.info("    %d exitted 0, %d exitted non-zero.", num_zero_exit_code,
+            logging.info("    %d exited success, %d exited failure.", num_zero_exit_code,
                 num_non_zero_exit_code)
             logging.info("Elapsed time: %.1f sec, Test time: %.1f sec, Avg test time: %.1f sec", 
                 total_elapsed_time_sec, total_test_time_sec,
@@ -369,9 +369,9 @@ def main():
                 logging.info("Tests where something does not look good:\n    %s",
                              "\n    ".join(not_good_tests))
         if num_not_everything_looks_good + num_non_zero_exit_code > 0:
-            exit 1
+            exit(1)
         else:
-            exit 0
+            exit(0)
 
 
 if __name__ == '__main__':
