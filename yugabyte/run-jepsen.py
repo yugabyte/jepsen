@@ -231,8 +231,16 @@ def parse_args():
         help='Enable clock skew nemesis. This will not work on LXC.')
     parser.add_argument(
         '--concurrency',
-        default='4n',
+        default='5n',
         help='Concurrency to specify, e.g. 2n, 4n, or 5n, where n means the number of nodes.')
+    parser.add_argument(
+        '--workloads',
+        default=','.join(TESTS),
+        help='Comma-seperated list of workloads. Default: ' + ','.join(TESTS))
+    parser.add_argument(
+        '--nemeses',
+        default=','.join(NEMESES),
+        help='Comma-seperated list of nemeses. Default: ' + ','.join(NEMESES))
     return parser.parse_args()
 
 
@@ -248,7 +256,7 @@ def main():
     run_cmd(SORT_RESULTS_SH)
 
     start_time = time.time()
-    nemeses = NEMESES
+    nemeses = args.nemeses.split(',')
     if args.enable_clock_skew:
         nemeses += ['clock-skew']
 
@@ -275,7 +283,7 @@ def main():
         for nemesis in nemeses:
             if is_done:
                 break
-            for test in TESTS:
+            for test in args.workloads.split(','):
                 total_elapsed_time_sec = time.time() - start_time
                 if args.max_time_sec is not None and total_elapsed_time_sec > args.max_time_sec:
                     logging.info(
@@ -309,7 +317,7 @@ def main():
                     timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
                     exit_on_error=False,
                     log_name_prefix="{}_nemesis_{}".format(test.replace('/','-'), nemesis),
-                    num_lines_to_show=50
+                    num_lines_to_show=30
                 )
 
                 test_elapsed_time_sec = time.time() - test_start_time_sec
@@ -356,7 +364,7 @@ def main():
                 logging.info("    %d tests timed out.", num_timed_out_tests)
                 logging.info("    %d tests returned zero exit code (OK).", num_zero_exit_code)
                 logging.info(
-                    "    %d tests returned non-zero exit code (not OK -- may includes timeouts).".
+                    "    %d tests returned non-zero exit code (not OK -- may includes timeouts).",
                     num_non_zero_exit_code)
                 logging.info("Total elapsed time: %.1f sec", total_elapsed_time_sec)
                 logging.info("Total test time: %.1f sec", total_test_time_sec)
