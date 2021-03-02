@@ -69,19 +69,12 @@ TESTS = [
 ]
 NEMESES = [
     "none",
-    "stop-tserver",
     "kill-tserver",
-    "pause-tserver",
-    "stop-master",
     "kill-master",
+    "pause-tserver",
     "pause-master",
-    "stop",
-    "kill",
-    "pause",
-    "partition-half",
-    "partition-one",
-    "partition-ring",
     "partition",
+    "kill,pause,partition",
     # "clock-skew",
 ]
 
@@ -207,11 +200,15 @@ def run_cmd(cmd,
                 try:
                     os.remove(stdout_path)
                 except IOError, ex:
-                    logging.error("Error deleting output log %s, ignoring: %s",
-                                  stdout_path, ex)
+                    logging.error("Error deleting output log %s, ignoring: %s", stdout_path, ex)
         if stderr_file is not None:
             stderr_file.close()
             show_last_lines(stderr_path, num_lines_to_show)
+            if not keep_output_log_file:
+                try:
+                    os.remove(stderr_path)
+                except IOError, ex:
+                    logging.error("Error deleting stderr log %s, ignoring: %s", stderr_path, ex)
 
 
 def parse_args():
@@ -231,7 +228,7 @@ def parse_args():
         help='Enable clock skew nemesis. This will not work on LXC.')
     parser.add_argument(
         '--concurrency',
-        default='5n',
+        default='4n',
         help='Concurrency to specify, e.g. 2n, 4n, or 5n, where n means the number of nodes.')
     parser.add_argument(
         '--workloads',
@@ -239,8 +236,8 @@ def parse_args():
         help='Comma-seperated list of workloads. Default: ' + ','.join(TESTS))
     parser.add_argument(
         '--nemeses',
-        default=','.join(NEMESES),
-        help='Comma-seperated list of nemeses. Default: ' + ','.join(NEMESES))
+        default=' '.join(NEMESES),
+        help='Comma-seperated list of nemeses. Default: ' + ' '.join(NEMESES))
     return parser.parse_args()
 
 
@@ -256,7 +253,7 @@ def main():
     run_cmd(SORT_RESULTS_SH)
 
     start_time = time.time()
-    nemeses = args.nemeses.split(',')
+    nemeses = args.nemeses.split(' ')
     if args.enable_clock_skew:
         nemeses += ['clock-skew']
 
@@ -358,11 +355,11 @@ def main():
 
             total_elapsed_time_sec = time.time() - start_time
             logging.info("Finished running %d tests.", num_tests_run)
-            logging.info("    %d OK, %d Problems (%d Timed-Out)",
+            logging.info("    %d okay, %d problems (%d timed-out)",
                 num_everything_looks_good, num_not_everything_looks_good, num_timed_out_tests)
-            logging.info("    %d exited success, %d exited failure.", num_zero_exit_code,
-                num_non_zero_exit_code)
-            logging.info("Elapsed time: %.1f sec, Test time: %.1f sec, Avg test time: %.1f sec", 
+            logging.info("    %d tests (out of %d total) returned non-zero exit code",
+                num_non_zero_exit_code, num_tests_run)
+            logging.info("Elapsed time: %.1f sec, test time: %.1f sec, avg test time: %.1f sec", 
                 total_elapsed_time_sec, total_test_time_sec,
                 total_test_time_sec / num_tests_run)
             if not_good_tests:
