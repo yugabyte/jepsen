@@ -74,7 +74,6 @@ NEMESES = [
     "pause-tserver",
     "pause-master",
     "partition",
-    "kill,pause,partition",
     # "clock-skew",
 ]
 
@@ -236,8 +235,8 @@ def parse_args():
         help='Comma-seperated list of workloads. Default: ' + ','.join(TESTS))
     parser.add_argument(
         '--nemeses',
-        default=' '.join(NEMESES),
-        help='Comma-seperated list of nemeses. Default: ' + ' '.join(NEMESES))
+        default=','.join(NEMESES),
+        help='Comma-seperated list of nemeses. Default: ' + ','.join(NEMESES))
     return parser.parse_args()
 
 
