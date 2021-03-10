@@ -359,7 +359,7 @@ def main():
         if not_good_tests:
             logging.info("Tests where something does not look good:\n    %s",
                          "\n    ".join(not_good_tests))
-    if num_not_everything_looks_good + num_non_zero_exit_code > 0:
+    if not_good_tests:
         exit(1)
     else:
         exit(0)
