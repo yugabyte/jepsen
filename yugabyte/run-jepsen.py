@@ -338,7 +338,7 @@ def main():
         else:
             num_non_zero_exit_code += 1
 
-        run_cmd(SORT_RESULTS_SH)
+        run_cmd(SORT_RESULTS_SH + " " + nemeses)
 
         logging.info(
                 "\n%s\nFinished test run #%d (%s)\n%s",
