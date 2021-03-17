@@ -38,7 +38,7 @@ CmdResult = namedtuple('CmdResult',
                         'everything_looks_good'])
 
 # Only for workload, doesn't include test results analysis. Customized for the "set" test.
-SINGLE_TEST_RUN_TIME = 600
+SINGLE_TEST_RUN_TIME = 900
 
 # The set test might time out if you let it run for 10 minutes and leave 10 more
 # minutes for analysis, so cut its running time in half.
