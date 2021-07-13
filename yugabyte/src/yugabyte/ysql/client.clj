@@ -187,16 +187,6 @@
 
         ; This type of error can, on occasion, be indeterminate: the
         ; transaction may have actually committed.
-        #"(?i)Operation expired: Transaction expired"
-        {:type :info, :error [:commit-transaction-expired]}
-
-        ; Same as above
-        #"(?i)Transaction [-0-9a-z]+ expired or aborted by a conflict"
-        {:type :info, :error [:commit-transaction-expired]}
-
-        ; Happens upon concurrent updates even without explicit transactions.
-        ; I'm not sure if there are other types of "Operation Expired" errors
-        ; so I've left this here.
         #"(?i)Operation expired"
         {:type :info, :error [:operation-expired m]}
 
