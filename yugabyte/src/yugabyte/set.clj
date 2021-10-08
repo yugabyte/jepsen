@@ -10,7 +10,7 @@
   []
   (->> (range)
        (map (fn [x] {:type :invoke, :f :add, :value x}))
-       gen/seq))
+       (map gen/once)))
 
 (defn reads
   []
