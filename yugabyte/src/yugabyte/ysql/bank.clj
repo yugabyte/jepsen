@@ -8,7 +8,7 @@
 
 (def table-name "accounts")
 (def counter-start (atom 1))
-(def counter-end (atom 0))
+(def counter-end (atom 1))
 
 ;
 ; Single-table bank test
@@ -33,9 +33,10 @@
       (c/insert! c table-name {:id      (first (:accounts test))
                                :balance (:total-amount test)})
       (doseq [acct (rest (:accounts test))]
-        (c/insert! c table-name {:id      acct,
-                                 :balance 0})))
-    (swap! counter-end (count (:accounts test))))
+        (do
+          (swap! counter-end inc)
+          (c/insert! c table-name {:id      acct,
+                                   :balance 0})))))
 
 
   (invoke-op! [this test op c conn-wrapper]
