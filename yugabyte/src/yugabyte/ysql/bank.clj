@@ -55,6 +55,8 @@
                to-empty             (nil? b-to-before)]
            ; when one balance is empty - run insert
            (info op)
+           (info b-from-before)
+           (info from-empty)
            (when
              (and (from-empty (not to-empty))
                   (let [b-to-after           (- b-to-before amount)]
