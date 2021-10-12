@@ -54,6 +54,7 @@
                from-empty           (empty? b-from-before)
                to-empty             (empty? b-to-before)]
            ; when one balance is empty - run insert
+           (info op)
            (info b-from-before)
            (info b-to-before)
            (when
