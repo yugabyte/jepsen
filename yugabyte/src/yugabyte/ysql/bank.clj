@@ -1,5 +1,6 @@
 (ns yugabyte.ysql.bank
   (:require [clojure.java.jdbc :as j]
+            [clojure.tools.logging :refer [info]]
             [clojure.string :as str]
             [clojure.tools.logging :refer [debug info warn]]
             [jepsen.client :as client]
@@ -50,9 +51,11 @@
        (let [{:keys [from to amount]} (:value op)]
          (let [b-from-before        (c/select-single-value op c table-name :balance (str "id = " from))
                b-to-before          (c/select-single-value op c table-name :balance (str "id = " to))
-               from-empty           (some? b-from-before)
-               to-empty             (some? b-to-before)]
+               from-empty           (empty? b-from-before)
+               to-empty             (empty? b-to-before)]
            ; when one balance is empty - run insert
+           (info b-from-before)
+           (info b-to-before)
            (when
              (and (from-empty (not to-empty))
                   (let [b-to-after           (- b-to-before amount)]
