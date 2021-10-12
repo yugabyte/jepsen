@@ -55,28 +55,26 @@
                to-empty             (nil? b-to-before)]
            ; when one balance is empty - run insert
            (info op)
-           (info b-from-before)
-           (info from-empty)
            (when
-             (and (from-empty (not to-empty))
+             (and from-empty (not to-empty))
                   (let [b-to-after           (- b-to-before amount)]
                     (do
                       (c/insert! op c table-name {:id @counter-end :balance amount})
                       (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
                       (swap! counter-end inc)
-                      (assoc op :type :ok)))))
+                      (assoc op :type :ok :value {:from (-@counter-end 1), :to to, :amount amount}))))
            (when
-             (and (to-empty (not from-empty))
+             (and to-empty (not from-empty))
                   (let [b-from-after         (- b-from-before amount)]
                     (do
                       (c/insert! op c table-name {:id @counter-end :balance amount})
                       (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
                       (swap! counter-end inc)
-                      (assoc op :type :ok)))))
+                      (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount}))))
            ; when both balances are empty - fail operation
            (when
-             (and (to-empty from-empty)
-                  (assoc op :type :no-client)))
+             (and to-empty from-empty)
+                  (assoc op :type :no-client))
            ; otherwise run update or delete
            (when (and (not to-empty) (not from-empty))
              (let [b-from-after         (- b-from-before amount)
@@ -93,7 +91,7 @@
                    (c/execute! c [(str "delete from " table-name " where id = ?") @counter-start])
                    (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
                    (swap! counter-start inc)
-                   (assoc op :type :ok))))))))))
+                   (assoc op :type :ok :value {:from (- @counter-start 1), :to to, :amount b-from-before}))))))))))
 
 
   (teardown-cluster! [this test c conn-wrapper]
