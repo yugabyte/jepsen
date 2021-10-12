@@ -7,6 +7,8 @@
             [yugabyte.ysql.client :as c]))
 
 (def table-name "accounts")
+(def counter-start (atom 1))
+(def counter-end (atom 0))
 
 ;
 ; Single-table bank test
@@ -20,7 +22,7 @@
        (map (juxt :id :balance))
        (into (sorted-map))))
 
-(defrecord YSQLBankYbClient [allow-negatives?]
+(defrecord YSQLBankYbClient [with-inserts-deletes? allow-negatives?]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
@@ -32,7 +34,8 @@
                                :balance (:total-amount test)})
       (doseq [acct (rest (:accounts test))]
         (c/insert! c table-name {:id      acct,
-                                 :balance 0}))))
+                                 :balance 0})))
+    (swap! counter-end (count (:accounts test))))
 
 
   (invoke-op! [this test op c conn-wrapper]
@@ -44,16 +47,36 @@
       (c/with-txn
         c
         (let [{:keys [from to amount]} (:value op)]
-          (let [b-from-before (c/select-single-value op c table-name :balance (str "id = " from))
-                b-to-before   (c/select-single-value op c table-name :balance (str "id = " to))
-                b-from-after  (- b-from-before amount)
-                b-to-after    (+ b-to-before amount)
-                allowed?      (or allow-negatives? (pos? b-from-after))]
-            (if (not allowed?)
-              (assoc op :type :fail, :error [:negative from b-from-after])
-              (do (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+          (let [b-from-before        (c/select-single-value op c table-name :balance (str "id = " from))
+                b-to-before          (c/select-single-value op c table-name :balance (str "id = " to))
+                b-from-after         (- b-from-before amount)
+                b-to-after           (+ b-to-before amount)
+                b-to-after-delete    (+ b-to-before b-from-before)
+                allowed?             (or allow-negatives? (pos? b-from-after))]
+            (if with-inserts-deletes? ; run bank account with inserts and deletes
+              (let [dice (rand-nth ["update" "insert" "delete"])]
+                (if (= dice "update")
+                  (do
+                    (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+                    (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
+                    (assoc op :type :ok)))
+                (if (= dice "insert")
+                  (do
+                    (c/insert! op c table-name {:id @counter-end :balance amount})
+                    (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
+                    (swap! counter-end inc)
+                    (assoc op :type :ok)))
+                (if (= dice "delete")
+                  (do
+                    (c/execute! c [(str "delete from " table-name " where id = ?") @counter-start])
+                    (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+                    (swap! counter-start inc)
+                    (assoc op :type :ok))))
+              (if (not allowed?) ; otherwise default behaviour
+                (assoc op :type :fail, :error [:negative from b-from-after])
+                (do (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
                   (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-                  (assoc op :type :ok))))))))
+                  (assoc op :type :ok)))))))))
 
 
   (teardown-cluster! [this test c conn-wrapper]
