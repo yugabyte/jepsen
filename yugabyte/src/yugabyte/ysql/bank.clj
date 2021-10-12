@@ -51,12 +51,10 @@
        (let [{:keys [from to amount]} (:value op)]
          (let [b-from-before        (c/select-single-value op c table-name :balance (str "id = " from))
                b-to-before          (c/select-single-value op c table-name :balance (str "id = " to))
-               from-empty           (empty? b-from-before)
-               to-empty             (empty? b-to-before)]
+               from-empty           (nil? b-from-before)
+               to-empty             (nil? b-to-before)]
            ; when one balance is empty - run insert
            (info op)
-           (info b-from-before)
-           (info b-to-before)
            (when
              (and (from-empty (not to-empty))
                   (let [b-to-after           (- b-to-before amount)]
