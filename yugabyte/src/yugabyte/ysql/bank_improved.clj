@@ -24,7 +24,7 @@
        (map (juxt :id :balance))
        (into (sorted-map))))
 
-(defrecord YSQLBankYbClient
+(defrecord YSQLBankYbClient []
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]

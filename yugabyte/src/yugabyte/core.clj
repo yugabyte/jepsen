@@ -14,6 +14,7 @@
                       [default-value :as default-value]]
             [yugabyte.auto :as auto]
             [yugabyte.bank :as bank]
+            [yugabyte.bank-improved :as bank-improved]
             [yugabyte.counter :as counter]
             [yugabyte.long-fork :as long-fork]
             [yugabyte.multi-key-acid :as multi-key-acid]
@@ -31,6 +32,7 @@
                            [append-table :as ysql.append-table]
                            [default-value :as ysql.default-value]]
             [yugabyte.ysql.bank]
+            [yugabyte.ysql.bank-improved]
             [yugabyte.ysql.counter]
             [yugabyte.ysql.long-fork]
             [yugabyte.ysql.multi-key-acid]
@@ -93,8 +95,8 @@
          ; :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
          :bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
-         :bank-improved   (with-client bank/workload-allow-neg (yugabyte.ysql.bank-improved/->YSQLBankClient))
          :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))
+         :bank-improved   (with-client bank-improved/workload (yugabyte.ysql.bank-improved/->YSQLBankClient))
          :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
