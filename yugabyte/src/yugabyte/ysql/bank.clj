@@ -75,7 +75,7 @@
                      (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount}))))
 
                (if (and to-empty from-empty)
-                 (assoc op :type :no-client)
+                 (assoc op :type :fail)
 
                  (if (and (not to-empty) (not from-empty) (= dice "update"))
                    (let [b-from-after         (- b-from-before amount)
