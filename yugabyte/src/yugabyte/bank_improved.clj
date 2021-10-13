@@ -90,7 +90,7 @@
   [opts]
   {:max-transfer 5
    :total-amount 100
-   :accounts     (vec (range 8))
+   :accounts     (vec (range 500))
    :checker      (checker/compose
                    {:SI   (bank/checker opts)
                     :plot (bank/plotter)})

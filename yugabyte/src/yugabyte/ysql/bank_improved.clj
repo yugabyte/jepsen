@@ -54,7 +54,7 @@
              b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
              from-empty               (nil? b-from-before)
              to-empty                 (nil? b-to-before)
-             dice                     (rand-nth ["update" "delete"])]
+             dice                     (rand-nth ["insert" "update" "delete"])]
          (cond
            (and from-empty (not to-empty))
            (let [b-to-after           (- b-to-before amount)]
@@ -75,10 +75,18 @@
            (and to-empty from-empty)
            (assoc op :type :fail)
 
+           (and (= dice "insert"))
+           (let [b-from-after         (- b-from-before amount)
+                 b-to-after           (+ b-to-before amount)]
+             (do
+               (c/insert! op c table-name {:id @counter-end :balance amount})
+               (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
+               (swap! counter-end inc)
+               (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount})))
+
            (and (not to-empty) (not from-empty) (= dice "update"))
            (let [b-from-after         (- b-from-before amount)
-                 b-to-after           (+ b-to-before amount)
-                 b-to-after-delete    (+ b-to-before b-from-before)]
+                 b-to-after           (+ b-to-before amount)]
              (do
                (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
