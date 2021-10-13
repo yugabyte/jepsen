@@ -8,56 +8,53 @@
             [yugabyte.ysql.client :as c]))
 
 (def table-name "accounts")
-(def counter-start (atom 1))
-(def counter-end (atom 1))
+(def counter-start (atom 0))
+(def counter-end (atom 0))
 
 
-(defn insert-from-empty [op c to-empty from-empty to b-to-before from b-from-before amount]
+(defn insert-from-empty [op c to-empty from-empty to b-to-before from b-from-before amount dice]
   (when
     (and from-empty (not to-empty))
     (let [b-to-after           (- b-to-before amount)]
       (do
         (c/insert! op c table-name {:id @counter-end :balance amount})
         (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-        (swap! counter-end inc)
-        (assoc op :type :ok :value {:from (-@counter-end 1), :to to, :amount amount})))
-    nil))
+        (swap! counter-end inc)))
+    (assoc op :type :ok :value {:from (-@counter-end 1), :to to, :amount amount})))
 
-(defn insert-to-empty [op c to-empty from-empty to b-to-before from b-from-before amount]
+(defn insert-to-empty [op c to-empty from-empty to b-to-before from b-from-before amount dice]
   (when
     (and to-empty (not from-empty))
     (let [b-from-after         (- b-from-before amount)]
       (do
         (c/insert! op c table-name {:id @counter-end :balance amount})
         (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
-        (swap! counter-end inc)
-        (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount})))
-    nil))
+        (swap! counter-end inc)))
+    (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount})))
 
-(defn both-empty [op c to-empty from-empty to b-to-before from b-from-before amount]
+(defn both-empty [op c to-empty from-empty to b-to-before from b-from-before amount dice]
   (when
     (and to-empty from-empty)
-    (assoc op :type :no-client)
-    nil))
+    (assoc op :type :no-client)))
 
-(defn update-deletes [op c to-empty from-empty to b-to-before from b-from-before amount]
-  (when (and (not to-empty) (not from-empty))
+(defn updates [op c to-empty from-empty to b-to-before from b-from-before amount dice]
+  (when (and (not to-empty) (not from-empty) (= dice "update"))
     (let [b-from-after         (- b-from-before amount)
           b-to-after           (+ b-to-before amount)
-          b-to-after-delete    (+ b-to-before b-from-before)
-          dice                 (rand-nth ["update" "delete"])]
-      (if (= dice "update")
-        (do
-          (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-          (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-          (assoc op :type :ok)))
-      (if (= dice "delete")
-        (do
-          (c/execute! c [(str "delete from " table-name " where id = ?") @counter-start])
-          (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-          (swap! counter-start inc)
-          (assoc op :type :ok :value {:from (- @counter-start 1), :to to, :amount b-from-before}))))
-    nil))
+          b-to-after-delete    (+ b-to-before b-from-before)]
+        (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+        (c/update! op c table-name {:balance b-to-after} ["id = ?" to]))
+    (assoc op :type :ok)))
+
+(defn deletes [op c to-empty from-empty to b-to-before from b-from-before amount dice]
+  (when (and (not to-empty) (not from-empty) (= dice "delete"))
+    (let [b-from-after         (- b-from-before amount)
+          b-to-after           (+ b-to-before amount)
+          b-to-after-delete    (+ b-to-before b-from-before)]
+      (c/execute! c [(str "delete from " table-name " where id = ?") @counter-start])
+      (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+      (swap! counter-start inc))
+    (assoc op :type :ok :value {:from (- @counter-start 1), :to to, :amount b-from-before})))
 
 ;
 ; Single-table bank test
@@ -100,12 +97,14 @@
          (let [b-from-before        (c/select-single-value op c table-name :balance (str "id = " from))
                b-to-before          (c/select-single-value op c table-name :balance (str "id = " to))
                from-empty           (nil? b-from-before)
-               to-empty             (nil? b-to-before)]
-           (some-> [op c to-empty from-empty to b-to-before from b-from-before amount]
+               to-empty             (nil? b-to-before)
+               dice                 (rand-nth ["update" "delete"])]
+           (some-> [op c to-empty from-empty to b-to-before from b-from-before amount dice]
                    insert-from-empty
                    insert-to-empty
                    both-empty
-                   update-deletes))))))
+                   updates
+                   deletes))))))
 
 
   (teardown-cluster! [this test c conn-wrapper]
