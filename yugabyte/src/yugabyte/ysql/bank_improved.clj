@@ -58,31 +58,39 @@
              dice                     (rand-nth ["insert" "update" "delete"])]
          (cond
            (and from-empty (not to-empty))
-           (let [b-to-after           (- b-to-before amount)]
+           (let [b-to-after           (- b-to-before amount)
+                 counter-value        @counter-end]
              (do
-               (c/insert! op c table-name {:id @counter-end :balance amount})
+               (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
                (swap! counter-end inc)
-               (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount})))
+               (info "Insert: " {:from counter-value, :to to, :amount amount})
+               (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and to-empty (not from-empty))
-           (let [b-from-after         (- b-from-before amount)]
+           (let [b-from-after         (- b-from-before amount)
+                 counter-value        @counter-end]
              (do
-               (c/insert! op c table-name {:id @counter-end :balance amount})
+               (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
                (swap! counter-end inc)
-               (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount})))
+               (info "Insert: " {:from counter-value, :to to, :amount amount})
+               (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and to-empty from-empty)
-           (assoc op :type :fail)
+           (do
+             (info "Skipped")
+             (assoc op :type :fail))
 
-           (and (= dice "insert"))
-           (let [b-from-after         (- b-from-before amount)]
+           (= dice "insert")
+           (let [b-from-after         (- b-from-before amount)
+                 counter-value        @counter-end]
              (do
-               (c/insert! op c table-name {:id @counter-end :balance amount})
+               (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
                (swap! counter-end inc)
-               (assoc op :type :ok :value {:from (- @counter-end 1), :to to, :amount amount})))
+               (info "Insert: " {:from counter-value, :to to, :amount amount})
+               (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and (not to-empty) (not from-empty) (= dice "update"))
            (let [b-from-after         (- b-from-before amount)
@@ -90,15 +98,18 @@
              (do
                (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
+               (info "Update: " {:from from, :to to, :amount amount})
                (assoc op :type :ok)))
 
            (and (not to-empty) (not from-empty) (= dice "delete"))
-           (let [b-to-after-delete    (+ b-to-before b-from-before)]
+           (let [b-to-after-delete    (+ b-to-before b-from-before)
+                 counter-value        @counter-start]
              (do
-               (c/execute! op c [(str "delete from " table-name " where id = ?") @counter-start])
+               (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
                (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
                (swap! counter-start inc)
-               (assoc op :type :ok :value {:from (- @counter-start 1), :to to, :amount b-from-before}))))))))
+               (info "Delete: " {:from counter-value, :to to, :amount b-from-before})
+               (assoc op :type :ok :value {:from counter-value, :to to, :amount b-from-before}))))))))
 
 
   (teardown-cluster! [this test c conn-wrapper]
