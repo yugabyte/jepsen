@@ -55,8 +55,7 @@
              b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
              from-empty               (nil? b-from-before)
              to-empty                 (nil? b-to-before)
-;             dice                     (rand-nth ["insert" "update" "delete"])]
-             dice                     (rand-nth ["insert" "update"])]
+             dice                     (rand-nth ["insert" "update" "delete"])]
          (cond
            (and from-empty (not to-empty))
            (let [b-to-after           (- b-to-before amount)]
