@@ -104,12 +104,14 @@
            (and (not to-empty) (not from-empty) (= dice "delete"))
            (let [b-to-after-delete    (+ b-to-before b-from-before)
                  counter-value        @counter-start]
-             (do
-               (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
-               (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-               (swap! counter-start inc)
-               (info "Delete: " {:from counter-value, :to to, :amount b-from-before})
-               (assoc op :type :ok :value {:from counter-value, :to to, :amount b-from-before}))))))))
+             (if (= counter-value to)
+               (assoc op :type :fail) ; fail transaction if target is equal to deleted one
+               (do
+                 (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
+                 (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+                 (swap! counter-start inc)
+                 (info "Delete: " {:from counter-value, :to to, :amount b-from-before})
+                 (assoc op :type :ok :value {:from counter-value, :to to, :amount b-from-before})))))))))
 
 
   (teardown-cluster! [this test c conn-wrapper]
