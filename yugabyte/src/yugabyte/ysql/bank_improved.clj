@@ -30,6 +30,7 @@
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:balance :bigint]]))
+    (c/execute! c [(str "create index idx_account on " table-name " (id, balance)")])
     (c/with-retry
      (info "Creating accounts")
      (c/insert! c table-name {:id      (first (:accounts test))
@@ -95,7 +96,7 @@
            (and (not to-empty) (not from-empty) (= dice "delete"))
            (let [b-to-after-delete    (+ b-to-before b-from-before)]
              (do
-               (c/execute! c [(str "delete from " table-name " where id = ?") @counter-start])
+               (c/execute! op c [(str "delete from " table-name " where id = ?") @counter-start])
                (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
                (swap! counter-start inc)
                (assoc op :type :ok :value {:from (- @counter-start 1), :to to, :amount b-from-before}))))))))
