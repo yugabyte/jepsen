@@ -64,7 +64,6 @@
                (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
                (swap! counter-end inc)
-               (info "Insert: " {:from counter-value, :to to, :amount amount})
                (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and to-empty (not from-empty))
@@ -74,7 +73,6 @@
                (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
                (swap! counter-end inc)
-               (info "Insert: " {:from counter-value, :to to, :amount amount})
                (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and to-empty from-empty)
@@ -89,7 +87,6 @@
                (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
                (swap! counter-end inc)
-               (info "Insert: " {:from counter-value, :to to, :amount amount})
                (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and (not to-empty) (not from-empty) (= dice "update"))
@@ -98,7 +95,6 @@
              (do
                (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-               (info "Update: " {:from from, :to to, :amount amount})
                (assoc op :type :ok)))
 
            (and (not to-empty) (not from-empty) (= dice "delete"))
@@ -112,7 +108,6 @@
                  (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
                  (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
                  (swap! counter-start inc)
-                 (info "Delete: " {:from counter-value, :to to, :amount b-from-before})
                  (assoc op :type :ok :value {:from counter-value, :to to, :amount b-from-before})))))))))
 
 
