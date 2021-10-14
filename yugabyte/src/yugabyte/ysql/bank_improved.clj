@@ -89,7 +89,7 @@
                (info "Insert: " {:from counter-value, :to to, :amount amount})
                (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
-           (and (not to-empty) (not from-empty) (= dice "update"))
+           (= dice "update")
            (let [b-from-after         (- b-from-before amount)
                  b-to-after           (+ b-to-before amount)]
              (do
@@ -98,21 +98,21 @@
                (info "Update: " {:from from, :to to, :amount amount})
                (assoc op :type :ok)))
 
-           (and (not to-empty) (not from-empty) (= dice "delete"))
+           (= dice "delete")
            (let [counter-value        (swap! counter-start inc)
                  b-from-before        (c/select-single-value op c table-name :balance (str "id = " counter-value))]
              ; fail transaction if target is equal to deleted one
              ; or from value is nil
-             (if (or (= counter-value to) (nil? b-from-before)))
-             (do
-               (info "Skipped delete")
-               (assoc op :type :fail))
-             (let [b-to-after-delete    (+ b-to-before b-from-before)]
+             (if (or (= counter-value to) (nil? b-from-before))
                (do
-                 (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
-                 (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-                 (info "Delete: " {:from counter-value, :to to, :amount b-from-before})
-                 (assoc op :type :ok :value {:from counter-value, :to to, :amount b-from-before})))))))))
+                 (info "Skipped delete")
+                 (assoc op :type :fail))
+               (let [b-to-after-delete    (+ b-to-before b-from-before)]
+                 (do
+                   (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
+                   (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+                   (info "Delete: " {:from counter-value, :to to, :amount b-from-before})
+                   (assoc op :type :ok :value {:from counter-value, :to to, :amount b-from-before}))))))))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))
