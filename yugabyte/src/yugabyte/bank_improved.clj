@@ -61,8 +61,7 @@
                              (r/map
                                (partial check-op
                                         accts
-                                        total
-                                        (:negative-balances? checker-opts)))
+                                        total))
                              (r/filter identity)
                              (group-by :type))]
              {:valid?      (every? empty? (vals errors))
@@ -90,8 +89,8 @@
   [opts]
   {:max-transfer 5
    :total-amount 100
-   :accounts     (vec (range 500))
+   :accounts     (vec (range 50))
    :checker      (checker/compose
-                   {:SI   (bank/checker opts)
+                   {:SI   (checker opts)
                     :plot (bank/plotter)})
    :generator    (bank/generator)})

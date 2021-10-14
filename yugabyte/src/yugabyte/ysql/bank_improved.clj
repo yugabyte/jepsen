@@ -77,8 +77,7 @@
            (assoc op :type :fail)
 
            (and (= dice "insert"))
-           (let [b-from-after         (- b-from-before amount)
-                 b-to-after           (+ b-to-before amount)]
+           (let [b-from-after         (- b-from-before amount)]
              (do
                (c/insert! op c table-name {:id @counter-end :balance amount})
                (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
