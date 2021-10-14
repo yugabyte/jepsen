@@ -102,10 +102,12 @@
                (assoc op :type :ok)))
 
            (and (not to-empty) (not from-empty) (= dice "delete"))
-           (let [b-to-after-delete    (+ b-to-before b-from-before)
-                 counter-value        @counter-start]
+           (let [counter-value        @counter-start
+                 b-from-before        (c/select-single-value op c table-name :balance (str "id = " counter-value))
+                 b-to-after-delete    (+ b-to-before b-from-before)]
              (if (= counter-value to)
-               (assoc op :type :fail) ; fail transaction if target is equal to deleted one
+               ; fail transaction if target is equal to deleted one
+               (assoc op :type :fail)
                (do
                  (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
                  (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
