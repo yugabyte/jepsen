@@ -16,7 +16,7 @@
 
 (defn check-op
   "Takes a single op and returns errors in its balance"
-  [accts total negative-balances? op]
+  [accts total op]
   (let [ks       (keys (:value op))
         balances (vals (:value op))]
     (cond
