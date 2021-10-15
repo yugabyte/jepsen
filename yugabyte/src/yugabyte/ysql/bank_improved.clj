@@ -8,6 +8,7 @@
             [yugabyte.ysql.client :as c]))
 
 (def table-name "accounts")
+(def table-index "idx_accounts")
 (def counter-start (atom 0))
 (def counter-end (atom 0))
 
@@ -19,7 +20,7 @@
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table"
   [op c]
-  (->> (str "SELECT id, balance FROM " table-name)
+  (->> (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
        (c/query op c)
        (map (juxt :id :balance))
        (into (sorted-map))))
@@ -30,7 +31,7 @@
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:balance :bigint]]))
-    (c/execute! c [(str "create index idx_account on " table-name " (id, balance)")])
+    (c/execute! c [(str "create index " table-index " on " table-name " (id, balance)")])
     (c/with-retry
      (info "Creating accounts")
      (c/insert! c table-name {:id      (first (:accounts test))
