@@ -80,7 +80,7 @@
          :set             (with-client set/workload (yugabyte.ycql.set/->CQLSetClient))
          :set-index       (with-client set/workload (yugabyte.ycql.set/->CQLSetIndexClient))
          :bank            (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLBank))
-         :bank-improved   (with-client bank/workload-allow-neg (yugabyte.ycql.bank-improved/->CQLBank))
+         :bank-improved   (with-client bank-improved/workload (yugabyte.ycql.bank-improved/->CQLBank))
          ; Shouldn't be used until we support transactions with selects.
          ; :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLMultiBank))
          :long-fork       (with-client long-fork/workload (yugabyte.ycql.long-fork/->CQLLongForkIndexClient))

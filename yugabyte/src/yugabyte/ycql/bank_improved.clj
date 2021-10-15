@@ -56,9 +56,9 @@
                                           " (id, balance) values (" insert-key "," amount ");"
 
                                           "UPDATE " keyspace "." table-name
-                                          " SET balance = balance - " amount " WHERE id = " to ";"
+                                          " SET balance = balance - " amount " WHERE id = " from ";"
                                           "END TRANSACTION;"))
-                                    (assoc op :type :ok)))
+                                    (assoc op :type :ok :value {:from from, :to insert-key, :amount amount})))
 
                                 (= dice "update")
                                 (do
@@ -81,12 +81,12 @@
                                      conn
                                      ; TODO: enable deletes?
                                      (str "BEGIN TRANSACTION "
+                                          "UPDATE " keyspace "." table-name
+                                          " SET balance = balance + (select balance from myapp.account where key = " delete-key ") WHERE id = " to ";"
+
                                           "DELETE FROM " keyspace "." table-name
                                           " WHERE id = " delete-key ";"
-
-                                          "UPDATE " keyspace "." table-name
-                                          " SET balance = balance + (select balance from myapp.account where key = " from ") WHERE id = " to ";"
                                           "END TRANSACTION;"))
-                                    (assoc op :type :ok))))))))
+                                    (assoc op :type :ok :value {:from delete-key, :to to, :amount amount}))))))))
 
   (teardown! [this test]))
