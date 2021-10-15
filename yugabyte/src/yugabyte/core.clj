@@ -23,6 +23,7 @@
             [yugabyte.set :as set]
             [yugabyte.utils :refer :all]
             [yugabyte.ycql.bank]
+            [yugabyte.ycql.bank-improved]
             [yugabyte.ycql.counter]
             [yugabyte.ycql.long-fork]
             [yugabyte.ycql.multi-key-acid]
@@ -79,6 +80,7 @@
          :set             (with-client set/workload (yugabyte.ycql.set/->CQLSetClient))
          :set-index       (with-client set/workload (yugabyte.ycql.set/->CQLSetIndexClient))
          :bank            (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLBank))
+         :bank-improved   (with-client bank/workload-allow-neg (yugabyte.ycql.bank-improved/->CQLBank))
          ; Shouldn't be used until we support transactions with selects.
          ; :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLMultiBank))
          :long-fork       (with-client long-fork/workload (yugabyte.ycql.long-fork/->CQLLongForkIndexClient))
