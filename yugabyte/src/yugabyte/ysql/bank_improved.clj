@@ -63,7 +63,7 @@
              (do
                (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-               (info "Insert: " {:from counter-value, :to to, :amount amount})
+               (info "Insert: " {:from to, :from-after amount, :to counter-value, :to-after b-to-after, :amount amount})
                (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and to-empty (not from-empty))
@@ -71,8 +71,8 @@
                  counter-value        (swap! counter-end inc)]
              (do
                (c/insert! op c table-name {:id counter-value :balance amount})
-               (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
-               (info "Insert: " {:from counter-value, :to to, :amount amount})
+               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+               (info "Insert: " {:from from, :from-after b-from-after, :to counter-value, :to-after amount, :amount amount})
                (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (and to-empty from-empty)
@@ -85,8 +85,8 @@
                  counter-value        (swap! counter-end inc)]
              (do
                (c/insert! op c table-name {:id counter-value :balance amount})
-               (c/update! op c table-name {:balance b-from-after} ["id = ?" to])
-               (info "Insert: " {:from counter-value, :to to, :amount amount})
+               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+               (info "Insert: " {:from from, :from-after b-from-after, :to counter-value, :to-after amount, :amount amount})
                (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
 
            (= dice "update")
