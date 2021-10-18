@@ -187,7 +187,7 @@
          ; Introduce either random or fixed delays between ops
          ((case (:schedule n)
             (nil :random)    gen/stagger
-            :fixed           gen/delay-til)
+            :fixed           gen/delay)
           (:interval n)))))
 
 (defn final-generator
