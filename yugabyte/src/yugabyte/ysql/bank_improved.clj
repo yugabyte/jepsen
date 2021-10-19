@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :refer [debug info warn]]
             [jepsen.client :as client]
+            [yugabyte.bank-improved :as bank-improved]
             [jepsen.reconnect :as rc]
             [yugabyte.ysql.client :as c]))
 
@@ -17,12 +18,18 @@
 
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table using force index flag"
-  [op c]
-  (->>
+  ([c]
+   (->>
+    (str "SELECT id, balance FROM " table-name)
+    (c/query c)
+    (map (juxt :id :balance))
+    (into (sorted-map))))
+  ([op c]
+   (->>
     (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
     (c/query op c)
     (map (juxt :id :balance))
-    (into (sorted-map))))
+    (into (sorted-map)))))
 
 (defrecord YSQLBankImprovedYBClient []
   c/YSQLYbClient
@@ -43,15 +50,18 @@
          (c/insert! c table-name
                     {:id      acct,
                      :balance 0}))))
-    ())
+    (reset! bank-improved/inserted-keys (keys (read-accounts-map c))))
 
 
   (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
-      (assoc op :type :ok, :value (read-accounts-map op c))
+      (let [table-data    (read-accounts-map op c)
+            inserted-keys (keys table-data)]
+        (reset! bank-improved/inserted-keys inserted-keys)
+        (assoc op :type :ok, :value (read-accounts-map op c)))
 
-      :transfer
+      :update
       (c/with-txn
        c
        (let [{:keys [from to amount]} (:value op)
@@ -61,27 +71,48 @@
            (or (nil? b-from-before) (nil? b-to-before))
            (assoc op :type :fail)
 
-           (= (:operation-type op) :insert)
-           (let [b-from-after         (- b-from-before amount)]
-             (do
-               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-               (c/insert! op c table-name {:id to :balance amount})
-               (assoc op :type :ok :value {:from from, :to to, :amount amount})))
-
-           (= (:operation-type op) :update)
+           :else
            (let [b-from-after         (- b-from-before amount)
                  b-to-after           (+ b-to-before amount)]
              (do
                (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-               (assoc op :type :ok)))
+               (assoc op :type :ok))))))
 
-           (= (:operation-type op) :delete)
+      :delete
+      (c/with-txn
+       c
+       (let [{:keys [from to amount]} (:value op)
+             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
+             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))]
+         (cond
+           (or (nil? b-from-before) (nil? b-to-before))
+           (assoc op :type :fail)
+
+           :else
            (let [b-to-after-delete    (+ b-to-before b-from-before)]
              (do
                (c/execute! op c [(str "delete from " table-name " where id = ?") from])
                (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-               (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))))
+               (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
+
+
+      :insert
+      (c/with-txn
+       c
+       (let [{:keys [from to amount]} (:value op)
+             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))]
+         (cond
+           ; need to check only b-from-before here
+           (nil? b-from-before)
+           (assoc op :type :fail)
+
+           :else
+           (let [b-from-after         (- b-from-before amount)]
+             (do
+               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+               (c/insert! op c table-name {:id to :balance amount})
+               (assoc op :type :ok :value {:from from, :to to, :amount amount}))))))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))
