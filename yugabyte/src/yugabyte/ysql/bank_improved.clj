@@ -9,8 +9,6 @@
 
 (def table-name "accounts")
 (def table-index "idx_accounts")
-(def counter-start (atom 0))
-(def counter-end (atom 0))
 
 
 ;
@@ -18,29 +16,34 @@
 ;
 
 (defn- read-accounts-map
-  "Read {id balance} accounts map from a unified bank table"
+  "Read {id balance} accounts map from a unified bank table using force index flag"
   [op c]
-  (->> (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
-       (c/query op c)
-       (map (juxt :id :balance))
-       (into (sorted-map))))
+  (->>
+    (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
+    (c/query op c)
+    (map (juxt :id :balance))
+    (into (sorted-map))))
 
-(defrecord YSQLBankYbClient []
+(defrecord YSQLBankImprovedYBClient []
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
-    (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
-                                                  [:balance :bigint]]))
+    (c/execute! c
+                (j/create-table-ddl table-name
+                                    [[:id :int "PRIMARY KEY"]
+                                     [:balance :bigint]]))
     (c/execute! c [(str "create index " table-index " on " table-name " (id, balance)")])
     (c/with-retry
      (info "Creating accounts")
-     (c/insert! c table-name {:id      (first (:accounts test))
-                              :balance (:total-amount test)})
+     (c/insert! c table-name
+                {:id      (first (:accounts test))
+                 :balance (:total-amount test)})
      (doseq [acct (rest (:accounts test))]
        (do
          (swap! counter-end inc)
-         (c/insert! c table-name {:id      acct,
-                                  :balance 0})))))
+         (c/insert! c table-name
+                    {:id      acct,
+                     :balance 0})))))
 
 
   (invoke-op! [this test op c conn-wrapper]
@@ -53,40 +56,19 @@
        c
        (let [{:keys [from to amount]} (:value op)
              b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
-             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
-             from-empty               (nil? b-from-before)
-             to-empty                 (nil? b-to-before)
-             dice                     (rand-nth ["insert" "update" "delete"])]
+             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))]
          (cond
-           (and from-empty (not to-empty))
-           (let [b-to-after           (- b-to-before amount)
-                 counter-value        (swap! counter-end inc)]
-             (do
-               (c/insert! op c table-name {:id counter-value :balance amount})
-               (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-               (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
+           (or (nil? b-from-before) (nil? b-to-before))
+           (assoc op :type :fail)
 
-           (and to-empty (not from-empty))
-           (let [b-from-after         (- b-from-before amount)
-                 counter-value        (swap! counter-end inc)]
+           (= (:operation-type op) :insert)
+           (let [b-from-after         (- b-from-before amount)]
              (do
-               (c/insert! op c table-name {:id counter-value :balance amount})
                (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-               (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
+               (c/insert! op c table-name {:id to :balance amount})
+               (assoc op :type :ok :value {:from from, :to to, :amount amount})))
 
-           (and to-empty from-empty)
-           (do
-             (assoc op :type :fail))
-
-           (= dice "insert")
-           (let [b-from-after         (- b-from-before amount)
-                 counter-value        (swap! counter-end inc)]
-             (do
-               (c/insert! op c table-name {:id counter-value :balance amount})
-               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-               (assoc op :type :ok :value {:from counter-value, :to to, :amount amount})))
-
-           (= dice "update")
+           (= (:operation-type op) :update)
            (let [b-from-after         (- b-from-before amount)
                  b-to-after           (+ b-to-before amount)]
              (do
@@ -94,22 +76,15 @@
                (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
                (assoc op :type :ok)))
 
-           (= dice "delete")
-           (let [counter-value        (swap! counter-start inc)
-                 b-from-before        (c/select-single-value op c table-name :balance (str "id = " counter-value))]
-             ; fail transaction if target is equal to deleted one
-             ; or from value is nil
-             (if (or (= counter-value to) (nil? b-from-before))
-               (do
-                 (assoc op :type :fail))
-               (let [b-to-after-delete    (+ b-to-before b-from-before)]
-                 (do
-                   (c/execute! op c [(str "delete from " table-name " where id = ?") counter-value])
-                   (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-                   (assoc op :type :ok :value {:from counter-value, :to to, :amount b-from-before}))))))))))
+           (= (:operation-type op) :delete)
+           (let [b-to-after-delete    (+ b-to-before b-from-before)]
+             (do
+               (c/execute! op c [(str "delete from " table-name " where id = ?") from])
+               (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+               (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))
 
 
-(c/defclient YSQLBankClient YSQLBankYbClient)
+(c/defclient YSQLBankImprovedClient YSQLBankImprovedYBClient)

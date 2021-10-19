@@ -14,8 +14,11 @@
              [util :as util]]
             [yugabyte.generator :as ygen]))
 
+(def end-key 100)
+
 (defn check-op
-  "Takes a single op and returns errors in its balance"
+  "Copied code from original jepsen.test.bank/check-op
+  Here we need to exclude :negative-value and :unexpected-key checks"
   [accts total op]
   (let [ks       (keys (:value op))
         balances (vals (:value op))]
@@ -32,22 +35,9 @@
        :total (reduce + balances)
        :op    op})))
 
-
-(defn err-badness
-  "Takes a bank error and returns a number, depending on its type. Bigger
-  numbers mean more egregious errors."
-  [test err]
-  (case (:type err)
-    :nil-balance    (count (:nils err))
-    :wrong-total    (Math/abs
-                      (float
-                        (/ (- (:total err) (:total-amount test))
-                           (:total-amount test))))))
-
 (defn checker
-  "Verifies that all reads must sum to (:total test), and, unless
-  :negative-balances? is true, checks that all balances are
-  non-negative."
+  "Copied code from original jepsen.test.bank/checker
+  Since we have internal check-op call this function needs to be modified"
   [checker-opts]
   (reify
     checker/Checker
@@ -76,7 +66,7 @@
                                       {:count (count errs)
                                        :first (first errs)
                                        :worst (util/max-by
-                                               (partial err-badness test)
+                                               (partial bank/err-badness test)
                                                errs)
                                        :last  (peek errs)}
                                       (if (= type :wrong-total)
@@ -85,12 +75,22 @@
                                         {}))]))
                                 (into {}))}))))
 
-(defn workload
+(defn workload-insert-update
   [opts]
   {:max-transfer 5
    :total-amount 100
-   :accounts     (vec (range 50))
+   :accounts     (vec (range end-key))
+   :checker      (checker/compose
+                  {:SI   (checker opts)
+                   :plot (bank/plotter)})
+   :generator    (ygen/with-insert-deletes bank/generator 0 (+ end-key 1) [:insert :update])})
+
+(defn workload-all
+  [opts]
+  {:max-transfer 5
+   :total-amount 100
+   :accounts     (vec (range end-key))
    :checker      (checker/compose
                    {:SI   (checker opts)
                     :plot (bank/plotter)})
-   :generator    (bank/generator)})
+   :generator    (ygen/with-insert-deletes bank/generator 0 (+ end-key 1) [:insert :update :delete])})
