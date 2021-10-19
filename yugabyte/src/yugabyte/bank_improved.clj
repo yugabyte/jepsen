@@ -24,7 +24,7 @@
              [util :as util]]
             [yugabyte.generator :as ygen]))
 
-(def end-key 100)
+(def end-key 1000)
 
 (defn check-op
   "Copied code from original jepsen.test.bank/check-op

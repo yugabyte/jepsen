@@ -40,10 +40,10 @@
                  :balance (:total-amount test)})
      (doseq [acct (rest (:accounts test))]
        (do
-         (swap! counter-end inc)
          (c/insert! c table-name
                     {:id      acct,
-                     :balance 0})))))
+                     :balance 0}))))
+    ())
 
 
   (invoke-op! [this test op c conn-wrapper]
