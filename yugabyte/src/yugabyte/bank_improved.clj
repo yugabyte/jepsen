@@ -49,7 +49,11 @@
              (= dice :delete)
              (let [delete-ctr (first @inserted-keys)
                    value      (:value op)]
-               (assoc op :f dice, :value (assoc value :from delete-ctr)))))))
+               ; here we may have key collision when delete-ctr == :to
+               ; if so it's just transformed back into trivial update
+               (if (not= delete-ctr (:to value))
+                 (assoc op :f dice, :value (assoc value :from delete-ctr))
+                 (assoc op :f dice)))))))
      gen)))
 
 (defn check-op
