@@ -12,7 +12,7 @@
 
 
 ;
-; Single-table bank test
+; Single-table bank improved test
 ;
 
 (defn- read-accounts-map

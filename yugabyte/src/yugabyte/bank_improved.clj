@@ -1,5 +1,15 @@
 (ns yugabyte.bank-improved
-  "Simulates transfers between bank accounts with inserts and deletes"
+  "Improved default bank workload that now include inserts and deletes.
+
+  On each operation we throw dice in [:insert :delete :update]
+
+  :update behaves as default bank workload operation
+
+  :insert appends new key to the end of list. Uses atomic counter incremental that initial value is MAX_KEY.
+  To maintain invariant add account (balance = amount) for insert and set (balance = balance - amount) for update
+
+  :delete removes key from the beginning of the list. Uses atomic counter incremental that initial value is 0.
+  To maintain invariant store value from key-to-remove and transafer store value to existing account."
   (:refer-clojure :exclude
                   [test])
   (:require [clojure [pprint :refer [pprint]]]
@@ -83,7 +93,7 @@
    :checker      (checker/compose
                   {:SI   (checker opts)
                    :plot (bank/plotter)})
-   :generator    (ygen/with-insert-deletes bank/generator 0 (+ end-key 1) [:insert :update])})
+   :generator    (ygen/with-insert-deletes (bank/generator) 0 (+ end-key 1) [:insert :update])})
 
 (defn workload-all
   [opts]
@@ -93,4 +103,4 @@
    :checker      (checker/compose
                    {:SI   (checker opts)
                     :plot (bank/plotter)})
-   :generator    (ygen/with-insert-deletes bank/generator 0 (+ end-key 1) [:insert :update :delete])})
+   :generator    (ygen/with-insert-deletes (bank/generator) 0 (+ end-key 1) [:insert :update :delete])})

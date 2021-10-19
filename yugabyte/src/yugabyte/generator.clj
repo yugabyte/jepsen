@@ -11,7 +11,7 @@
         insert-ctr (atom end-key)]
     (gen/map
      (fn add-op-type [op]
-       (let [dice (rand-nth op)]
+       (let [dice (rand-nth ops)]
          (cond
            (= dice :insert)
            (assoc op :operation-type dice :to (swap! insert-ctr inc))
