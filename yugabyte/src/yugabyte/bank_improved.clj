@@ -3,13 +3,17 @@
 
   On each operation we throw dice in [:insert :delete :update]
 
-  :update behaves as default bank workload operation
+  :update behaves as default bank workload operation.
 
   :insert appends new key to the end of list. Uses atomic counter incremental that initial value is MAX_KEY.
-  To maintain invariant add account (balance = amount) for insert and set (balance = balance - amount) for update
+  To maintain invariant add account (balance = amount) for insert and set (balance = balance - amount) for update.
 
-  :delete removes key from the beginning of the list. Uses atomic counter incremental that initial value is 0.
-  To maintain invariant store value from key-to-remove and transafer store value to existing account."
+  :delete is trying to remove keys from the list of existsing keys.
+  To store existing keys there is inserted-keys atomic collection here.
+  On delete we (randomly?) choose element from list of key elements.
+
+  To maintain :deletes, fina implementation of bank workload should !reset inserted-keys value on each read
+  so that workload may get almost up-to -ate list of keys"
   (:refer-clojure :exclude
                   [test])
   (:require [clojure [pprint :refer [pprint]]]
