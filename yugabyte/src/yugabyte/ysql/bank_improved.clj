@@ -89,7 +89,7 @@
                   b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
                   op                       (assoc op :value {:from @delete-ctr :to to :amount b-from-before})]
               (cond
-                (or (nil? b-from-before) (nil? b-to-before))
+                (or (nil? b-from-before) (nil? b-to-before) (= to @delete-ctr))
                 (assoc op :type :fail)
 
                 :else
