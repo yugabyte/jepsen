@@ -29,7 +29,7 @@
             [yugabyte.generator :as ygen]))
 
 (def start-key 0)
-(def end-key 50)
+(def end-key 10)
 
 (defn increment-atomic-on-ok
   [result atomic]
