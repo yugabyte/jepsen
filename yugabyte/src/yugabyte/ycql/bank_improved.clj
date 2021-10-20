@@ -34,8 +34,8 @@
                          {:id a, :balance 0}))))
 
   (invoke! [this test op]
-           (let [from             (+ bank-improved/start-key (rand-int (- @insert-ctr bank-improved/start-key)))
-                 to               (+ bank-improved/start-key (rand-int (- @insert-ctr bank-improved/start-key)))]
+           (let [from             (rand-nth (:accounts test))
+                 to               (rand-nth (:accounts test))]
              (if (not= from to)
                (c/with-errors
                 op #{:read}

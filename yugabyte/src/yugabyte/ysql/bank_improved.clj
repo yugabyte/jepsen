@@ -10,7 +10,7 @@
 
 (def table-name "accounts")
 (def table-index "idx_accounts")
-(def insert-ctr (atom (+ bank-improved/end-key 1)))
+(def insert-ctr (atom bank-improved/end-key))
 (def delete-ctr (atom bank-improved/start-key))
 
 ;
@@ -87,7 +87,7 @@
             c
             (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " @delete-ctr))
                   b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
-                  op                       (assoc op :value {:from from :to to :amount b-from-before})]
+                  op                       (assoc op :value {:from @delete-ctr :to to :amount b-from-before})]
               (cond
                 (or (nil? b-from-before) (nil? b-to-before))
                 (assoc op :type :fail)
@@ -97,7 +97,7 @@
                   (do
                     (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
                     (c/execute! op c [(str "delete from " table-name " where id = ?") @delete-ctr])
-                    (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
+                    (assoc op :type :ok :value {:from @delete-ctr, :to to, :amount b-from-before}))))))
            delete-ctr)
 
           :insert
@@ -114,8 +114,8 @@
                 :else
                 (let [b-from-after         (- b-from-before amount)]
                   (do
-                    (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
                     (c/insert! op c table-name {:id @insert-ctr :balance amount})
+                    (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
                     (assoc op :type :ok :value {:from from, :to @insert-ctr, :amount amount}))))))
            insert-ctr))
         (assoc op :type :fail))))
