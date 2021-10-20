@@ -10,7 +10,8 @@
 
 (def table-name "accounts")
 (def table-index "idx_accounts")
-
+(def insert-ctr (atom (+ bank-improved/end-key 1)))
+(def delete-ctr (atom bank-improved/start-key))
 
 ;
 ; Single-table bank improved test
@@ -49,70 +50,75 @@
        (do
          (c/insert! c table-name
                     {:id      acct,
-                     :balance 0}))))
-    (reset! bank-improved/inserted-keys (keys (read-accounts-map c))))
+                     :balance 0})))))
 
 
   (invoke-op! [this test op c conn-wrapper]
-    (case (:f op)
-      :read
-      (let [table-data    (read-accounts-map op c)
-            inserted-keys (keys table-data)]
-        (reset! bank-improved/inserted-keys inserted-keys)
-        (assoc op :type :ok, :value (read-accounts-map op c)))
+    (let [{:keys [amount]} (:value op)
+          from             (+ @delete-ctr (rand-int (- @insert-ctr @delete-ctr)))
+          to               (+ @delete-ctr (rand-int (- @insert-ctr @delete-ctr)))]
+      (if (not= from to)
+        (case (:f op)
+          :read
+          (let [table-data            (read-accounts-map op c)]
+            (assoc op :type :ok, :value (read-accounts-map op c)))
 
-      :update
-      (c/with-txn
-       c
-       (let [{:keys [from to amount]} (:value op)
-             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
-             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))]
-         (cond
-           (or (nil? b-from-before) (nil? b-to-before))
-           (assoc op :type :fail)
+          :update
+          (c/with-txn
+           c
+           (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
+                 b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
+                 op                       (assoc op :value {:from from :to to :amount amount})]
+             (cond
+               (or (nil? b-from-before) (nil? b-to-before))
+               (assoc op :type :fail)
 
-           :else
-           (let [b-from-after         (- b-from-before amount)
-                 b-to-after           (+ b-to-before amount)]
-             (do
-               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-               (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
-               (assoc op :type :ok))))))
+               :else
+               (let [b-from-after         (- b-from-before amount)
+                     b-to-after           (+ b-to-before amount)]
+                 (do
+                   (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+                   (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
+                   (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
 
-      :delete
-      (c/with-txn
-       c
-       (let [{:keys [from to amount]} (:value op)
-             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
-             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))]
-         (cond
-           (or (nil? b-from-before) (nil? b-to-before))
-           (assoc op :type :fail)
+          :delete
+          (bank-improved/increment-atomic-on-ok
+           (c/with-txn
+            c
+            (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " @delete-ctr))
+                  b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
+                  op                       (assoc op :value {:from from :to to :amount b-from-before})]
+              (cond
+                (or (nil? b-from-before) (nil? b-to-before))
+                (assoc op :type :fail)
 
-           :else
-           (let [b-to-after-delete    (+ b-to-before b-from-before)]
-             (do
-               (c/execute! op c [(str "delete from " table-name " where id = ?") from])
-               (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-               (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
+                :else
+                (let [b-to-after-delete    (+ b-to-before b-from-before)]
+                  (do
+                    (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+                    (c/execute! op c [(str "delete from " table-name " where id = ?") @delete-ctr])
+                    (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
+           delete-ctr)
 
+          :insert
+          (bank-improved/increment-atomic-on-ok
+           (c/with-txn
+            c
+            (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
+                  op                       (assoc op :value {:from from :to @insert-ctr :amount amount})]
+              (cond
+                ; need to check only b-from-before here
+                (nil? b-from-before)
+                (assoc op :type :fail)
 
-      :insert
-      (c/with-txn
-       c
-       (let [{:keys [from to amount]} (:value op)
-             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))]
-         (cond
-           ; need to check only b-from-before here
-           (nil? b-from-before)
-           (assoc op :type :fail)
-
-           :else
-           (let [b-from-after         (- b-from-before amount)]
-             (do
-               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-               (c/insert! op c table-name {:id to :balance amount})
-               (assoc op :type :ok :value {:from from, :to to, :amount amount}))))))))
+                :else
+                (let [b-from-after         (- b-from-before amount)]
+                  (do
+                    (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+                    (c/insert! op c table-name {:id @insert-ctr :balance amount})
+                    (assoc op :type :ok :value {:from from, :to @insert-ctr, :amount amount}))))))
+           insert-ctr))
+        (assoc op :type :fail))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))

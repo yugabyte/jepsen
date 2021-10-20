@@ -28,37 +28,36 @@
              [util :as util]]
             [yugabyte.generator :as ygen]))
 
+(def start-key 0)
 (def end-key 50)
-(def inserted-keys (atom '()))
 
-(defn with-insert-deletes
-  "Replace :transfer with random value in [:insert :update :delete] range
-   In case of :insert :to key will be taken from atomic which stated from end of the list
-   In case of :delete :from key will be taken from atomic list storage with current keys"
-  [gen start-key end-key ops]
-  (let [insert-ctr (atom end-key)]
-    (gen/map
-     (fn add-op-type [op]
-       (if (= (:f op) :read)
-         op
-         (let [dice       (rand-nth ops)]
-           (cond
-             (= dice :insert)
-             (let [value      (:value op)]
-               (assoc op :f dice, :value (assoc value :to (swap! insert-ctr inc))))
+(defn increment-atomic-on-ok
+  [result atomic]
+  (if (= :ok (:type result))
+    (do
+      (swap! atomic inc)
+      result)
+    result))
 
-             (= dice :update)
-             (assoc op :f dice)
+(defn transfer
+  "Copied from original jepsen.tests.bank workload
 
-             (= dice :delete)
-             (let [delete-ctr (first @inserted-keys)
-                   value      (:value op)]
-               ; here we may have key collision when delete-ctr == :to
-               ; if so it's just transformed back into trivial update
-               (if (not= delete-ctr (:to value))
-                 (assoc op :f dice, :value (assoc value :from delete-ctr))
-                 (assoc op :f dice)))))))
-     gen)))
+  Generator of a transfer: a random amount between two randomly selected
+  accounts."
+  [test process]
+  (let [dice         (rand-nth (:operations test))]
+    {:type  :invoke
+     :f     dice
+     :value {:from   nil
+             :to     nil
+             :amount (+ 1 (rand-int (:max-transfer test)))}}))
+
+(defn generator
+  "Copied from original jepsen.tests.bank workload
+
+  A mixture of reads and transfers for clients."
+  []
+  (gen/mix [transfer bank/read]))
 
 (defn check-op
   "Copied code from original jepsen.test.bank/check-op
@@ -124,17 +123,19 @@
   {:max-transfer 5
    :total-amount 100
    :accounts     (vec (range end-key))
+   :operations   [:insert :update]
    :checker      (checker/compose
                   {:SI   (checker opts)
                    :plot (bank/plotter)})
-   :generator    (with-insert-deletes (bank/generator) 0 (+ end-key 1) [:insert :update])})
+   :generator    (generator)})
 
 (defn workload-all
   [opts]
   {:max-transfer 5
    :total-amount 100
    :accounts     (vec (range end-key))
+   :operations   [:insert :update :delete]
    :checker      (checker/compose
                   {:SI   (checker opts)
                    :plot (bank/plotter)})
-   :generator    (with-insert-deletes (bank/generator) 0 (+ end-key 1) [:insert :update :delete])})
+   :generator    (generator)})
