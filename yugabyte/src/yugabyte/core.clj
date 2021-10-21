@@ -99,6 +99,7 @@
          :bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
          :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))
          :bank-improved   (with-client bank-improved/workload-all (yugabyte.ysql.bank-improved/->YSQLBankImprovedClient))
+         :bank-contention (with-client bank-improved/workload-all-contention (yugabyte.ysql.bank-improved/->YSQLBankContentionClient))
          :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))

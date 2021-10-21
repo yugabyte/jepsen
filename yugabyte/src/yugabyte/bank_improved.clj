@@ -30,7 +30,8 @@
             [yugabyte.generator :as ygen]))
 
 (def start-key 0)
-(def end-key 10)
+(def end-key 8)
+(def contention-key end-key)
 
 (defn increment-atomic-on-ok
   [result atomic]
@@ -40,8 +41,41 @@
       result)
     result))
 
+(defn transfer-contention
+  "Copied from original jepsen.tests.bank workload
+
+  To produce contation we have single key that will be inserted, deleted or may be updates.
+
+  Generator of a transfer: a random amount between two randomly selected
+  accounts."
+  [test process]
+  (let [dice         (rand-nth (:operations test))]
+    (cond
+      (= dice :insert)
+      {:type  :invoke
+       :f     dice
+       :value {:from   (rand-nth (:accounts test))
+               :to     contention-key
+               :amount (+ 1 (rand-int (:max-transfer test)))}}
+
+      (= dice :update)
+      {:type  :invoke
+       :f     dice
+       :value {:from   (rand-nth (conj (:accounts test) contention-key))
+               :to     (rand-nth (conj (:accounts test) contention-key))
+               :amount (+ 1 (rand-int (:max-transfer test)))}}
+
+      (= dice :delete)
+      {:type  :invoke
+       :f     dice
+       :value {:from   contention-key
+               :to     (rand-nth (:accounts test))
+               :amount (+ 1 (rand-int (:max-transfer test)))}})))
+
 (defn transfer
   "Copied from original jepsen.tests.bank workload
+
+  Generates only type of transction and leaves FROM and TO selection to a client
 
   Generator of a transfer: a random amount between two randomly selected
   accounts."
@@ -52,13 +86,6 @@
      :value {:from   nil
              :to     nil
              :amount (+ 1 (rand-int (:max-transfer test)))}}))
-
-(defn generator
-  "Copied from original jepsen.tests.bank workload
-
-  A mixture of reads and transfers for clients."
-  []
-  (gen/mix [transfer bank/read]))
 
 (defn check-op
   "Copied code from original jepsen.test.bank/check-op
@@ -128,7 +155,20 @@
    :checker      (checker/compose
                   {:SI   (checker opts)
                    :plot (bank/plotter)})
-   :generator    (generator)})
+   :generator    (gen/mix [transfer
+                           bank/read])})
+
+(defn workload-all-contention
+  [opts]
+  {:max-transfer 5
+   :total-amount 100
+   :accounts     (vec (range end-key))
+   :operations   [:insert :update :delete]
+   :checker      (checker/compose
+                  {:SI   (checker opts)
+                   :plot (bank/plotter)})
+   :generator    (gen/mix [transfer-contention
+                           bank/read])})
 
 (defn workload-all
   [opts]
@@ -139,4 +179,5 @@
    :checker      (checker/compose
                   {:SI   (checker opts)
                    :plot (bank/plotter)})
-   :generator    (generator)})
+   :generator    (gen/mix [transfer
+                           bank/read])})

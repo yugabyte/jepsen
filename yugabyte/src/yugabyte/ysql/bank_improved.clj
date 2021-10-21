@@ -131,3 +131,87 @@
 
 
 (c/defclient YSQLBankImprovedClient YSQLBankImprovedYBClient)
+
+
+(defrecord YSQLBankContentionYBClient []
+  c/YSQLYbClient
+
+  (setup-cluster! [this test c conn-wrapper]
+    (c/execute! c
+                (j/create-table-ddl table-name
+                                    [[:id :int "PRIMARY KEY"]
+                                     [:balance :bigint]]))
+    (c/execute! c [(str "create index " table-index " on " table-name " (id, balance)")])
+    (c/with-retry
+     (info "Creating accounts")
+     (c/insert! c table-name
+                {:id      (first (:accounts test))
+                 :balance (:total-amount test)})
+     (doseq [acct (rest (:accounts test))]
+       (do
+         (c/insert! c table-name
+                    {:id      acct,
+                     :balance 0})))))
+
+  (invoke-op! [this test op c conn-wrapper]
+    (case (:f op)
+      :read
+      (let [table-data    (read-accounts-map op c)]
+        (assoc op :type :ok, :value (read-accounts-map op c)))
+
+      :update
+      (c/with-txn
+       c
+       (let [{:keys [from to amount]} (:value op)
+             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
+             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))]
+         (cond
+           (or (nil? b-from-before) (nil? b-to-before))
+           (assoc op :type :fail)
+
+           :else
+           (let [b-from-after         (- b-from-before amount)
+                 b-to-after           (+ b-to-before amount)]
+             (do
+               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+               (c/update! op c table-name {:balance b-to-after} ["id = ?" to])
+               (assoc op :type :ok))))))
+
+      :delete
+      (c/with-txn
+       c
+       (let [{:keys [from to amount]} (:value op)
+             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
+             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))]
+         (cond
+           (or (nil? b-from-before) (nil? b-to-before))
+           (assoc op :type :fail)
+
+           :else
+           (let [b-to-after-delete    (+ b-to-before b-from-before)]
+             (do
+               (c/execute! op c [(str "delete from " table-name " where id = ?") from])
+               (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+               (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
+
+      :insert
+      (c/with-txn
+       c
+       (let [{:keys [from to amount]} (:value op)
+             b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
+             b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))]
+         (cond
+           (or (nil? b-from-before) (not (nil? b-to-before)))
+           (assoc op :type :fail)
+
+           :else
+           (let [b-from-after         (- b-from-before amount)]
+             (do
+               (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+               (c/insert! op c table-name {:id to :balance amount})
+               (assoc op :type :ok :value {:from from, :to to, :amount amount}))))))))
+
+  (teardown-cluster! [this test c conn-wrapper]
+    (c/drop-table c table-name)))
+
+(c/defclient YSQLBankContentionClient YSQLBankContentionYBClient)
