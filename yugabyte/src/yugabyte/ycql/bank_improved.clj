@@ -37,16 +37,18 @@
            (let [from             (rand-nth (:accounts test))
                  to               (rand-nth (:accounts test))]
              (if (not= from to)
-               (c/with-errors
-                op #{:read}
-                (case (:f op)
-                  :read
+               (case (:f op)
+                 :read
+                 (c/with-errors
+                  op #{:read}
                   (->> (cql/select-with-ks conn keyspace table-name)
                        (map (juxt :id :balance))
                        (into (sorted-map))
-                       (assoc op :type :ok, :value))
+                       (assoc op :type :ok, :value)))
 
-                  :update
+                 :update
+                 (c/with-errors
+                  op #{:read}
                   (let [{:keys [amount]} (:value op)]
                     (do
                       (cassandra/execute
@@ -59,23 +61,26 @@
                             "UPDATE " keyspace "." table-name
                             " SET balance = balance + " amount " WHERE id = " to ";"
                             "END TRANSACTION;"))
-                      (assoc op :type :ok :value {:from from, :to to, :amount amount})))
+                      (assoc op :type :ok :value {:from from, :to to, :amount amount}))))
 
 
-                  :insert
-                  (let [{:keys [amount]} (:value op)
-                        inserted-key     (swap! insert-ctr inc)]
-                    (do
-                      (cassandra/execute
-                       conn
-                       (str "BEGIN TRANSACTION "
-                            "INSERT INTO " keyspace "." table-name
-                            " (id, balance) values (" inserted-key "," amount ");"
+                 :insert
+                 (let [transaction-result            (c/with-errors
+                                                      op #{:read}
+                                                      (let [{:keys [amount]} (:value op)
+                                                            inserted-key     (swap! insert-ctr inc)]
+                                                        (do
+                                                          (cassandra/execute
+                                                           conn
+                                                           (str "BEGIN TRANSACTION "
+                                                                "INSERT INTO " keyspace "." table-name
+                                                                " (id, balance) values (" inserted-key "," amount ");"
 
-                            "UPDATE " keyspace "." table-name
-                            " SET balance = balance - " amount " WHERE id = " from ";"
-                            "END TRANSACTION;"))
-                      (assoc op :type :ok :value {:from from, :to inserted-key, :amount amount})))))
+                                                                "UPDATE " keyspace "." table-name
+                                                                " SET balance = balance - " amount " WHERE id = " from ";"
+                                                                "END TRANSACTION;"))
+                                                          (assoc op :type :ok :value {:from from, :to inserted-key, :amount amount}))))]
+                   (bank-improved/increment-atomic-on-ok transaction-result insert-ctr)))
                (assoc op :type :fail))))
 
   (teardown! [this test]))
