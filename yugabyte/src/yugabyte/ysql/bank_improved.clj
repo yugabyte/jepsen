@@ -82,23 +82,23 @@
                    (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
 
           :delete
-          (bank-improved/increment-atomic-on-ok
-           (c/with-txn
-            c
-            (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " @delete-ctr))
-                  b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
-                  op                       (assoc op :value {:from @delete-ctr :to to :amount b-from-before})]
-              (cond
-                (or (nil? b-from-before) (nil? b-to-before) (= to @delete-ctr))
-                (assoc op :type :fail)
+          (let [transaction-result (c/with-txn
+                                    c
+                                    (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " @delete-ctr))
+                                          b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
+                                          op                       (assoc op :value {:from @delete-ctr :to to :amount b-from-before})]
+                                      (cond
+                                        (or (nil? b-from-before) (nil? b-to-before) (= to @delete-ctr))
+                                        (assoc op :type :fail)
 
-                :else
-                (let [b-to-after-delete    (+ b-to-before b-from-before)]
-                  (do
-                    (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-                    (c/execute! op c [(str "delete from " table-name " where id = ?") @delete-ctr])
-                    (assoc op :type :ok :value {:from @delete-ctr, :to to, :amount b-from-before}))))))
-           delete-ctr)
+                                        :else
+                                        (let [b-to-after-delete    (+ b-to-before b-from-before)]
+                                          (do
+                                            (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+                                            (c/execute! op c [(str "delete from " table-name " where id = ?") @delete-ctr])
+                                            (assoc op :type :ok :value {:from @delete-ctr, :to to, :amount b-from-before}))))))]
+            (bank-improved/increment-atomic-on-ok transaction-result delete-ctr))
+
 
           :insert
           (let [transaction-result            (c/with-txn
