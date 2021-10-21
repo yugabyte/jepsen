@@ -1,19 +1,20 @@
 (ns yugabyte.bank-improved
-  "Improved default bank workload that now include inserts and deletes.
+  "Reworked original bank workload that now include inserts and deletes.
 
-  On each operation we throw dice in [:insert :delete :update]
+  Generator now throws dice in [:insert :delete :update]
 
   :update behaves as default bank workload operation.
 
   :insert appends new key to the end of list. Uses atomic counter incremental that initial value is MAX_KEY.
   To maintain invariant add account (balance = amount) for insert and set (balance = balance - amount) for update.
+  Atomic will be incremented only if transaction is :ok using increment-atomic-on-ok function
 
-  :delete is trying to remove keys from the list of existsing keys.
-  To store existing keys there is inserted-keys atomic collection here.
-  On delete we (randomly?) choose element from list of key elements.
+  :delete removes key from the beginning of the list. It use atomic counter stat starts with beginning.
+  Atomic will be incremented only if transaction is :ok using increment-atomic-on-ok function
 
-  To maintain :deletes, fina implementation of bank workload should !reset inserted-keys value on each read
-  so that workload may get almost up-to -ate list of keys"
+  Due to atomic connection between gen and actual clinet implementation, generator now only provides
+  stream of operations (insert/update/delete + amount) while FROM and TO will be selected by client itself.
+  This allow us to leave atomics and atomic manage on client side"
   (:refer-clojure :exclude
                   [test])
   (:require [clojure [pprint :refer [pprint]]]
