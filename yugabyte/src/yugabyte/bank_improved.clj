@@ -72,6 +72,14 @@
                :to     (rand-nth (:accounts test))
                :amount (+ 1 (rand-int (:max-transfer test)))}})))
 
+(def diff-transfer
+  "Copied from original jepsen.tests.bank workload
+
+  Transfers only between different accounts."
+  (gen/filter (fn [op] (not= (-> op :value :from)
+                             (-> op :value :to)))
+              transfer-contention))
+
 (defn transfer
   "Copied from original jepsen.tests.bank workload
 
@@ -167,7 +175,7 @@
    :checker      (checker/compose
                   {:SI   (checker opts)
                    :plot (bank/plotter)})
-   :generator    (gen/mix [transfer-contention
+   :generator    (gen/mix [diff-transfer
                            bank/read])})
 
 (defn workload-all
