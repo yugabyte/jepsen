@@ -101,23 +101,23 @@
            delete-ctr)
 
           :insert
-          (bank-improved/increment-atomic-on-ok
-           (c/with-txn
-            c
-            (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
-                  op                       (assoc op :value {:from from :to @insert-ctr :amount amount})]
-              (cond
-                ; need to check only b-from-before here
-                (nil? b-from-before)
-                (assoc op :type :fail)
+          (let [transaction-result            (c/with-txn
+                                               c
+                                               (let [b-from-before             (c/select-single-value op c table-name :balance (str "id = " from))
+                                                     b-to-before               (c/select-single-value op c table-name :balance (str "id = " @insert-ctr))
+                                                     op                        (assoc op :value {:from from :to @insert-ctr :amount amount})]
+                                                 (cond
+                                                   ; need to check only b-from-before here
+                                                   (or (nil? b-from-before) (not (nil? b-to-before)))
+                                                   (assoc op :type :fail)
 
-                :else
-                (let [b-from-after         (- b-from-before amount)]
-                  (do
-                    (c/insert! op c table-name {:id @insert-ctr :balance amount})
-                    (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-                    (assoc op :type :ok :value {:from from, :to @insert-ctr, :amount amount}))))))
-           insert-ctr))
+                                                   :else
+                                                   (let [b-from-after         (- b-from-before amount)]
+                                                     (do
+                                                       (c/insert! op c table-name {:id @insert-ctr :balance amount})
+                                                       (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+                                                       (assoc op :type :ok :value {:from from, :to @insert-ctr, :amount amount}))))))]
+            (bank-improved/increment-atomic-on-ok transaction-result insert-ctr)))
         (assoc op :type :fail))))
 
   (teardown-cluster! [this test c conn-wrapper]
