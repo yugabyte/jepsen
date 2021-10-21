@@ -68,6 +68,7 @@
            c
            (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " from))
                  b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
+                 ; needed for improve logging in case of fail
                  op                       (assoc op :value {:from from :to to :amount amount})]
              (cond
                (or (nil? b-from-before) (nil? b-to-before))
@@ -82,41 +83,46 @@
                    (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
 
           :delete
-          (let [transaction-result (c/with-txn
-                                    c
-                                    (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " @delete-ctr))
-                                          b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
-                                          op                       (assoc op :value {:from @delete-ctr :to to :amount b-from-before})]
-                                      (cond
-                                        (or (nil? b-from-before) (nil? b-to-before) (= to @delete-ctr))
-                                        (assoc op :type :fail)
+          (let [transaction-result
+                (c/with-txn
+                 c
+                 (let [b-from-before            (c/select-single-value op c table-name :balance (str "id = " @delete-ctr))
+                       b-to-before              (c/select-single-value op c table-name :balance (str "id = " to))
+                       ; needed for improve logging in case of fail
+                       op                       (assoc op :value {:from @delete-ctr :to to :amount b-from-before})]
+                   (cond
+                     (or (nil? b-from-before) (nil? b-to-before) (= to @delete-ctr))
+                     (assoc op :type :fail)
 
-                                        :else
-                                        (let [b-to-after-delete    (+ b-to-before b-from-before)]
-                                          (do
-                                            (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
-                                            (c/execute! op c [(str "delete from " table-name " where id = ?") @delete-ctr])
-                                            (assoc op :type :ok :value {:from @delete-ctr, :to to, :amount b-from-before}))))))]
+                     :else
+                     (let [b-to-after-delete    (+ b-to-before b-from-before)]
+                       (do
+                         (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
+                         (c/execute! op c [(str "delete from " table-name " where id = ?") @delete-ctr])
+                         (assoc op :type :ok :value {:from @delete-ctr, :to to, :amount b-from-before}))))))]
+            ; increment atomic only if transaction is most-likely-fine
             (bank-improved/increment-atomic-on-ok transaction-result delete-ctr))
 
 
           :insert
-          (let [transaction-result            (c/with-txn
-                                               c
-                                               (let [b-from-before             (c/select-single-value op c table-name :balance (str "id = " from))
-                                                     b-to-before               (c/select-single-value op c table-name :balance (str "id = " @insert-ctr))
-                                                     op                        (assoc op :value {:from from :to @insert-ctr :amount amount})]
-                                                 (cond
-                                                   ; need to check only b-from-before here
-                                                   (or (nil? b-from-before) (not (nil? b-to-before)))
-                                                   (assoc op :type :fail)
+          (let [transaction-result
+                (c/with-txn
+                 c
+                 (let [b-from-before             (c/select-single-value op c table-name :balance (str "id = " from))
+                       b-to-before               (c/select-single-value op c table-name :balance (str "id = " @insert-ctr))
+                       ; needed for improve logging in case of fail
+                       op                        (assoc op :value {:from from :to @insert-ctr :amount amount})]
+                   (cond
+                     (or (nil? b-from-before) (not (nil? b-to-before)))
+                     (assoc op :type :fail)
 
-                                                   :else
-                                                   (let [b-from-after         (- b-from-before amount)]
-                                                     (do
-                                                       (c/insert! op c table-name {:id @insert-ctr :balance amount})
-                                                       (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
-                                                       (assoc op :type :ok :value {:from from, :to @insert-ctr, :amount amount}))))))]
+                     :else
+                     (let [b-from-after         (- b-from-before amount)]
+                       (do
+                         (c/insert! op c table-name {:id @insert-ctr :balance amount})
+                         (c/update! op c table-name {:balance b-from-after} ["id = ?" from])
+                         (assoc op :type :ok :value {:from from, :to @insert-ctr, :amount amount}))))))]
+            ; increment atomic only if transaction is most-likely-fine
             (bank-improved/increment-atomic-on-ok transaction-result insert-ctr)))
         (assoc op :type :fail))))
 
