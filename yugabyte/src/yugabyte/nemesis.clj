@@ -184,9 +184,11 @@
          ; For all options relevant for this nemesis, mix them together
          (remove nil?)
          gen/mix
-         ; Introduce fixed delays between ops (no random delay anymore)
-         (gen/stagger
-          (:interval n)))))
+         ; Introduce either random or fixed delays between ops
+         ((case (:schedule n)
+            (nil :random)    gen/stagger
+            :fixed           gen/delay) ; todo think about missing delay-til
+           (:interval n)))))
 
 (defn final-generator
   "Takes a nemesis options map `n`, and constructs a generator to stop all
