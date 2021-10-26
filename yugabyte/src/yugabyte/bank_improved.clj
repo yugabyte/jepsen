@@ -49,7 +49,7 @@
   Generator of a transfer: a random amount between two randomly selected
   accounts."
   [test process]
-  (let [dice         (rand-nth (:operations test))]
+  (let [dice (rand-nth (:operations test))]
     (cond
       (= dice :insert)
       {:type  :invoke
@@ -88,7 +88,7 @@
   Generator of a transfer: a random amount between two randomly selected
   accounts."
   [test process]
-  (let [dice         (rand-nth (:operations test))]
+  (let [dice (rand-nth (:operations test))]
     {:type  :invoke
      :f     dice
      :value {:from   nil
@@ -99,7 +99,7 @@
   "Copied code from original jepsen.test.bank/check-op
   Here we need to exclude :negative-value and :unexpected-key checks"
   [accts total op]
-  (let [ks       (keys (:value op))
+  (let [ks (keys (:value op))
         balances (vals (:value op))]
     (cond
       (some nil? balances)
@@ -119,40 +119,40 @@
   Since we have internal check-op call this function needs to be modified"
   [checker-opts]
   (reify
-   checker/Checker
-   (check [this test history opts]
-          (let [accts  (set (:accounts test))
-                total  (:total-amount test)
-                reads  (->> history
-                            (r/filter op/ok?)
-                            (r/filter #(= :read (:f %))))
-                errors (->> reads
-                            (r/map
-                             (partial check-op
-                                      accts
-                                      total))
-                            (r/filter identity)
-                            (group-by :type))]
-            {:valid?      (every? empty? (vals errors))
-             :read-count  (count (into [] reads))
-             :error-count (reduce + (map count (vals errors)))
-             :first-error (util/min-by (comp :index :op) (map first (vals errors)))
-             :errors      (->> errors
-                               (map
-                                (fn [[type errs]]
-                                  [type
-                                   (merge
-                                    {:count (count errs)
-                                     :first (first errs)
-                                     :worst (util/max-by
-                                             (partial bank/err-badness test)
-                                             errs)
-                                     :last  (peek errs)}
-                                    (if (= type :wrong-total)
-                                      {:lowest  (util/min-by :total errs)
-                                       :highest (util/max-by :total errs)}
-                                      {}))]))
-                               (into {}))}))))
+    checker/Checker
+    (check [this test history opts]
+      (let [accts (set (:accounts test))
+            total (:total-amount test)
+            reads (->> history
+                       (r/filter op/ok?)
+                       (r/filter #(= :read (:f %))))
+            errors (->> reads
+                        (r/map
+                          (partial check-op
+                                   accts
+                                   total))
+                        (r/filter identity)
+                        (group-by :type))]
+        {:valid?      (every? empty? (vals errors))
+         :read-count  (count (into [] reads))
+         :error-count (reduce + (map count (vals errors)))
+         :first-error (util/min-by (comp :index :op) (map first (vals errors)))
+         :errors      (->> errors
+                           (map
+                             (fn [[type errs]]
+                               [type
+                                (merge
+                                  {:count (count errs)
+                                   :first (first errs)
+                                   :worst (util/max-by
+                                            (partial bank/err-badness test)
+                                            errs)
+                                   :last  (peek errs)}
+                                  (if (= type :wrong-total)
+                                    {:lowest  (util/min-by :total errs)
+                                     :highest (util/max-by :total errs)}
+                                    {}))]))
+                           (into {}))}))))
 
 (defn workload-insert-update
   [opts]
@@ -161,8 +161,8 @@
    :accounts     (vec (range end-key))
    :operations   [:insert :update]
    :checker      (checker/compose
-                  {:SI   (checker opts)
-                   :plot (bank/plotter)})
+                   {:SI   (checker opts)
+                    :plot (bank/plotter)})
    :generator    (gen/mix [transfer
                            bank/read])})
 
@@ -173,8 +173,8 @@
    :accounts     (vec (range end-key))
    :operations   [:insert :update :delete]
    :checker      (checker/compose
-                  {:SI   (checker opts)
-                   :plot (bank/plotter)})
+                   {:SI   (checker opts)
+                    :plot (bank/plotter)})
    :generator    (gen/mix [diff-transfer
                            bank/read])})
 
@@ -185,7 +185,7 @@
    :accounts     (vec (range end-key))
    :operations   [:insert :update :delete]
    :checker      (checker/compose
-                  {:SI   (checker opts)
-                   :plot (bank/plotter)})
+                   {:SI   (checker opts)
+                    :plot (bank/plotter)})
    :generator    (gen/mix [transfer
                            bank/read])})

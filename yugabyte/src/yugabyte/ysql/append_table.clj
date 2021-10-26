@@ -18,9 +18,9 @@
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
             [jepsen [client :as client]
-                    [checker :as checker]
-                    [generator :as gen]
-                    [util :as util]]
+             [checker :as checker]
+             [generator :as gen]
+             [util :as util]]
             [jepsen.tests.cycle :as cycle]
             [jepsen.tests.cycle.append :as append]
             [yugabyte.ysql.client :as c]))
@@ -80,8 +80,8 @@
   (try
     (c/execute! conn (j/create-table-ddl table-name
                                          [
-                                         ;[:k :SERIAL]
-                                         ;[:k :int]
+                                          ;[:k :SERIAL]
+                                          ;[:k :int]
                                           [:k :timestamp :default "NOW()"]
                                           [:v :int]]
                                          {:conditional? true}))
@@ -114,9 +114,9 @@
                   `(info "Creating table" ~table-sym "and retrying")
                   `(create-table! ~conn ~table-sym)
                   body)
-        (catch Exception e#
-          ; (info e# "with-table caught")
-          (throw e#)))))
+          (catch Exception e#
+            ; (info e# "with-table caught")
+            (throw e#)))))
 
 (defn mop!
   "Executes a transactional micro-op of the form [f k v] on a connection, where
@@ -124,9 +124,9 @@
   micro-op."
   [conn test [f k v]]
   (let [table (table-name k)]
-      [f k (case f
-             :r      (read-ordered conn table)
-             :append (insert! conn table v))]))
+    [f k (case f
+           :r (read-ordered conn table)
+           :append (insert! conn table v))]))
 
 (defrecord InternalClient []
   c/YSQLYbClient
@@ -135,13 +135,13 @@
 
   (invoke-op! [this test op c conn-wrapper]
     (with-table c
-      (let [txn       (:value op)
-            use-txn?  (< 1 (count txn))
-            ; use-txn?  false ; Just for making sure the checker actually works
-            txn'      (if use-txn?
-                        (c/with-txn c
-                          (mapv (partial mop! c test) txn))
-                        (mapv (partial mop! c test) txn))]
-        (assoc op :type :ok, :value txn')))))
+                (let [txn (:value op)
+                      use-txn? (< 1 (count txn))
+                      ; use-txn?  false ; Just for making sure the checker actually works
+                      txn' (if use-txn?
+                             (c/with-txn c
+                                         (mapv (partial mop! c test) txn))
+                             (mapv (partial mop! c test) txn))]
+                  (assoc op :type :ok, :value txn')))))
 
 (c/defclient Client InternalClient)
