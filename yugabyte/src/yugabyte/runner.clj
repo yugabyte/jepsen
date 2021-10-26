@@ -76,7 +76,7 @@
     :assoc-fn (fn [m k v] (update m :nemesis assoc :interval v))
     :validate [(complement neg?) "should be a non-negative number"]]
 
-   [nil "--nemesis-no-recovery" "Cluster will have no time without faults. May leave cluster in constant failure state if combined nemenesis used."
+   [nil "--nemesis-no-recovery" "Disable guarantee time period for cluster recovery."
     ; for some reason :default true will not trigger fn below
     ; original logic was reverted because of this issue
     :default false
