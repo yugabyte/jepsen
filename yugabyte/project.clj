@@ -3,7 +3,7 @@
   :url "http://yugabyte.com/"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.10.0"]
+  :dependencies [[org.clojure/clojure "1.10.3"]
                  [clj-http "3.8.0" :exclusions [commons-logging]]
                  [jepsen "0.1.19"]
                  [com.yugabyte/cassaforte "3.0.0-alpha2-yb-1"]

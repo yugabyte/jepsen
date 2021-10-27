@@ -13,7 +13,6 @@
 (def setup-lock (Object.))
 (def keyspace "jepsen")
 (def table-name "accounts")
-(def insert-ctr (atom (+ bank-improved/end-key 1)))
 
 (c/defclient CQLBankImproved keyspace []
   (setup! [this test]
@@ -65,22 +64,20 @@
 
 
           :insert
-          (let [transaction-result (c/with-errors
-                                     op #{:read}
-                                     (let [{:keys [amount]} (:value op)
-                                           inserted-key (swap! insert-ctr inc)]
-                                       (do
-                                         (cassandra/execute
-                                           conn
-                                           (str "BEGIN TRANSACTION "
-                                                "INSERT INTO " keyspace "." table-name
-                                                " (id, balance) values (" inserted-key "," amount ");"
+          (c/with-errors
+            op #{:read}
+            (let [{:keys [amount]} (:value op)]
+              (do
+                (cassandra/execute
+                  conn
+                  (str "BEGIN TRANSACTION "
+                       "INSERT INTO " keyspace "." table-name
+                       " (id, balance) values (" to "," amount ");"
 
-                                                "UPDATE " keyspace "." table-name
-                                                " SET balance = balance - " amount " WHERE id = " from ";"
-                                                "END TRANSACTION;"))
-                                         (assoc op :type :ok :value {:from from, :to inserted-key, :amount amount}))))]
-            (bank-improved/increment-atomic-on-ok transaction-result insert-ctr)))
+                       "UPDATE " keyspace "." table-name
+                       " SET balance = balance + " amount " WHERE id = " from ";"
+                       "END TRANSACTION;"))
+                (assoc op :type :ok :value {:from from, :to to, :amount amount})))))
         (assoc op :type :fail))))
 
   (teardown! [this test]))

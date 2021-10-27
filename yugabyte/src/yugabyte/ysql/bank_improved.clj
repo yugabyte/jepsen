@@ -10,7 +10,8 @@
 
 (def table-name "accounts")
 (def table-index "idx_accounts")
-(def insert-ctr (atom bank-improved/end-key))
+(def end-key-thick 10)
+(def insert-ctr (atom end-key-thick))
 (def delete-ctr (atom bank-improved/start-key))
 
 ;

@@ -25,13 +25,13 @@
             [jepsen
              [generator :as gen]
              [checker :as checker]
-             [store :as store]
-             [util :as util]]
-            [yugabyte.generator :as ygen]))
+             [util :as util]]))
 
 (def start-key 0)
-(def end-key 8)
-(def contention-key end-key)
+(def end-key 5)
+
+(def end-key-thick 8)
+(def contention-keys (range end-key (+ end-key 3)))
 
 (defn increment-atomic-on-ok
   [result atomic]
@@ -41,7 +41,44 @@
       result)
     result))
 
-(defn transfer-contention
+(defn transfer-thick-client
+  "Copied from original jepsen.tests.bank workload
+
+  Generates only type of transaction and leaves FROM and TO selection to a client
+
+  Generator of a transfer: a random amount between two randomly selected
+  accounts."
+  [test process]
+  (let [dice (rand-nth (:operations test))]
+    {:type  :invoke
+     :f     dice
+     :value {:from   nil
+             :to     nil
+             :amount (+ 1 (rand-int (:max-transfer test)))}}))
+
+(defn transfer-with-inserts
+  "Copied from original jepsen.tests.bank workload
+
+  Default transfer function with insert support. Special case for YCQL"
+  [test process]
+  (let [insert-cnt (atom end-key)
+        dice (rand-nth [:insert :update])]
+    (cond
+      (= dice :insert)
+      {:type  :invoke
+       :f     dice
+       :value {:from   (rand-nth (:accounts test))
+               :to     (swap! insert-cnt inc)
+               :amount (+ 1 (rand-int (:max-transfer test)))}}
+
+      (= dice :update)
+      {:type  :invoke
+       :f     dice
+       :value {:from   (rand-nth (:accounts test))
+               :to     (rand-nth (:accounts test))
+               :amount (+ 1 (rand-int (:max-transfer test)))}})))
+
+(defn transfer-contention-keys
   "Copied from original jepsen.tests.bank workload
 
   To produce contation we have single key that will be inserted, deleted or may be updates.
@@ -55,45 +92,38 @@
       {:type  :invoke
        :f     dice
        :value {:from   (rand-nth (:accounts test))
-               :to     contention-key
+               :to     (rand-nth contention-keys)
                :amount (+ 1 (rand-int (:max-transfer test)))}}
 
       (= dice :update)
       {:type  :invoke
        :f     dice
-       :value {:from   (rand-nth (conj (:accounts test) contention-key))
-               :to     (rand-nth (conj (:accounts test) contention-key))
+       :value {:from   (rand-nth (concat (:accounts test) contention-keys))
+               :to     (rand-nth (concat (:accounts test) contention-keys))
                :amount (+ 1 (rand-int (:max-transfer test)))}}
 
       (= dice :delete)
       {:type  :invoke
        :f     dice
-       :value {:from   contention-key
+       :value {:from   (rand-nth contention-keys)
                :to     (rand-nth (:accounts test))
                :amount (+ 1 (rand-int (:max-transfer test)))}})))
 
-(def diff-transfer
+(def diff-transfer-insert
   "Copied from original jepsen.tests.bank workload
 
   Transfers only between different accounts."
   (gen/filter (fn [op] (not= (-> op :value :from)
                              (-> op :value :to)))
-              transfer-contention))
+              transfer-with-inserts))
 
-(defn transfer
+(def diff-transfer-contention
   "Copied from original jepsen.tests.bank workload
 
-  Generates only type of transction and leaves FROM and TO selection to a client
-
-  Generator of a transfer: a random amount between two randomly selected
-  accounts."
-  [test process]
-  (let [dice (rand-nth (:operations test))]
-    {:type  :invoke
-     :f     dice
-     :value {:from   nil
-             :to     nil
-             :amount (+ 1 (rand-int (:max-transfer test)))}}))
+  Transfers only between different accounts."
+  (gen/filter (fn [op] (not= (-> op :value :from)
+                             (-> op :value :to)))
+              transfer-contention-keys))
 
 (defn check-op
   "Copied code from original jepsen.test.bank/check-op
@@ -154,19 +184,18 @@
                                     {}))]))
                            (into {}))}))))
 
-(defn workload-insert-update
+(defn workload-with-inserts
   [opts]
   {:max-transfer 5
    :total-amount 100
    :accounts     (vec (range end-key))
-   :operations   [:insert :update]
    :checker      (checker/compose
                    {:SI   (checker opts)
                     :plot (bank/plotter)})
-   :generator    (gen/mix [transfer
+   :generator    (gen/mix [diff-transfer-insert
                            bank/read])})
 
-(defn workload-all-contention
+(defn workload-contention-keys
   [opts]
   {:max-transfer 5
    :total-amount 100
@@ -175,17 +204,17 @@
    :checker      (checker/compose
                    {:SI   (checker opts)
                     :plot (bank/plotter)})
-   :generator    (gen/mix [diff-transfer
+   :generator    (gen/mix [diff-transfer-contention
                            bank/read])})
 
-(defn workload-all
+(defn workload-thick-client
   [opts]
   {:max-transfer 5
    :total-amount 100
-   :accounts     (vec (range end-key))
+   :accounts     (vec (range end-key-thick))
    :operations   [:insert :update :delete]
    :checker      (checker/compose
                    {:SI   (checker opts)
                     :plot (bank/plotter)})
-   :generator    (gen/mix [transfer
+   :generator    (gen/mix [transfer-thick-client
                            bank/read])})
