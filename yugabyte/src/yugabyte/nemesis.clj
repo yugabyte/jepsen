@@ -136,7 +136,7 @@
 (defn flip-flop
   "Switches between ops from two generators: a, b, a, b, ..."
   [a b]
-  (gen/seq (cycle [a b])))
+  (map gen/once (cycle [a b])))
 
 (defn opt-mix
   "Given a nemesis map n, and a map of options to generators to use if that
@@ -187,8 +187,8 @@
          ; Introduce either random or fixed delays between ops
          ((case (:schedule n)
             (nil :random)    gen/stagger
-            :fixed           gen/delay-til)
-          (:interval n)))))
+            :fixed           gen/delay) ; todo think about missing delay-til
+           (:interval n)))))
 
 (defn final-generator
   "Takes a nemesis options map `n`, and constructs a generator to stop all
@@ -205,7 +205,7 @@
          (some n [:partition-one :partition-half :partition-ring])
          (conj :stop-partition))
        (map op)
-       gen/seq))
+       (map gen/once)))
 
 (defn full-generator
   "Takes a nemesis options map `n`. If `n` has a :no-recovery option, just emits faults from
@@ -214,8 +214,9 @@
   [n]
   (if (:no-recovery n)
     (mixed-generator n)
-    (let [mix     #(gen/time-limit 120 (mixed-generator n))
-          recover #(gen/phases (final-generator n) (gen/sleep 60))]
+    (let [mix #(gen/time-limit 120 (mixed-generator n))
+          recover #(gen/phases (final-generator n)
+                               (gen/sleep 60))]
       (interleave (repeatedly mix)
                   (repeatedly recover)))))
 
