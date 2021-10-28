@@ -30,6 +30,7 @@
 (def start-key 0)
 (def end-key 5)
 
+(def insert-key-ctr (atom end-key))
 (def end-key-thick 8)
 (def contention-keys (range end-key (+ end-key 3)))
 
@@ -61,14 +62,13 @@
 
   Default transfer function with insert support. Special case for YCQL"
   [test process]
-  (let [insert-cnt (atom end-key)
-        dice (rand-nth [:insert :update])]
+  (let [dice (rand-nth [:insert :update])]
     (cond
       (= dice :insert)
       {:type  :invoke
        :f     dice
        :value {:from   (rand-nth (:accounts test))
-               :to     (swap! insert-cnt inc)
+               :to     (swap! insert-key-ctr inc)
                :amount (+ 1 (rand-int (:max-transfer test)))}}
 
       (= dice :update)

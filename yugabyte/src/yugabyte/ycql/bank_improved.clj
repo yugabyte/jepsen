@@ -33,51 +33,47 @@
                     {:id a, :balance 0}))))
 
   (invoke! [this test op]
-    (let [from (rand-nth (:accounts test))
-          to (rand-nth (:accounts test))]
-      (if (not= from to)
-        (case (:f op)
-          :read
-          (c/with-errors
-            op #{:read}
-            (->> (cql/select-with-ks conn keyspace table-name)
-                 (map (juxt :id :balance))
-                 (into (sorted-map))
-                 (assoc op :type :ok, :value)))
+    (case (:f op)
+      :read
+      (c/with-errors
+        op #{:read}
+        (->> (cql/select-with-ks conn keyspace table-name)
+             (map (juxt :id :balance))
+             (into (sorted-map))
+             (assoc op :type :ok, :value)))
 
-          :update
-          (c/with-errors
-            op #{:read}
-            (let [{:keys [amount]} (:value op)]
-              (do
-                (cassandra/execute
-                  conn
-                  ; TODO: separate reads from updates?
-                  (str "BEGIN TRANSACTION "
-                       "UPDATE " keyspace "." table-name
-                       " SET balance = balance - " amount " WHERE id = " from ";"
+      :update
+      (c/with-errors
+        op #{:read}
+        (let [{:keys [from to amount]} (:value op)]
+          (do
+            (cassandra/execute
+              conn
+              ; TODO: separate reads from updates?
+              (str "BEGIN TRANSACTION "
+                   "UPDATE " keyspace "." table-name
+                   " SET balance = balance - " amount " WHERE id = " from ";"
 
-                       "UPDATE " keyspace "." table-name
-                       " SET balance = balance + " amount " WHERE id = " to ";"
-                       "END TRANSACTION;"))
-                (assoc op :type :ok :value {:from from, :to to, :amount amount}))))
+                   "UPDATE " keyspace "." table-name
+                   " SET balance = balance + " amount " WHERE id = " to ";"
+                   "END TRANSACTION;"))
+            (assoc op :type :ok :value {:from from, :to to, :amount amount}))))
 
 
-          :insert
-          (c/with-errors
-            op #{:read}
-            (let [{:keys [amount]} (:value op)]
-              (do
-                (cassandra/execute
-                  conn
-                  (str "BEGIN TRANSACTION "
-                       "INSERT INTO " keyspace "." table-name
-                       " (id, balance) values (" to "," amount ");"
+      :insert
+      (c/with-errors
+        op #{:read}
+        (let [{:keys [from to amount]} (:value op)]
+          (do
+            (cassandra/execute
+              conn
+              (str "BEGIN TRANSACTION "
+                   "INSERT INTO " keyspace "." table-name
+                   " (id, balance) values (" to "," amount ");"
 
-                       "UPDATE " keyspace "." table-name
-                       " SET balance = balance + " amount " WHERE id = " from ";"
-                       "END TRANSACTION;"))
-                (assoc op :type :ok :value {:from from, :to to, :amount amount})))))
-        (assoc op :type :fail))))
+                   "UPDATE " keyspace "." table-name
+                   " SET balance = balance + " amount " WHERE id = " from ";"
+                   "END TRANSACTION;"))
+            (assoc op :type :ok :value {:from from, :to to, :amount amount}))))))
 
   (teardown! [this test]))
