@@ -14,21 +14,20 @@
   [conn k]
   (let [read (c/query
                conn
-               [(str "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'table_" k "' order by column_name")])]
-    (info read)
-    (map #((Integer/parseInt (str/replace % "c" "")) read))))
+               [(str "select column_name from information_schema.columns where table_schema = 'jepsen' and table_name = 'table_" k "'")])]
+    (if (empty? read)
+      nil
+      (sort (map #(Integer/parseInt (str/replace (:column_name %) "c" "")) read)))))
 
 (defn append-column
-  "Writes a key based on primary key."
+  "Creates a table if it's not exists. Otherwise add column to it."
   [conn k v]
-  (let [read (c/execute!
+  (let [read (c/query
                conn
-               [(str "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'table_" k "' order by column_name")])]
-    (do
-      (info read)
-      (if (= read nil?)
-        (c/execute! conn [(str "create table table_" k " (c" v ")")])
-        (c/execute! conn [(str "alter table table_" k " add column c" v " int")])))))
+               [(str "select column_name from information_schema.columns where table_schema = 'jepsen' and table_name = 'table_" k "'")])]
+    (if (empty? read)
+      (c/execute! conn [(str "create table jepsen.table_" k " (c" v " int)")])
+      (c/execute! conn [(str "alter table jepsen.table_" k " add column c" v " int")]))))
 
 (defn mop!
   "Executes a transactional micro-op of the form [f k v] on a connection, where
@@ -41,6 +40,10 @@
 
 (defrecord InternalClient []
   c/YSQLYbClient
+
+  (setup-cluster! [this test c conn-wrapper]
+    (c/execute! c [(str "drop schema if exists jepsen cascade")])
+    (c/execute! c [(str "create schema jepsen")]))
 
   (invoke-op! [this test op c conn-wrapper]
     (let [txn (:value op)
