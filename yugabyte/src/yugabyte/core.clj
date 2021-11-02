@@ -213,13 +213,13 @@
   (let [api (keyword (namespace (:workload opts)))]
     (assoc opts
       :api api
-      :name (str "yb_" (-> (or (:url opts) (:version opts))
+      :name (str "yb__" (-> (or (:url opts) (:version opts))
                            (str/split #"/")
                            (last))
-                 "_" (name api)
-                 "_" (name (:workload opts))
+                 "__" (name api)
+                 "__" (name (:workload opts))
                  (when-not (= [:interval] (keys (:nemesis opts)))
-                   (str "_nemesis_" (->> (dissoc (:nemesis opts) :interval)
+                   (str "__nemesis__" (->> (dissoc (:nemesis opts) :interval)
                                          keys
                                          (map name)
                                          sort
