@@ -17,7 +17,9 @@
                [(str "select column_name from information_schema.columns where table_schema = 'jepsen' and table_name = 'table_" k "'")])]
     (if (empty? read)
       nil
-      (sort (map #(Integer/parseInt (str/replace (:column_name %) "c" "")) read)))))
+      (let [res (into [] (sort (map #(Integer/parseInt (str/replace (:column_name %) "c" "")) read)))]
+        (info res)
+        res))))
 
 (defn append-column
   "Creates a table if it's not exists. Otherwise add column to it."
@@ -26,8 +28,12 @@
                conn
                [(str "select column_name from information_schema.columns where table_schema = 'jepsen' and table_name = 'table_" k "'")])]
     (if (empty? read)
-      (c/execute! conn [(str "create table jepsen.table_" k " (c" v " int)")])
-      (c/execute! conn [(str "alter table jepsen.table_" k " add column c" v " int")]))))
+      (let [create (c/execute! conn [(str "create table jepsen.table_" k " (c" v " int)")])]
+        (info create)
+        create)
+      (let [alter (c/execute! conn [(str "alter table jepsen.table_" k " add column c" v " int")])]
+        (info alter)
+        alter))))
 
 (defn mop!
   "Executes a transactional micro-op of the form [f k v] on a connection, where
