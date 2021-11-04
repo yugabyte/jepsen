@@ -1,11 +1,10 @@
-(ns yugabyte.ysql.append-system
+(ns yugabyte.ysql.append-columns
   "Values are lists of integers. Each operation performs a transaction,
   comprised of micro-operations which are either reads of some value (returning
   the entire list) or appends (adding a single number to whatever the present
   value of the given list is). We detect cycles in these transactions using
   Jepsen's cycle-detection system."
   (:require [clojure.string :as str]
-            [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
             [yugabyte.ysql.client :as c]))
 
@@ -17,9 +16,7 @@
                [(str "select column_name from information_schema.columns where table_schema = 'jepsen' and table_name = 'table_" k "'")])]
     (if (empty? read)
       nil
-      (let [res (into [] (sort (map #(Integer/parseInt (str/replace (:column_name %) "c" "")) read)))]
-        (info res)
-        res))))
+      (into (vector) (sort (map #(Integer/parseInt (str/replace (:column_name %) "c" "")) read))))))
 
 (defn append-column
   "Creates a table if it's not exists. Otherwise add column to it."
@@ -28,12 +25,9 @@
                conn
                [(str "select column_name from information_schema.columns where table_schema = 'jepsen' and table_name = 'table_" k "'")])]
     (if (empty? read)
-      (let [create (c/execute! conn [(str "create table jepsen.table_" k " (c" v " int)")])]
-        (info create)
-        create)
-      (let [alter (c/execute! conn [(str "alter table jepsen.table_" k " add column c" v " int")])]
-        (info alter)
-        alter))))
+      (c/execute! conn [(str "create table jepsen.table_" k " (c" v " int)")])
+      (c/execute! conn [(str "alter table jepsen.table_" k " add column c" v " int")]))
+    v))
 
 (defn mop!
   "Executes a transactional micro-op of the form [f k v] on a connection, where

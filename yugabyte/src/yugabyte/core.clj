@@ -29,7 +29,7 @@
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql [append :as ysql.append]
                            [append-table :as ysql.append-table]
-                           [append-system :as ysql.append-system]
+                           [append-columns :as ysql.append-system]
                            [default-value :as ysql.default-value]]
             [yugabyte.ysql.bank]
             [yugabyte.ysql.counter]
@@ -100,7 +100,7 @@
          :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
          :append          (with-client append/workload (ysql.append/->Client))
          :append-table    (with-client append/workload (ysql.append-table/->Client))
-         :append-system   (with-client append/workload (ysql.append-system/->Client))
+         :append-columns  (with-client append/workload (ysql.append-system/->Client))
          :default-value   (with-client default-value/workload (ysql.default-value/->Client))})
 
 (def workloads
