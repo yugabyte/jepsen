@@ -31,31 +31,7 @@
 (def end-key 5)
 
 (def insert-key-ctr (atom end-key))
-(def end-key-thick 8)
 (def contention-keys (range end-key (+ end-key 3)))
-
-(defn increment-atomic-on-ok
-  [result atomic]
-  (if (= :ok (:type result))
-    (do
-      (swap! atomic inc)
-      result)
-    result))
-
-(defn transfer-thick-client
-  "Copied from original jepsen.tests.bank workload
-
-  Generates only type of transaction and leaves FROM and TO selection to a client
-
-  Generator of a transfer: a random amount between two randomly selected
-  accounts."
-  [test process]
-  (let [dice (rand-nth (:operations test))]
-    {:type  :invoke
-     :f     dice
-     :value {:from   nil
-             :to     nil
-             :amount (+ 1 (rand-int (:max-transfer test)))}}))
 
 (defn transfer-with-inserts
   "Copied from original jepsen.tests.bank workload
@@ -205,16 +181,4 @@
                    {:SI   (checker opts)
                     :plot (bank/plotter)})
    :generator    (gen/mix [diff-transfer-contention
-                           bank/read])})
-
-(defn workload-thick-client
-  [opts]
-  {:max-transfer 5
-   :total-amount 100
-   :accounts     (vec (range end-key-thick))
-   :operations   [:insert :update :delete]
-   :checker      (checker/compose
-                   {:SI   (checker opts)
-                    :plot (bank/plotter)})
-   :generator    (gen/mix [transfer-thick-client
                            bank/read])})

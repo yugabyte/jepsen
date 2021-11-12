@@ -98,7 +98,6 @@
          ; We'd rather allow negatives for now because it makes reproducing error easier
          :bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
          :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))
-         :bank-thick      (with-client bank-improved/workload-thick-client (yugabyte.ysql.bank-improved/->YSQLBankImprovedClient))
          :bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient))
          :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
