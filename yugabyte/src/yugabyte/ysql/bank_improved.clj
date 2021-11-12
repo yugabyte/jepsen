@@ -16,8 +16,7 @@
   ([op c]
    (c/execute! c ["set yb_read_from_followers = true"])
    (->>
-    ;(str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
-    (str "/*+ Set(transaction_read_only on) */  SELECT id, balance FROM " table-name)
+    (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
     (c/query op c)
     (map (juxt :id :balance))
     (into (sorted-map)))))
