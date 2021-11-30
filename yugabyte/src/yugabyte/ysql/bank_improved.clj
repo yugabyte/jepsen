@@ -14,7 +14,7 @@
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table using force index flag"
   ([op c]
-   (c/execute! c ["set yb_read_from_followers = true"])
+   (c/execute! c ["SET yb_read_from_followers = true"])
    (->>
     (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
     (c/query op c)
@@ -30,7 +30,7 @@
                 (j/create-table-ddl table-name
                                     [[:id :int "PRIMARY KEY"]
                                      [:balance :bigint]]))
-    (c/execute! c [(str "create index " table-index " on " table-name " (id, balance)")])
+    (c/execute! c [(str "CREATE INDEX " table-index " ON " table-name " (id, balance)")])
     (c/with-retry
      (info "Creating accounts")
      (c/insert! c table-name
@@ -79,7 +79,7 @@
            :else
            (let [b-to-after-delete    (+ b-to-before b-from-before)]
              (do
-               (c/execute! op c [(str "delete from " table-name " where id = ?") from])
+               (c/execute! op c [(str "DELETE FROM " table-name " WHERE id = ?") from])
                (c/update! op c table-name {:balance b-to-after-delete} ["id = ?" to])
                (assoc op :type :ok :value {:from from, :to to, :amount b-from-before}))))))
 

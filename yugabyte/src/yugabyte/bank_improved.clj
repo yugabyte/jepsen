@@ -34,9 +34,10 @@
 (def contention-keys (range end-key (+ end-key 3)))
 
 (defn transfer-with-inserts
-  "Copied from original jepsen.tests.bank workload
+  "Based on from original jepsen.tests.bank.transfer generator.
 
-  Default transfer function with insert support. Special case for YCQL"
+  Generator of a transfer: a random amount between two randomly selected accounts.
+  Added insert operation. Special case for YCQL"
   [test process]
   (let [dice (rand-nth [:insert :update])]
     (cond
@@ -55,12 +56,12 @@
                :amount (+ 1 (rand-int (:max-transfer test)))}})))
 
 (defn transfer-contention-keys
-  "Copied from original jepsen.tests.bank workload
-
-  To produce contation we have single key that will be inserted, deleted or may be updates.
+  "Based on from original jepsen.tests.bank.transfer generator.
 
   Generator of a transfer: a random amount between two randomly selected
-  accounts."
+  accounts.
+  A random amount between two randomly selected accounts with set of contention keys
+  that may be inserted, deleted or updated."
   [test process]
   (let [dice (rand-nth (:operations test))]
     (cond
@@ -86,7 +87,7 @@
                :amount (+ 1 (rand-int (:max-transfer test)))}})))
 
 (def diff-transfer-insert
-  "Copied from original jepsen.tests.bank workload
+  "Based on from original jepsen.tests.bank workload
 
   Transfers only between different accounts."
   (gen/filter (fn [op] (not= (-> op :value :from)
@@ -94,7 +95,7 @@
               transfer-with-inserts))
 
 (def diff-transfer-contention
-  "Copied from original jepsen.tests.bank workload
+  "Based on from original jepsen.tests.bank workload
 
   Transfers only between different accounts."
   (gen/filter (fn [op] (not= (-> op :value :from)
@@ -102,7 +103,7 @@
               transfer-contention-keys))
 
 (defn check-op
-  "Copied code from original jepsen.test.bank/check-op
+  "Based on code from original jepsen.test.bank/check-op
   Here we need to exclude :negative-value and :unexpected-key checks"
   [accts total op]
   (let [ks (keys (:value op))
@@ -121,7 +122,7 @@
        :op    op})))
 
 (defn checker
-  "Copied code from original jepsen.test.bank/checker
+  "Based on code from original jepsen.test.bank/checker
   Since we have internal check-op call this function needs to be modified"
   [checker-opts]
   (reify

@@ -58,7 +58,7 @@
             conn
             (str "BEGIN TRANSACTION "
                  "INSERT INTO " keyspace "." table-name
-                 " (id, balance) values (" to "," amount ");"
+                 " (id, balance) VALUES (" to "," amount ");"
 
                  "UPDATE " keyspace "." table-name
                  " SET balance = balance - " amount " WHERE id = " from ";"
