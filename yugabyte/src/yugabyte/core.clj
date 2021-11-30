@@ -30,8 +30,8 @@
             [yugabyte.ycql.set]
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql [append :as ysql.append]
-             [append-table :as ysql.append-table]
-             [default-value :as ysql.default-value]]
+                           [append-table :as ysql.append-table]
+                           [default-value :as ysql.default-value]]
             [yugabyte.ysql.bank]
             [yugabyte.ysql.bank-improved]
             [yugabyte.ysql.counter]
@@ -212,13 +212,13 @@
   (let [api (keyword (namespace (:workload opts)))]
     (assoc opts
       :api api
-      :name (str "yb__" (-> (or (:url opts) (:version opts))
+      :name (str "yb_" (-> (or (:url opts) (:version opts))
                            (str/split #"/")
                            (last))
-                 "__" (name api)
-                 "__" (name (:workload opts))
+                 "_" (name api)
+                 "_" (name (:workload opts))
                  (when-not (= [:interval] (keys (:nemesis opts)))
-                   (str "__nemesis__" (->> (dissoc (:nemesis opts) :interval)
+                   (str "_nemesis_" (->> (dissoc (:nemesis opts) :interval)
                                          keys
                                          (map name)
                                          sort
