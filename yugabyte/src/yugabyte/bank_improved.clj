@@ -29,7 +29,7 @@
 (def insert-key-ctr (atom end-key))
 (def contention-keys (range end-key (+ end-key 3)))
 
-(defn transfer-with-inserts
+(defn transfer-without-deletes
   "Based on from original jepsen.tests.bank.transfer generator.
 
   Generator of a transfer: a random amount between two randomly selected accounts.
@@ -88,7 +88,7 @@
   Transfers only between different accounts."
   (gen/filter (fn [op] (not= (-> op :value :from)
                              (-> op :value :to)))
-              transfer-with-inserts))
+              transfer-without-deletes))
 
 (def diff-transfer-contention
   "Based on from original jepsen.tests.bank workload
