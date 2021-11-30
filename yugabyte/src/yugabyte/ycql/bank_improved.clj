@@ -2,7 +2,7 @@
   "Improved bank scenario
 
   Works only with transfer-without-deletes generator due to missing
-  transactional deletes in bank workload"
+  possibility of transactional reads in case of bank workload"
   (:refer-clojure :exclude
                   [test])
   (:require [clojure.tools.logging :refer [debug info warn]]
