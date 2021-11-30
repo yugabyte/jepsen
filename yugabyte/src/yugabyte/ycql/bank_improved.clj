@@ -1,4 +1,8 @@
 (ns yugabyte.ycql.bank-improved
+  "Improved bank scenario
+
+  Works only with transfer-without-deletes generator due to missing
+  transactional deletes in bank workload"
   (:refer-clojure :exclude
                   [test])
   (:require [clojure.tools.logging :refer [debug info warn]]
