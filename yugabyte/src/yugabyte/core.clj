@@ -11,7 +11,7 @@
             [jepsen.os.debian :as debian]
             [jepsen.os.centos :as centos]
             [yugabyte [append :as append]
-             [default-value :as default-value]]
+                           [default-value :as default-value]]
             [yugabyte.auto :as auto]
             [yugabyte.bank :as bank]
             [yugabyte.bank-improved :as bank-improved]
