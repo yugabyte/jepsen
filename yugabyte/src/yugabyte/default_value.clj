@@ -17,13 +17,13 @@
 (defn drop-column  [_ _] {:type :invoke, :f :drop-column, :value "v"})
 
 (defn generator
-  []
+  [threads]
   (->> (gen/mix (vec (concat [create-table drop-table]
                              ; YB doesn't support adding columns with defaults
                              ; yet, so we create/drop tables instead.
                              ; [add-column drop-column]
                              (take 50 (cycle [r i])))))
-       (gen/stagger 1/500)))
+       (gen/stagger (/ 1 (* 100 threads)))))
 
 (defn bad-row
   "Is this particular row illegal--e.g. does it contain a `null`? Returns row
@@ -63,4 +63,4 @@
 (defn workload
   [opts]
   {:checker   (checker)
-   :generator (generator)})
+   :generator (generator (:concurrency opts))})

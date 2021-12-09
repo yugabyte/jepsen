@@ -56,14 +56,15 @@
 
 (defn workload
   [opts]
-  (let [n (count (:nodes opts))]
+  (let [n       (count (:nodes opts))
+        threads (:concurrency opts)]
     {:generator (ygen/with-op-index
                   (independent/concurrent-generator
                     (* 2 n)
                     (range)
                     (fn [k]
                       (->> (gen/reserve n r w)
-                           (gen/stagger (/ 1 n))
+                           (gen/stagger (/ 1 threads))
                            (gen/process-limit 20)))))
      :checker   (independent/checker
                   (checker/compose
