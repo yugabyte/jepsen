@@ -60,12 +60,12 @@
         threads (:concurrency opts)]
     {:generator (ygen/with-op-index
                   (independent/concurrent-generator
-                    (* 2 n)
+                    threads
                     (range)
                     (fn [k]
                       (->> (gen/reserve n r w)
                            (gen/stagger (/ 1 threads))
-                           (gen/process-limit 20)))))
+                           (gen/process-limit (5 * threads))))))
      :checker   (independent/checker
                   (checker/compose
                     {:timeline (timeline/html)

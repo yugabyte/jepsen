@@ -33,12 +33,12 @@
         threads (:concurrency opts)]
     {:generator (ygen/with-op-index
                   (independent/concurrent-generator
-                    (* 2 n)
+                    threads
                     (range)
                     (fn [k]
                       (->> (gen/reserve n (gen/mix [w cas cas]) r)
                            (gen/stagger (/ 1 threads))
-                           (gen/process-limit (* 2 keys-count n))))))
+                           (gen/process-limit (* keys-count threads))))))
      :checker   (independent/checker
                   (checker/compose
                     {:timeline (timeline/html)
