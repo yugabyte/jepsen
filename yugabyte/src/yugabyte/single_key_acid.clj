@@ -37,7 +37,7 @@
                     (range)
                     (fn [k]
                       (->> (gen/reserve (/ threads 2) (gen/mix [w cas cas]) r)
-                           (gen/stagger (/ n threads))
+                           (gen/stagger (/ 1 n))
                            (gen/process-limit (* keys-count threads))))))
      :checker   (independent/checker
                   (checker/compose
