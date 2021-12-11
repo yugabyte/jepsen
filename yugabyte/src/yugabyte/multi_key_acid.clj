@@ -64,8 +64,8 @@
                     (range)
                     (fn [k]
                       (->> (gen/reserve (/ threads 2) r w)
-                           (gen/stagger 1)
-                           (gen/process-limit (* 5 threads))))))
+                           (gen/stagger (/ 1 threads))
+                           (gen/process-limit (* 2 threads))))))
      :checker   (independent/checker
                   (checker/compose
                     {:timeline (timeline/html)
