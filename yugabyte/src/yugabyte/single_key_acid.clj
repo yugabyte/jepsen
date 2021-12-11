@@ -33,7 +33,7 @@
     {:generator (ygen/with-op-index
                   (independent/concurrent-generator
                     (/ threads 2)
-                    (range)
+                    (cycle (range 2))
                     (fn [k]
                       (->> (gen/reserve (/ threads 4) (gen/mix [w cas cas]) r)
                            (gen/stagger (/ 1 threads))
