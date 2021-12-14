@@ -21,8 +21,7 @@
             [knossos.model :as model]
             [yugabyte.generator :as ygen]))
 
-(def keys-count 5)
-(def keys-under-test 2)
+(def keys-count 2)
 
 (defn r [_ _] {:type :invoke, :f :read, :value nil})
 (defn w [_ _] {:type :invoke, :f :write, :value (rand-int keys-count)})
@@ -34,10 +33,10 @@
         threads (:concurrency opts)]
     {:generator (ygen/with-op-index
                   (independent/concurrent-generator
-                    (/ threads 2)
-                    (cycle (range keys-under-test))
+                    (/ threads keys-count)
+                    (cycle (range keys-count))
                     (fn [k]
-                      (->> (gen/reserve (/ threads 4) (gen/mix [w cas cas]) r)
+                      (->> (gen/reserve (/ threads (* 2 keys-count)) (gen/mix [w cas cas]) r)
                            (gen/stagger 1)
                            (gen/process-limit threads)))))
      :checker   (independent/checker

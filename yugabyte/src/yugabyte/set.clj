@@ -21,6 +21,6 @@
   (let [threads  (:concurrency opts)]
     {:generator (->> (gen/reserve (/ threads 2) (adds)
                                   reads)
-                     (gen/stagger (/ 1 (* 10 threads)))
+                     (gen/stagger (/ 1 threads))
                      (ygen/with-op-index))
      :checker   (checker/set-full)}))
