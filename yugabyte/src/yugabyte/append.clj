@@ -14,6 +14,7 @@
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
-                    :anomalies         [:G1 :G2]
-                    :additional-graphs [elle/realtime-graph]})))
+                    :anomalies          [:G1 :G2]
+                    :consistency-models [:serializable]
+                    :additional-graphs  [elle/realtime-graph]})))
 ;     (update :generator (partial gen/stagger 1/5)))
