@@ -5,15 +5,13 @@
   value of the given list is). We detect cycles in these transactions using
   Jepsen's cycle-detection system."
   (:require [elle.core :as elle]
-            [jepsen.generator :as gen]
-            [jepsen.tests.cycle :as cycle]
             [jepsen.tests.cycle.append :as append]))
 
 (defn workload
   [opts]
-  (-> (append/test {:key-count          32
+  (-> (append/test {:key-count          16
                     :max-txn-length     4
-                    :max-writes-per-key 1024
+                    :max-writes-per-key 512
                     :anomalies          [:G1 :G2]
                     :consistency-models [:serializable]
                     :additional-graphs  [elle/realtime-graph]})))
