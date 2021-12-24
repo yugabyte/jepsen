@@ -9,9 +9,9 @@
 
 (defn workload
   [opts]
-  (-> (append/test {:key-count          16
+  (-> (append/test {:key-count          32
                     :max-txn-length     4
-                    :max-writes-per-key 512
+                    :max-writes-per-key 1024
                     :anomalies          [:G1 :G2]
                     :consistency-models [:serializable]
                     :additional-graphs  [elle/realtime-graph]})))
