@@ -321,6 +321,7 @@
   (if (= api :ysql)
     [:--start_pgsql_proxy
      :--ysql_log_statement :all
+     :--vmodule "transaction_participant=4,running_transaction=4,transaction_coordinator=4"
      :--pgsql_proxy_bind_address (cn/ip node)]
     []))
 
@@ -406,9 +407,6 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
-            :--vmodule=transaction_participant 4
-            :--vmodule=running_transaction 4
-            :--vmodule=transaction_coordinator 4
             :--rpc_slow_query_threshold_ms 1000
             :--load_balancer_max_concurrent_adds 10
             (tserver-api-opts (:api test) node)
