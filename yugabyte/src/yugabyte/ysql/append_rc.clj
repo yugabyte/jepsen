@@ -3,8 +3,7 @@
   (:require [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
             [yugabyte.ysql.append :as append]
-            [yugabyte.ysql.client :as c])
-  (:import (java.sql Connection)))
+            [yugabyte.ysql.client :as c]))
 
 (defrecord InternalClient []
   c/YSQLYbClient
