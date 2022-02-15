@@ -32,7 +32,7 @@
           ; use-txn?  false ; Just for making sure the checker actually works
           isolation Connection/TRANSACTION_READ_COMMITTED
           txn' (if use-txn?
-                 (j/with-db-transaction c
+                 (j/with-db-transaction [c c]
                                         (mapv (partial append/mop! c test) txn) {:isolation isolation})
                  (mapv (partial append/mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))

@@ -122,10 +122,9 @@
     (let [txn       (:value op)
           use-txn?  (< 1 (count txn))
           ; use-txn?  false ; Just for making sure the checker actually works
-          isolation (get test :isolation :serializable)
           txn'      (if use-txn?
-                      (j/with-db-transaction c
-                                             (mapv (partial mop! c test) txn) :isolation isolation)
+                      (c/with-txn c
+                                  (mapv (partial mop! c test) txn))
                       (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
