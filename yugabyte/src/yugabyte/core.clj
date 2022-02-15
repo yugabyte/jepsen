@@ -30,6 +30,7 @@
             [yugabyte.ycql.set]
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql [append :as ysql.append]
+                           [append-rc :as ysql.append-rc]
                            [append-table :as ysql.append-table]
                            [default-value :as ysql.default-value]]
             [yugabyte.ysql.bank]
