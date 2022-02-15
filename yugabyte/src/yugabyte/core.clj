@@ -103,6 +103,7 @@
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
          :append          (with-client append/workload (ysql.append/->Client))
+         :append-rc       (with-client append/workload-rc (ysql.append-rc/->Client))
          :append-table    (with-client append/workload (ysql.append-table/->Client))
          :default-value   (with-client default-value/workload (ysql.default-value/->Client))})
 

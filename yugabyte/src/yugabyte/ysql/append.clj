@@ -7,12 +7,6 @@
   (:require [clojure.string :as str]
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
-            [jepsen [client :as client]
-                    [checker :as checker]
-                    [generator :as gen]
-                    [util :as util]]
-            [jepsen.tests.cycle :as cycle]
-            [jepsen.tests.cycle.append :as append]
             [yugabyte.ysql.client :as c]))
 
 (defn table-count
@@ -128,9 +122,10 @@
     (let [txn       (:value op)
           use-txn?  (< 1 (count txn))
           ; use-txn?  false ; Just for making sure the checker actually works
+          isolation (get test :isolation :serializable)
           txn'      (if use-txn?
-                      (c/with-txn c
-                        (mapv (partial mop! c test) txn))
+                      (j/with-db-transaction c
+                                             (mapv (partial mop! c test) txn) :isolation isolation)
                       (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
