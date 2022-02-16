@@ -15,7 +15,7 @@
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table using force index flag"
   ([test op c]
-   (if (v/newer? (:version test) "2.8")
+   (if (v/newer? (:version test) "2.8.0.0-b0")
      (c/execute! c ["SET yb_read_from_followers = true"]))
    (->>
      (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
