@@ -14,7 +14,7 @@
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table using force index flag"
   ([op c]
-   (c/execute! c ["SET yb_read_from_followers = true"])
+   ;(c/execute! c ["SET yb_read_from_followers = true"])
    (->>
      (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
      (c/query op c)
@@ -44,7 +44,7 @@
   (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
-      (assoc op :type :ok, :value (read-accounts-map op c))
+      (assoc op :type :ok, :value (read-accounts-map test op c))
 
       :update
       (c/with-txn
