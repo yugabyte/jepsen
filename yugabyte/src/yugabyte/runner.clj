@@ -38,6 +38,10 @@
   (info "Testing" (:name t) "attempt #" attempt)
   t)
 
+(defn calculate-version
+  [opts]
+  (or (re-find #"\d+\.\d+\.\d+\.\d+-b\d+" (:url opts)) (:version opts)))
+
 ;
 ; Options
 ;
@@ -197,5 +201,6 @@
                    (test-all-cmd)
                    (cli/single-test-cmd {:test-fn  core/yb-test
                                          :opt-spec (concat cli-opts
-                                                           single-test-opts)}))
+                                                           single-test-opts
+                                                           (calculate-version cli-opts))}))
             args))
