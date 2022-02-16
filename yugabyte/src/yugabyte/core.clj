@@ -211,6 +211,7 @@
   [opts]
   (let [api (keyword (namespace (:workload opts)))]
     (assoc opts
+      :version (or (#"\d+\.\d+\.\d+\.\d+-b\d+" re-find (:url opts)) (:version opts))
       :api api
       :name (str "yb_" (-> (or (:url opts) (:version opts))
                            (str/split #"/")
