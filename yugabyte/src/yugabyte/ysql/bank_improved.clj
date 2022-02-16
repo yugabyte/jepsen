@@ -103,6 +103,6 @@
                 (assoc op :type :ok :value {:from from, :to to, :amount amount}))))))))
 
   (teardown-cluster! [this test c conn-wrapper]
-    (c/drop-table c table-name)))
+    (c/drop-table c table-name))
 
-(c/defclient YSQLBankContentionClient YSQLBankContentionYBClient)
+  (c/defclient YSQLBankContentionClient YSQLBankContentionYBClient))
