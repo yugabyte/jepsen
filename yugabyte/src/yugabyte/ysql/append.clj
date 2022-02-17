@@ -98,23 +98,15 @@
            :r (read-primary conn table row col)
            :append (append-primary! conn table row col v))]))
 
-(defn setup-cluster
-  [this test c conn-wrapper]
-  (->> (range (table-count test))
-       (map table-name)
-       (map (fn [table]
-              (info "Creating table" table)
-              (c/execute! c (j/create-table-ddl
-                              table
-                              (into
-                                [;[:k :int "unique"]
-                                 [:k :int "PRIMARY KEY"]
-                                 [:k2 :int]]
-                                ; Columns for n values packed in this row
-                                (map (fn [i] [(col-for test i) :text])
-                                     (range keys-per-row)))
-                              {:conditional? true}))))
-       dorun))
+(defn invoke
+  [this test op c conn-wrapper isolation]
+  (let [txn (:value op)
+        use-txn? (< 1 (count txn))
+        txn' (if use-txn?
+               (j/with-db-transaction [c c {:isolation isolation}]
+                                      (mapv (partial mop! c test) txn))
+               (mapv (partial mop! c test) txn))]
+    (assoc op :type :ok, :value txn')))
 
 (defrecord TxClient [isolation]
   c/YSQLYbClient
@@ -145,6 +137,4 @@
                  (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
-(c/defclient ReadCommittedClient (TxClient :read-committed))
-(c/defclient RepeatableReadClient (TxClient :repeatable-read))
-(c/defclient SerializableClient (TxClient :serializable))
+(c/defclient AppendClient TxClient)
