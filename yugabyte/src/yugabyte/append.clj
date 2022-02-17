@@ -9,6 +9,15 @@
             [jepsen.tests.cycle :as cycle]
             [jepsen.tests.cycle.append :as append]))
 
+(defn workload-rr
+  [opts]
+  (-> (append/test {:key-count          32
+                    :max-txn-length     4
+                    :max-writes-per-key 1024
+                    :anomalies          [:G1 :G2]
+                    :consistency-models [:repeatable-read]
+                    :additional-graphs  [elle/realtime-graph]})))
+
 (defn workload-rc
   [opts]
   (-> (append/test {:key-count          32
