@@ -125,8 +125,8 @@
           ; use-txn?  false ; Just for making sure the checker actually works
           txn' (if use-txn?
                  (j/with-db-transaction [c c {:isolation isolation}]
-                                        (mapv (partial append/mop! c test) txn))
-                 (mapv (partial append/mop! c test) txn))]
+                                        (mapv (partial mop! c test) txn))
+                 (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)

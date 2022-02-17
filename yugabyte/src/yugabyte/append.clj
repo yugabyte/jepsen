@@ -5,8 +5,6 @@
   value of the given list is). We detect cycles in these transactions using
   Jepsen's cycle-detection system."
   (:require [elle.core :as elle]
-            [jepsen.generator :as gen]
-            [jepsen.tests.cycle :as cycle]
             [jepsen.tests.cycle.append :as append]))
 
 (defn workload-rr
