@@ -119,12 +119,12 @@
          dorun))
 
   (invoke-op! [this test op c conn-wrapper]
-    (let [txn       (:value op)
-          use-txn?  (< 1 (count txn))
-          isolation (get test :isolation :serializable)
+    (let [txn (:value op)
+          use-txn? (< 1 (count txn))
+          tx-isolation (get test :tx-isolation :serializable)
           ; use-txn?  false ; Just for making sure the checker actually works
           txn' (if use-txn?
-                 (j/with-db-transaction [c c {:isolation isolation}]
+                 (j/with-db-transaction [c c {:isolation tx-isolation}]
                                         (mapv (partial mop! c test) txn))
                  (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
