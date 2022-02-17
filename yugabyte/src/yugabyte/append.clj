@@ -12,7 +12,7 @@
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
-                    :anomalies          [:G1 :G2-item]
+                    :anomalies          [:internal :G-nonadjacent :G1 :G-SI]
                     :consistency-models [:snapshot-isolation]
                     :additional-graphs  [elle/realtime-graph]})))
 
