@@ -14,7 +14,7 @@
                     :max-txn-length     4
                     :max-writes-per-key 1024
                     :anomalies          [:G1 :G2-item]
-                    :consistency-models [:snapshot-isolation] ; todo :snapshot-isolation?
+                    :consistency-models [:repeatable-read] ; todo :snapshot-isolation?
                     :additional-graphs  [elle/realtime-graph]})))
 
 (defn workload-rc
