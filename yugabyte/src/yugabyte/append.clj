@@ -9,12 +9,12 @@
 
 (defn workload-rr
   [opts]
-  (-> (append/test {:tx-isolation       :repeatable-read    ; serializable?
+  (-> (append/test {:tx-isolation       :repeatable-read
                     :key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
                     :anomalies          [:G1 :G2-item]
-                    :consistency-models [:repeatable-read]
+                    :consistency-models [:snapshot-isolation] ; todo :snapshot-isolation?
                     :additional-graphs  [elle/realtime-graph]})))
 
 (defn workload-rc
