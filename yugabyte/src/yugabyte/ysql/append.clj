@@ -98,7 +98,7 @@
            :r (read-primary conn table row col)
            :append (append-primary! conn table row col v))]))
 
-(defrecord TxClient [isolation]
+(defrecord InternalClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
@@ -127,4 +127,4 @@
                  (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
-(c/defclient Client TxClient)
+(c/defclient Client InternalClient)
