@@ -34,5 +34,6 @@
                     :max-txn-length     4
                     :max-writes-per-key 1024
                     :anomalies          [:G1 :G2]
+                    ; :consistency-models [:strict-serializable] ; default value
                     :additional-graphs  [elle/realtime-graph]})))
 ;     (update :generator (partial gen/stagger 1/5)))
