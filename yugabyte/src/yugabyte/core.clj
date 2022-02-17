@@ -30,8 +30,6 @@
             [yugabyte.ycql.set]
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql [append :as ysql.append]
-                           [append-rc :as ysql.append-rc]
-                           [append-rr :as ysql.append-rr]
                            [append-table :as ysql.append-table]
                            [default-value :as ysql.default-value]]
             [yugabyte.ysql.bank]
@@ -104,10 +102,10 @@
          :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
-         :append          (with-client append/workload (ysql.append/->Client))
-         :append-rc       (with-client append/workload-rc (ysql.append-rc/->Client))
-         :append-rr       (with-client append/workload-rr (ysql.append-rr/->Client))
-         :append-table    (with-client append/workload (ysql.append-table/->Client))
+         :append          (with-client append/workload-serializable (ysql.append/->Client))
+         :append-rc       (with-client append/workload-rc (ysql.append/->Client))
+         :append-rr       (with-client append/workload-rr (ysql.append/->Client))
+         :append-table    (with-client append/workload-serializable (ysql.append-table/->Client))
          :default-value   (with-client default-value/workload (ysql.default-value/->Client))})
 
 (def workloads

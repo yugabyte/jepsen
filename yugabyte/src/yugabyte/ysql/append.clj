@@ -121,11 +121,12 @@
   (invoke-op! [this test op c conn-wrapper]
     (let [txn       (:value op)
           use-txn?  (< 1 (count txn))
+          isolation (get test :isolation :serializable)
           ; use-txn?  false ; Just for making sure the checker actually works
-          txn'      (if use-txn?
-                      (c/with-txn c
-                                  (mapv (partial mop! c test) txn))
-                      (mapv (partial mop! c test) txn))]
+          txn' (if use-txn?
+                 (j/with-db-transaction [c c {:isolation isolation}]
+                                        (mapv (partial append/mop! c test) txn))
+                 (mapv (partial append/mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
