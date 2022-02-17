@@ -9,8 +9,7 @@
 
 (defn workload-rr
   [opts]
-  (-> (append/test {:tx-isolation       :repeatable-read
-                    :key-count          32
+  (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
                     :anomalies          [:G1 :G2-item]
@@ -19,8 +18,7 @@
 
 (defn workload-rc
   [opts]
-  (-> (append/test {:tx-isolation       :read-committed
-                    :key-count          32
+  (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
                     :anomalies          [:G1]
@@ -29,8 +27,7 @@
 
 (defn workload-serializable
   [opts]
-  (-> (append/test {:tx-isolation       :serializable
-                    :key-count          32
+  (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
                     :anomalies          [:G1 :G2]

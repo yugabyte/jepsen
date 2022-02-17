@@ -102,10 +102,10 @@
          :long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
-         :append          (with-client append/workload-serializable (ysql.append/->Client))
-         :append-rc       (with-client append/workload-rc (ysql.append/->Client))
-         :append-rr       (with-client append/workload-rr (ysql.append/->Client))
-         :append-table    (with-client append/workload-serializable (ysql.append-table/->Client))
+         :append-rc       (with-client append/workload-rc (ysql.append/->ReadCommittedClient))
+         :append-rr       (with-client append/workload-rr (ysql.append/->RepeatableReadClient))
+         :append          (with-client append/workload-serializable (ysql.append/->SerializableClient))
+         :append-table    (with-client append/workload-serializable (ysql.append-table/->SerializableClient))
          :default-value   (with-client default-value/workload (ysql.default-value/->Client))})
 
 (def workloads

@@ -44,9 +44,9 @@
           first
           (get (keyword col))
           (str/split #",")
-          (->> ; Append might generate a leading , if the row already exists
-               (remove str/blank?)
-               (mapv #(Long/parseLong %)))))
+          (->>                                              ; Append might generate a leading , if the row already exists
+            (remove str/blank?)
+            (mapv #(Long/parseLong %)))))
 
 (defn append-primary!
   "Writes a key based on primary key."
@@ -92,13 +92,31 @@
   micro-op."
   [conn test [f k v]]
   (let [table (table-for test k)
-        row   (row-for test k)
-        col   (col-for test k)]
+        row (row-for test k)
+        col (col-for test k)]
     [f k (case f
-           :r       (read-primary     conn table row col)
-           :append  (append-primary!  conn table row col v))]))
+           :r (read-primary conn table row col)
+           :append (append-primary! conn table row col v))]))
 
-(defrecord InternalClient []
+(defn setup-cluster
+  [this test c conn-wrapper]
+  (->> (range (table-count test))
+       (map table-name)
+       (map (fn [table]
+              (info "Creating table" table)
+              (c/execute! c (j/create-table-ddl
+                              table
+                              (into
+                                [;[:k :int "unique"]
+                                 [:k :int "PRIMARY KEY"]
+                                 [:k2 :int]]
+                                ; Columns for n values packed in this row
+                                (map (fn [i] [(col-for test i) :text])
+                                     (range keys-per-row)))
+                              {:conditional? true}))))
+       dorun))
+
+(defrecord TxClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
@@ -121,12 +139,12 @@
   (invoke-op! [this test op c conn-wrapper]
     (let [txn (:value op)
           use-txn? (< 1 (count txn))
-          tx-isolation (get test :tx-isolation :serializable)
-          ; use-txn?  false ; Just for making sure the checker actually works
           txn' (if use-txn?
-                 (j/with-db-transaction [c c {:isolation tx-isolation}]
+                 (j/with-db-transaction [c c {:isolation isolation}]
                                         (mapv (partial mop! c test) txn))
                  (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
-(c/defclient Client InternalClient)
+(c/defclient ReadCommittedClient (TxClient :read-committed))
+(c/defclient RepeatableReadClient (TxClient :repeatable-read))
+(c/defclient SerializableClient (TxClient :serializable))
