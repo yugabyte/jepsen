@@ -103,7 +103,9 @@
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
          :append-rc       (with-client append/workload-rc (ysql.append/->Client :read-committed))
-         :append-rr       (with-client append/workload-rr (ysql.append/->Client :repeatable-read))
+         ; See https://docs.yugabyte.com/latest/architecture/transactions/isolation-levels/
+         ; :snapshot-isolation maps to :repeatable_read SQL
+         :append-si       (with-client append/workload-si (ysql.append/->Client :repeatable-read))
          :append          (with-client append/workload-serializable (ysql.append/->Client :serializable))
          :append-table    (with-client append/workload-serializable (ysql.append-table/->Client :serializable))
          :default-value   (with-client default-value/workload (ysql.default-value/->Client))})

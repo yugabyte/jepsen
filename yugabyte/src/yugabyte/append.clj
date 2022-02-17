@@ -7,13 +7,13 @@
   (:require [elle.core :as elle]
             [jepsen.tests.cycle.append :as append]))
 
-(defn workload-rr
+(defn workload-si
   [opts]
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
                     :anomalies          [:G1 :G2-item]
-                    :consistency-models [:repeatable-read] ; todo :snapshot-isolation?
+                    :consistency-models [:snapshot-isolation]
                     :additional-graphs  [elle/realtime-graph]})))
 
 (defn workload-rc
