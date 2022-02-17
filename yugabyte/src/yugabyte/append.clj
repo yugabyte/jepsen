@@ -14,7 +14,7 @@
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
-                    :anomalies          [:G1 :G2]
+                    :anomalies          [:G1 :G2-item]
                     :consistency-models [:repeatable-read]
                     :additional-graphs  [elle/realtime-graph]})))
 
@@ -23,7 +23,7 @@
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
-                    :anomalies          [:G1 :G2]
+                    :anomalies          [:G1]
                     :consistency-models [:read-committed]
                     :additional-graphs  [elle/realtime-graph]})))
 
