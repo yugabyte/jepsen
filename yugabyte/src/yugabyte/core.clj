@@ -41,7 +41,7 @@
             [yugabyte.ysql.single-key-acid])
   (:import (jepsen.client Client)))
 
-(def version-regex "(?<=yugabyte\-)(\d+\.\d+(\.\d+){0,2}(-b\d+)?)")
+(def version-regex #"(?<=yugabyte\-)(\d+\.\d+(\.\d+){0,2}(-b\d+)?)")
 
 (defn noop-test
   "NOOP test, exists to validate setup/teardown phases"
