@@ -98,16 +98,6 @@
            :r (read-primary conn table row col)
            :append (append-primary! conn table row col v))]))
 
-(defn invoke
-  [this test op c conn-wrapper isolation]
-  (let [txn (:value op)
-        use-txn? (< 1 (count txn))
-        txn' (if use-txn?
-               (j/with-db-transaction [c c {:isolation isolation}]
-                                      (mapv (partial mop! c test) txn))
-               (mapv (partial mop! c test) txn))]
-    (assoc op :type :ok, :value txn')))
-
 (defrecord TxClient [isolation]
   c/YSQLYbClient
 
@@ -137,4 +127,4 @@
                  (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
-(c/defclient AppendClient TxClient)
+(c/defclient Client TxClient)
