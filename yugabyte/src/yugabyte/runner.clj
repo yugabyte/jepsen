@@ -7,8 +7,8 @@
             [jepsen.core :as jepsen]
             [jepsen.cli :as cli]
             [jepsen.store :as store]
-            [yugabyte.core :as core]
-            [yugabyte.nemesis :as nemesis]))
+            [yugabyte.core :as core])
+  (:import (clojure.lang APersistentMap)))
 
 (defn parse-long [x] (Long/parseLong x))
 
@@ -22,14 +22,23 @@
          (map (fn [o] [(keyword o) true]))
          (into {}))))
 
+(defn stringify
+  ([s]
+   (stringify "" s))
+  ([prefix s]
+   (let [key (first s)
+         val (second s)]
+     (if (qualified-keyword? key)
+       (if (instance? APersistentMap val)
+         (into [] (map #(stringify (str (namespace key) "/") %) val))
+         (str prefix (namespace key) "/" (name key)))
+       (name key)))))
+
 (defn one-of
   "Like jepsen.cli/one-of but doesn't 'eat' namespaces"
   [coll]
-  (let [stringify      (fn [s] (if (qualified-keyword? s)
-                                 (str (namespace s) "/" (name s))
-                                 (name s)))
-        coll-keys      (if (map? coll) (keys coll) coll)
-        coll-key-names (sort (map stringify coll-keys))]
+  (let [coll-raw      (map stringify coll)
+        coll-key-names (sort (flatten coll-raw))]
     (str "Must be one of " (str/join ", " coll-key-names))))
 
 
@@ -138,33 +147,33 @@
     :usage    "Runs all tests"
     :run      (fn [{:keys [options]}]
                 (info "CLI options:\n" (with-out-str (pprint options)))
-                (let [w             (:workload options)
+                (let [w (:workload options)
                       workload-opts (if (:only-workloads-expected-to-pass options)
                                       core/workload-options-expected-to-pass
                                       core/workload-options)
-                      workloads     (cond->> (core/all-workload-options
-                                               workload-opts)
-                                             w (filter (comp #{w} :workload)))
-                      tests         (for [nemesis  core/all-nemeses
-                                          workload workloads
-                                          i        (range (:test-count options))]
-                                      (-> options
-                                          (merge workload)
-                                          (update :nemesis merge nemesis)))
-                      results       (->> tests
-                                         (map-indexed
-                                           (fn [i test-opts]
-                                             (let [test (core/yb-test test-opts)]
-                                               (try
-                                                 (info "\n\n\nTest "
-                                                       (inc i) "/" (count tests))
-                                                 (let [test' (jepsen/run! test)]
-                                                   [(.getPath (store/path test'))
-                                                    (:valid? (:results test'))])
-                                                 (catch Exception e
-                                                   (warn e "Test crashed")
-                                                   [(:name test) :crashed])))))
-                                         (group-by second))]
+                      workloads (cond->> (core/all-workload-options
+                                           workload-opts)
+                                         w (filter (comp #{w} :workload)))
+                      tests (for [nemesis core/all-nemeses
+                                  workload workloads
+                                  i (range (:test-count options))]
+                              (-> options
+                                  (merge workload)
+                                  (update :nemesis merge nemesis)))
+                      results (->> tests
+                                   (map-indexed
+                                     (fn [i test-opts]
+                                       (let [test (core/yb-test test-opts)]
+                                         (try
+                                           (info "\n\n\nTest "
+                                                 (inc i) "/" (count tests))
+                                           (let [test' (jepsen/run! test)]
+                                             [(.getPath (store/path test'))
+                                              (:valid? (:results test'))])
+                                           (catch Exception e
+                                             (warn e "Test crashed")
+                                             [(:name test) :crashed])))))
+                                   (group-by second))]
 
                   (println "\n")
 
