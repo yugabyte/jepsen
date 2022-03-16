@@ -11,7 +11,7 @@
             [jepsen.os.debian :as debian]
             [jepsen.os.centos :as centos]
             [yugabyte [append :as append]
-                      [default-value :as default-value]]
+             [default-value :as default-value]]
             [yugabyte.auto :as auto]
             [yugabyte.bank :as bank]
             [yugabyte.bank-improved :as bank-improved]
@@ -30,8 +30,8 @@
             [yugabyte.ycql.set]
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql [append :as ysql.append]
-                           [append-table :as ysql.append-table]
-                           [default-value :as ysql.default-value]]
+             [append-table :as ysql.append-table]
+             [default-value :as ysql.default-value]]
             [yugabyte.ysql.bank]
             [yugabyte.ysql.bank-improved]
             [yugabyte.ysql.counter]
@@ -215,7 +215,7 @@
   "Initial test construction from a map of CLI options. Establishes the test
   name, OS, DB."
   [opts]
-  (let [api (keyword (namespace (:workload opts)))
+  (let [api         (keyword (namespace (:workload opts)))
         url-version (first (re-find version-regex (get opts :url "")))]
     (assoc opts
       :version (or url-version (:version opts))
@@ -281,11 +281,11 @@
                                 :fill-color "#888888"}}})
         checker  (if (is-stub-workload (:workload opts))
                    (:checker workload)
-                   (checker/compose {:perf     perf
-                                     :stats    (checker/stats)
+                   (checker/compose {:perf                 perf
+                                     :stats                (checker/stats)
                                      :unhandled-exceptions (checker/unhandled-exceptions)
-                                     :clock    (checker/clock-plot)
-                                     :workload (:checker workload)}))]
+                                     :clock                (checker/clock-plot)
+                                     :workload             (:checker workload)}))]
     (merge tests/noop-test
            opts
            (dissoc workload
@@ -294,11 +294,11 @@
                    :checker)
            (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
            (when (:trace-cql opts) (trace-logging))
-           {:client    (:client workload)
-            :nemesis   (:nemesis nemesis)
-            :generator gen
+           {:client          (:client workload)
+            :nemesis         (:nemesis nemesis)
+            :generator       gen
             :pure-generators true
-            :checker   checker})))
+            :checker         checker})))
 
 (defn yb-test
   "Constructs a yugabyte test from CLI options."
