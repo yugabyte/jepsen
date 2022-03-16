@@ -95,8 +95,11 @@
         row   (row-for test k)
         col   (col-for test k)]
     [f k (case f
-           :r (read-primary conn table row col)
-           :append (append-primary! conn table row col v))]))
+           :r
+           (read-primary conn table row col)
+
+           :append
+           (append-primary! conn table row col v))]))
 
 (defrecord InternalClient [isolation]
   c/YSQLYbClient
