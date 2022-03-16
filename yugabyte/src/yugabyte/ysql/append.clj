@@ -92,8 +92,8 @@
   micro-op."
   [conn test [f k v]]
   (let [table (table-for test k)
-        row (row-for test k)
-        col (col-for test k)]
+        row   (row-for test k)
+        col   (col-for test k)]
     [f k (case f
            :r (read-primary conn table row col)
            :append (append-primary! conn table row col v))]))
@@ -119,12 +119,12 @@
          dorun))
 
   (invoke-op! [this test op c conn-wrapper]
-    (let [txn (:value op)
+    (let [txn      (:value op)
           use-txn? (< 1 (count txn))
-          txn' (if use-txn?
-                 (j/with-db-transaction [c c {:isolation isolation}]
-                                        (mapv (partial mop! c test) txn))
-                 (mapv (partial mop! c test) txn))]
+          txn'     (if use-txn?
+                     (j/with-db-transaction [c c {:isolation isolation}]
+                                            (mapv (partial mop! c test) txn))
+                     (mapv (partial mop! c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
