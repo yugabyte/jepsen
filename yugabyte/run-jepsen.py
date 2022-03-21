@@ -52,7 +52,8 @@ DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar
 
 TEST_PER_VERSION = [
     {
-        "2.4.0.0": [
+        "start_version": "2.4.0.0",
+        "tests": [
             "ycql/counter",
             "ycql/set",
             "ycql/set-index",
@@ -76,7 +77,8 @@ TEST_PER_VERSION = [
         ]
     },
     {
-        "2.13.1.0": [
+        "start_version": "2.13.1.0",
+        "tests": [
             "ysql/append-rc"
         ]
     }
@@ -101,9 +103,9 @@ child_processes = []
 
 def get_workload_version(workload):
     for el in TEST_PER_VERSION:
-        for version, tests in el.items():
+        for tests in el["tests"]:
             if workload in tests:
-                return version
+                return el["version"]
     assert False, f"Unanable to find workload in tests: {TESTS}"
 
 
