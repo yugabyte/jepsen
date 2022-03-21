@@ -12,7 +12,8 @@
             [jepsen.control.net :as cn]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
-            [version-clj.core :as v]
+            [jepsen.os.centos :as centos]
+            [jepsen.reconnect :as rc]
             [yugabyte.ycql.client :as ycql.client]
             [yugabyte.ysql.client :as ysql.client]
             [slingshot.slingshot :refer [try+ throw+]])
@@ -26,8 +27,6 @@
 (def master-log-dir  (str dir "/master/logs"))
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
-
-(def minimal-read-committed-version "2.13.1.0-b1")
 
 (def max-bump-time-ops-per-test
   "Upper bound on number of bump time ops per test, needed to estimate max
@@ -321,7 +320,6 @@
   [api node]
   (if (= api :ysql)
     [:--start_pgsql_proxy
-     :--yb_enable_read_committed_isolation
      :--pgsql_proxy_bind_address (cn/ip node)]
     []))
 
@@ -410,7 +408,6 @@
             :--rpc_slow_query_threshold_ms 1000
             :--load_balancer_max_concurrent_adds 10
             (tserver-api-opts (:api test) node)
-            (tserver-version-specific test)
 
             ; Heartbeats
             ;:--heartbeat_interval_ms 100
@@ -421,7 +418,7 @@
             ;:--leader_failure_max_missed_heartbeat_period 3
             ;:--consensus_rpc_timeout_ms 300
             ;:--client_read_write_timeout_ms 6000
-                                      )))
+            )))
 
   (stop-master! [db]
     (c/su (cu/stop-daemon! ce-master-bin ce-master-pidfile)))
