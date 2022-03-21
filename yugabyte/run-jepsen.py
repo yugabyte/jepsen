@@ -101,11 +101,12 @@ SORT_RESULTS_SH = os.path.join(SCRIPT_DIR, "sort-results.sh")
 
 child_processes = []
 
+
 def get_workload_version(workload):
     for el in TEST_PER_VERSION:
         for tests in el["tests"]:
             if workload in tests:
-                return el["version"]
+                return el["start_version"]
     assert False, f"Unanable to find workload in tests: {TESTS}"
 
 
@@ -337,7 +338,7 @@ def main():
                     "stopping", total_elapsed_time_sec, args.max_time_sec)
                 break
 
-            
+
             if compare_versions_less_than(version, get_workload_version(test)):
                 logging.info(
                     f"Skipped workload {test} because it requires version {version}")
