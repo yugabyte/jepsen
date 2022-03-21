@@ -119,6 +119,7 @@ def compare_versions_less_than(v1, v2):
         return i < j
     assert False, f"Can't compare versions {v1} and {v2}"
 
+
 def cleanup():
     deadline = time.time() + 5
     for p in child_processes:
