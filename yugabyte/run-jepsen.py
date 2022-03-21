@@ -116,7 +116,7 @@ def compare_versions_less_than(v1, v2):
     for i, j in zip_longest(map(int, v1_split), map(int, v2_split), fillvalue=0):
         if i == j:
             continue
-        return i > j
+        return i < j
     assert False, f"Can't compare versions {v1} and {v2}"
 
 def cleanup():
@@ -338,10 +338,9 @@ def main():
                     "stopping", total_elapsed_time_sec, args.max_time_sec)
                 break
 
-
             if compare_versions_less_than(version, get_workload_version(test)):
                 logging.info(
-                    f"Skipped workload {test} because it requires version {version}")
+                    f"Skipped workload {test} because it requires version {get_workload_version(test)}")
                 break
 
             test_index += 1
