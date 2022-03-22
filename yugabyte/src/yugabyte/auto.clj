@@ -424,7 +424,7 @@
             ;:--leader_failure_max_missed_heartbeat_period 3
             ;:--consensus_rpc_timeout_ms 300
             ;:--client_read_write_timeout_ms 6000
-                                      )))
+            )))
 
   (stop-master! [db]
     (c/su (cu/stop-daemon! ce-master-bin ce-master-pidfile)))
