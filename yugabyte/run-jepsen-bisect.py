@@ -469,6 +469,12 @@ def main():
         else:
             low = middle + 1
 
+        print("Clear logs directory")
+        print(subprocess.run(["rm -rf logs"],
+                             stdout=subprocess.PIPE,
+                             shell=True,
+                             universal_newlines=True))
+
     print(versions_under_test[low - 1])
 
 
