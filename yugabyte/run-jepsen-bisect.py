@@ -24,13 +24,16 @@ A script to run multiple YugaByte DB Jepsen tests in a loop and organize the res
 import atexit
 import errno
 import os
+import re
 import subprocess
 import sys
 import time
 import logging
 import argparse
 
+from functools import cmp_to_key
 from collections import namedtuple
+from itertools import zip_longest
 
 CmdResult = namedtuple('CmdResult',
                        ['returncode',
@@ -49,27 +52,27 @@ NODES_FILE = os.path.expanduser("~/code/jepsen/nodes")
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar.gz"
 
 TESTS = [
-   "ycql/counter",
-   "ycql/set",
-   "ycql/set-index",
-   "ycql/bank",
-   "ycql/bank-inserts",
-   "ycql/long-fork",
-   "ycql/single-key-acid",
-   "ycql/multi-key-acid",
+    "ycql/counter",
+    "ycql/set",
+    "ycql/set-index",
+    "ycql/bank",
+    "ycql/bank-inserts",
+    "ycql/long-fork",
+    "ycql/single-key-acid",
+    "ycql/multi-key-acid",
 
-   "ysql/counter",
-   "ysql/set",
-   "ysql/bank",
-   "ysql/bank-contention",
-   "ysql/bank-multitable",
-   "ysql/long-fork",
-   "ysql/single-key-acid",
-   "ysql/multi-key-acid",
-   "ysql/append",
-   "ysql/append-si",
-   "ysql/append-rc",
-   "ysql/default-value",
+    "ysql/counter",
+    "ysql/set",
+    "ysql/bank",
+    "ysql/bank-contention",
+    "ysql/bank-multitable",
+    "ysql/long-fork",
+    "ysql/single-key-acid",
+    "ysql/multi-key-acid",
+    "ysql/append",
+    "ysql/append-si",
+    "ysql/append-rc",
+    "ysql/default-value",
 ]
 NEMESES = [
     "none",
@@ -140,7 +143,6 @@ def run_cmd(cmd,
             exit_on_error=True,
             log_name_prefix=None,
             num_lines_to_show=None):
-
     logging.info("Running command: %s", cmd)
     stdout_path = None
     stderr_path = None
@@ -187,13 +189,13 @@ def run_cmd(cmd,
         if stdout_path is not None and os.path.exists(stdout_path):
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
-                    line.startswith('Everything looks good!') for line in last_lines_of_output)
+                line.startswith('Everything looks good!') for line in last_lines_of_output)
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
-                returncode=returncode,
-                timed_out=timed_out,
-                everything_looks_good=everything_looks_good)
+            returncode=returncode,
+            timed_out=timed_out,
+            everything_looks_good=everything_looks_good)
 
     finally:
         if stdout_file is not None:
@@ -217,9 +219,23 @@ def run_cmd(cmd,
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        '--urls',
-        default=DEFAULT_TARBALL_URL,
-        help='Comma separated releases')
+        '--url-prefix',
+        help='URL prefix'
+    )
+    parser.add_argument(
+        '--web-dir',
+        default='.',
+        help='Web directory'
+    )
+    parser.add_argument(
+        '--start-version',
+        default='2.6.0.0-b1',
+        help='Start version to search'
+    )
+    parser.add_argument(
+        '--end-version',
+        help='End version to search'
+    )
     parser.add_argument(
         '--max-time-sec',
         type=int,
@@ -248,13 +264,24 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(filename)s:%(lineno)d %(levelname)s] %(message)s")
-    args = parse_args()
+def compare_versions(v1, v2):
+    v1_split = re.split('\.|-b', v1)
+    v2_split = re.split('\.|-b', v2)
+    try:
+        for i, j in zip_longest(map(int, v1_split), map(int, v2_split), fillvalue=0):
+            if i == j:
+                continue
+            elif i < j:
+                return -1
+            else:
+                return 1
+    except Exception as e:
+        return 0
+    return 0
 
-    atexit.register(cleanup)
+
+def evaluate_jepsen_for_version(args, version, tarfile):
+    print(f"Running against version {version}")
 
     # Sort old results in the beginning if it did not happen at the end of the last run.
     run_cmd(SORT_RESULTS_SH)
@@ -281,115 +308,164 @@ def main():
     num_non_zero_exit_code = 0
 
     not_good_tests = []
-    lein_cmd = " ".join(["lein run test",
-                         "--os debian",
-                         "--url " + args.url,
-                         "--nemesis " + nemeses,
-                         "--concurrency " + args.concurrency
-                        ])
+    lein_cmd = " ".join(
+        [
+            "lein run test",
+            "--os debian",
+            f'--url {args.url_prefix}/{tarfile}',
+            f'--nemesis {nemeses}',
+            f'--concurrency {args.concurrency}',
+        ]
+    )
+
     if args.iterations:
         lein_cmd += " --test-count 1"
         iteration_cnt = args.iterations
     else:
         iteration_cnt = 1
 
-    for url in args.urls.split(','):
-        logging.info(f"Running release {url}")
-        for test in args.workloads.split(','):
-            for iteration in range(iteration_cnt):
-                total_elapsed_time_sec = time.time() - start_time
-                if args.max_time_sec is not None and total_elapsed_time_sec > args.max_time_sec:
-                    logging.info(
-                        "Elapsed time is %.1f seconds, it has exceeded the max allowed time %.1f, "
-                        "stopping", total_elapsed_time_sec, args.max_time_sec)
-                    break
-
-                test_index += 1
-                test_description_str = "workload " + test + ", nemesis " + nemeses
+    for test in args.workloads.split(','):
+        for iteration in range(iteration_cnt):
+            total_elapsed_time_sec = time.time() - start_time
+            if args.max_time_sec is not None and total_elapsed_time_sec > args.max_time_sec:
                 logging.info(
-                        "\n%s\nStarting test run #%d - %s\n%s",
-                        "=" * 80,
-                        test_index,
-                        test_description_str,
-                        "=" * 80)
-                test_start_time_sec = time.time()
-                if '/set' in test:
-                    test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST
-                else:
-                    test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME
-                full_cmd = lein_cmd + \
-                           " --time-limit " + str(test_run_time_limit_no_analysis_sec) + \
-                           " --workload " + test
-                result = run_cmd(
-                    full_cmd,
-                    timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
-                    exit_on_error=False,
-                    log_name_prefix="{}_nemesis_{}_{}".format(test.replace('/','-'),
-                                                              nemeses, test_index),
-                    num_lines_to_show=30
-                )
+                    "Elapsed time is %.1f seconds, it has exceeded the max allowed time %.1f, "
+                    "stopping", total_elapsed_time_sec, args.max_time_sec)
+                break
 
-                test_elapsed_time_sec = time.time() - test_start_time_sec
-                if result.timed_out:
-                    jepsen_log_file = os.path.join(STORE_DIR, 'current', 'jepsen.log')
-                    num_timed_out_tests += 1
-                    logging.info("Test timed out. Updating the log at %s", jepsen_log_file)
-                    if os.path.exists(jepsen_log_file):
-                        msg = "Test run timed out!"
-                        logging.info(msg)
-                        with open(jepsen_log_file, "a") as f:
-                            f.write(msg)
-                    else:
-                        logging.error("File %s does not exist!", jepsen_log_file)
-
-                logging.info(
-                        "Test run #%d: elapsed_time=%.1f, returncode=%d, everything_looks_good=%s",
-                        test_index, test_elapsed_time_sec, result.returncode,
-                        result.everything_looks_good)
-                if result.everything_looks_good:
-                    num_everything_looks_good += 1
-                else:
-                    num_not_everything_looks_good += 1
-                    not_good_tests.append(test_description_str)
-                if result.returncode == 0:
-                    num_zero_exit_code += 1
-                else:
-                    num_non_zero_exit_code += 1
-
-                run_cmd(SORT_RESULTS_SH + " " + nemeses)
-
-                logging.info(
-                        "\n%s\nFinished test run #%d (%s)\n%s",
-                        "=" * 80, test_index, test_description_str, "=" * 80)
-
-                num_tests_run += 1
-                total_test_time_sec += test_elapsed_time_sec
-
-                total_elapsed_time_sec = time.time() - start_time
-                logging.info("Finished running %d tests.", num_tests_run)
-                logging.info("    %d okay, %d problems (%d timed-out)",
-                    num_everything_looks_good, num_not_everything_looks_good, num_timed_out_tests)
-                logging.info("    %d tests (out of %d total) returned non-zero exit code",
-                    num_non_zero_exit_code, num_tests_run)
-                logging.info("Elapsed time: %.1f sec, test time: %.1f sec, avg test time: %.1f sec",
-                    total_elapsed_time_sec, total_test_time_sec,
-                    total_test_time_sec / num_tests_run)
-                if not_good_tests:
-                    logging.info("Tests where something does not look good:\n    %s",
-                                 "\n    ".join(not_good_tests))
-                if not result.everything_looks_good:
-                    logging.info(f"Issue reproduced for URL {url}. Running next release")
-                    break
+            test_index += 1
+            test_description_str = f'workload {test}, nemesis {nemeses}'
+            logging.info(
+                "\n%s\nStarting test run #%d - %s\n%s",
+                "=" * 80,
+                test_index,
+                test_description_str,
+                "=" * 80)
+            test_start_time_sec = time.time()
+            if '/set' in test:
+                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST
             else:
-                # Next workload
-                continue
-            # Inner loop broken, skip remaining workloads
-            break
+                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME
+            full_cmd = lein_cmd + \
+                       " --time-limit " + str(test_run_time_limit_no_analysis_sec) + \
+                       " --workload " + test
+            result = run_cmd(
+                full_cmd,
+                timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
+                exit_on_error=False,
+                log_name_prefix="{}_nemesis_{}_{}".format(test.replace('/', '-'),
+                                                          nemeses, test_index),
+                num_lines_to_show=30
+            )
 
-    if not_good_tests:
-        exit(1)
-    else:
-        exit(0)
+            test_elapsed_time_sec = time.time() - test_start_time_sec
+            if result.timed_out:
+                jepsen_log_file = os.path.join(STORE_DIR, 'current', 'jepsen.log')
+                num_timed_out_tests += 1
+                logging.info("Test timed out. Updating the log at %s", jepsen_log_file)
+                if os.path.exists(jepsen_log_file):
+                    msg = "Test run timed out!"
+                    logging.info(msg)
+                    with open(jepsen_log_file, "a") as f:
+                        f.write(msg)
+                else:
+                    logging.error("File %s does not exist!", jepsen_log_file)
+
+            logging.info(
+                "Test run #%d: elapsed_time=%.1f, returncode=%d, everything_looks_good=%s",
+                test_index, test_elapsed_time_sec, result.returncode,
+                result.everything_looks_good)
+            if result.everything_looks_good:
+                num_everything_looks_good += 1
+            else:
+                num_not_everything_looks_good += 1
+                not_good_tests.append(test_description_str)
+            if result.returncode == 0:
+                num_zero_exit_code += 1
+            else:
+                num_non_zero_exit_code += 1
+
+            run_cmd(f'{SORT_RESULTS_SH} {nemeses}')
+
+            logging.info(
+                "\n%s\nFinished test run #%d (%s)\n%s",
+                "=" * 80, test_index, test_description_str, "=" * 80)
+
+            num_tests_run += 1
+            total_test_time_sec += test_elapsed_time_sec
+
+            total_elapsed_time_sec = time.time() - start_time
+            logging.info("Finished running %d tests.", num_tests_run)
+            logging.info("    %d okay, %d problems (%d timed-out)",
+                         num_everything_looks_good, num_not_everything_looks_good,
+                         num_timed_out_tests)
+            logging.info("    %d tests (out of %d total) returned non-zero exit code",
+                         num_non_zero_exit_code, num_tests_run)
+            logging.info("Elapsed time: %.1f sec, test time: %.1f sec, avg test time: %.1f sec",
+                         total_elapsed_time_sec, total_test_time_sec,
+                         total_test_time_sec / num_tests_run)
+            if not_good_tests:
+                logging.info("Tests where something does not look good:\n    %s",
+                             "\n    ".join(not_good_tests))
+            if not result.everything_looks_good:
+                return False
+        else:
+            # Next workload
+            continue
+        # Inner loop broken, skip remaining workloads
+        break
+
+    return True
+
+
+def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(filename)s:%(lineno)d %(levelname)s] %(message)s")
+    args = parse_args()
+
+    atexit.register(cleanup)
+
+    versions = subprocess.run(["aws s3 ls s3://releases.yugabyte.com | awk '{ sub(/PRE /, \"\"); print }' | awk '{ sub(/\\//, \"\"); print }'"],
+                              stdout=subprocess.PIPE,
+                              shell=True,
+                              universal_newlines=True).stdout.split("\n")
+    clean_versions = [row.strip() for row in versions if
+                      re.search(r"^\d+\.\d+\.\d+\.\d+-b\d+$", row.strip())]
+    sorted_versions = sorted(clean_versions, key=cmp_to_key(compare_versions))
+    start_version = args.start_version
+    end_version = sorted_versions[-1] if not args.end_version else args.end_version
+    versions_under_test = list(filter(
+        lambda version: compare_versions(version, start_version) >= 0 >= compare_versions(version,
+                                                                                          end_version),
+        sorted_versions))
+
+    low = 0
+    high = len(versions_under_test) - 1
+
+    while low <= high:
+        middle = low + (high - low) // 2
+
+        yb_release = versions_under_test[middle]
+        s3_path = f"s3://releases.yugabyte.com/{yb_release}"
+        tarfile = subprocess.run(["aws s3 ls %s/yugabyte-%s- | awk \'/(alma|centos).*-x86_64.tar.gz$/ {print $NF}\'" % (s3_path, yb_release)],
+                                 stdout=subprocess.PIPE,
+                                 shell=True,
+                                 universal_newlines=True).stdout.split("\n")[0]
+        print(f"Downloading tarfile {tarfile}")
+        subprocess.run([f"aws s3 cp {s3_path}/{tarfile} {args.web_dir}"],
+                       stdout=subprocess.PIPE,
+                       shell=True,
+                       universal_newlines=True)
+
+        if evaluate_jepsen_for_version(
+                args, yb_release, tarfile
+        ):
+            high = middle - 1
+        else:
+            low = middle + 1
+
+    print(versions_under_test[low - 1])
 
 
 if __name__ == '__main__':
