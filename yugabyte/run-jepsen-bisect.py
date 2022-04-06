@@ -143,6 +143,7 @@ def run_cmd(cmd,
             exit_on_error=True,
             log_name_prefix=None,
             num_lines_to_show=None):
+    global deadline
     logging.info("Running command: %s", cmd)
     stdout_path = None
     stderr_path = None
@@ -222,6 +223,11 @@ def run_cmd(cmd,
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--use-release-builds',
+        default=False,
+        help='URL prefix'
+    )
     parser.add_argument(
         '--url-prefix',
         help='URL prefix'
@@ -439,10 +445,15 @@ def main():
     sorted_versions = sorted(clean_versions, key=cmp_to_key(compare_versions))
     start_version = args.start_version
     end_version = sorted_versions[-1] if not args.end_version else args.end_version
-    versions_under_test = list(filter(
-        lambda version: compare_versions(version, start_version) >= 0 >= compare_versions(version,
-                                                                                          end_version),
+    sorted_versions_in_range = list(filter(
+        lambda version: compare_versions(version, start_version) >= 0 >= compare_versions(version, end_version),
         sorted_versions))
+    versions_under_test = [
+        version
+        for version in sorted_versions_in_range
+        if int(version.split(".")[1]) % 2 == 0 and args.use_release_builds or
+           int(version.split(".")[1]) % 2 == 1 and not args.use_release_builds
+    ]
 
     low = 0
     high = len(versions_under_test) - 1
@@ -465,16 +476,9 @@ def main():
         if evaluate_jepsen_for_version(
                 args, yb_release, tarfile
         ):
-            low = middle + 1
-        else:
             high = middle - 1
-
-
-        print("Clear logs directory")
-        print(subprocess.run(["rm -rf logs"],
-                             stdout=subprocess.PIPE,
-                             shell=True,
-                             universal_newlines=True))
+        else:
+            low = middle + 1
 
     print(versions_under_test[low - 1])
 
