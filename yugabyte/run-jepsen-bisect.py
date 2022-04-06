@@ -417,7 +417,7 @@ def evaluate_jepsen_for_version(args, version, tarfile):
             # Next workload
             continue
         # Inner loop broken, skip remaining workloads
-        break
+        return False
 
     return True
 
