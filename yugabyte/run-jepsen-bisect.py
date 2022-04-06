@@ -465,9 +465,10 @@ def main():
         if evaluate_jepsen_for_version(
                 args, yb_release, tarfile
         ):
-            high = middle - 1
-        else:
             low = middle + 1
+        else:
+            high = middle - 1
+
 
         print("Clear logs directory")
         print(subprocess.run(["rm -rf logs"],
