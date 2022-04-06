@@ -38,6 +38,7 @@ from itertools import zip_longest
 CmdResult = namedtuple('CmdResult',
                        ['returncode',
                         'timed_out',
+                        'analysis_invalid',
                         'everything_looks_good'])
 
 # Only for workload, doesn't include test results analysis. Customized for the "set" test.
@@ -138,7 +139,6 @@ def show_last_lines(file_path, n_lines):
 
 
 def run_cmd(cmd,
-            shell=True,
             timeout=None,
             exit_on_error=True,
             log_name_prefix=None,
@@ -148,8 +148,8 @@ def run_cmd(cmd,
     stderr_path = None
     keep_output_log_file = True
     if log_name_prefix is not None:
-        stdout_path = os.path.join(LOGS_DIR, log_name_prefix + '_stdout.log')
-        stderr_path = os.path.join(LOGS_DIR, log_name_prefix + '_stderr.log')
+        stdout_path = os.path.join(LOGS_DIR, f'{log_name_prefix}_stdout.log')
+        stderr_path = os.path.join(LOGS_DIR, f'{log_name_prefix}_stderr.log')
         logging.info("stdout log: %s", stdout_path)
         logging.info("stderr log: %s", stderr_path)
 
@@ -185,16 +185,20 @@ def run_cmd(cmd,
             logging.error("Failed running command (exit code: %d): %s", returncode, cmd)
             if exit_on_error:
                 sys.exit(returncode)
+        analysis_invalid = False
         everything_looks_good = False
         if stdout_path is not None and os.path.exists(stdout_path):
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
                 line.startswith('Everything looks good!') for line in last_lines_of_output)
+            analysis_invalid = any(
+                line.startswith('Analysis invalid') for line in last_lines_of_output)
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
             returncode=returncode,
             timed_out=timed_out,
+            analysis_invalid=analysis_invalid,
             everything_looks_good=everything_looks_good)
 
     finally:
@@ -407,7 +411,7 @@ def evaluate_jepsen_for_version(args, version, tarfile):
             if not_good_tests:
                 logging.info("Tests where something does not look good:\n    %s",
                              "\n    ".join(not_good_tests))
-            if not result.everything_looks_good:
+            if result.analysis_invalid:
                 return False
         else:
             # Next workload
