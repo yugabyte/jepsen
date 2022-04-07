@@ -495,7 +495,7 @@ def main():
         )
 
 
-    print(versions_under_test[low - 1])
+    print(versions_under_test[low])
 
 
 if __name__ == '__main__':
