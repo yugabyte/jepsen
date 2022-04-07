@@ -88,7 +88,6 @@ NEMESES = [
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 STORE_DIR = os.path.join(SCRIPT_DIR, "store")
 LOGS_DIR = os.path.join(SCRIPT_DIR, "logs")
-SORT_RESULTS_SH = os.path.join(SCRIPT_DIR, "sort-results.sh")
 
 child_processes = []
 
@@ -294,8 +293,6 @@ def evaluate_jepsen_for_version(args, version, tarfile):
     print(f"Running against version {version}")
 
     # Sort old results in the beginning if it did not happen at the end of the last run.
-    run_cmd(SORT_RESULTS_SH)
-
     start_time = time.time()
     nemeses = args.nemeses
     if args.enable_clock_skew:
@@ -395,8 +392,6 @@ def evaluate_jepsen_for_version(args, version, tarfile):
             else:
                 num_non_zero_exit_code += 1
 
-            run_cmd(f'{SORT_RESULTS_SH} {nemeses}')
-
             logging.info(
                 "\n%s\nFinished test run #%d (%s)\n%s",
                 "=" * 80, test_index, test_description_str, "=" * 80)
@@ -479,6 +474,16 @@ def main():
             high = middle - 1
         else:
             low = middle + 1
+
+        print(
+            subprocess.run(
+                ['rm -rf logs/ results-sorted/'],
+                stdout=subprocess.PIPE,
+                shell=True,
+                universal_newlines=True,
+            )
+        )
+
 
     print(versions_under_test[low - 1])
 
