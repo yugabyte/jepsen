@@ -475,9 +475,19 @@ def main():
         else:
             low = middle + 1
 
+        print("Removing logs directory")
         print(
             subprocess.run(
-                ['rm -rf logs/ results-sorted/'],
+                ['rm -rf logs/ results-sorted/ store/'],
+                stdout=subprocess.PIPE,
+                shell=True,
+                universal_newlines=True,
+            )
+        )
+        print("Removing release archive")
+        print(
+            subprocess.run(
+                [f'rm -f logs/ {args.web_dir}/{tarfile}'],
                 stdout=subprocess.PIPE,
                 shell=True,
                 universal_newlines=True,
