@@ -62,7 +62,7 @@
             conn
             (str "BEGIN TRANSACTION "
                  "INSERT INTO " keyspace "." table-name
-                 " (id, balance) VALUES (" to "," amount ") IF NOT EXISTS;"
+                 " (id, balance) VALUES (" to "," amount ") IF NOT EXISTS ELSE ERROR;"
 
                  "UPDATE " keyspace "." table-name
                  " SET balance = balance - " amount " WHERE id = " from ";"
