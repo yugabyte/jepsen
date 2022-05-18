@@ -338,7 +338,7 @@ def main():
                                                                get_workload_version(workload))]
 
     if not workloads_to_evaluate:
-        logging.error(f"No workloads for evaluate have been found\n"
+        logging.error(f"No workloads for evaluate have been found because of version incompatibility\n"
                       f"Should be skipped: {workloads_to_skip}\n"
                       f"Workloads to evaluate: {workloads_to_evaluate}")
         exit(1)
