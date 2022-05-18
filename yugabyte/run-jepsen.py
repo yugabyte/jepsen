@@ -337,7 +337,7 @@ def main():
                              if not compare_versions_less_than(version,
                                                                get_workload_version(workload))]
 
-    if len(workloads_to_evaluate) == 0:
+    if not workloads_to_evaluate:
         logging.error(f"No workloads for evaluate have been found\n"
                       f"Should be skipped: {workloads_to_skip}\n"
                       f"Workloads to evaluate: {workloads_to_evaluate}")
