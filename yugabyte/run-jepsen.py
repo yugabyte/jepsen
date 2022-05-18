@@ -77,7 +77,7 @@ TEST_PER_VERSION = [
         ]
     },
     {
-        "start_version": "2.13.1.0",
+        "start_version": "2.13.1.0-b0",
         "tests": [
             "ysql/append-rc"
         ]
@@ -117,7 +117,7 @@ def compare_versions_less_than(v1, v2):
         if i == j:
             continue
         return i < j
-    assert False, f"Can't compare versions {v1} and {v2}"
+    return False
 
 
 def cleanup():
