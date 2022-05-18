@@ -52,7 +52,7 @@ DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar
 
 TEST_PER_VERSION = [
     {
-        "start_version": "2.4.0.0",
+        "start_version": "1.3.1.0",
         "tests": [
             "ycql/counter",
             "ycql/set",
@@ -330,18 +330,20 @@ def main():
     else:
         iteration_cnt = 1
 
-    for test in args.workloads.split(','):
+    workloads_to_skip = [workload for workload in args.workloads.split(',')
+                         if compare_versions_less_than(version,
+                                                       get_workload_version(workload))]
+    workloads_to_evaluate = [workload for workload in args.workloads.split(',')
+                             if not compare_versions_less_than(version,
+                                                               get_workload_version(workload))]
+
+    for test in workloads_to_evaluate:
         for iteration in range(iteration_cnt):
             total_elapsed_time_sec = time.time() - start_time
             if args.max_time_sec is not None and total_elapsed_time_sec > args.max_time_sec:
                 logging.info(
                     "Elapsed time is %.1f seconds, it has exceeded the max allowed time %.1f, "
                     "stopping", total_elapsed_time_sec, args.max_time_sec)
-                break
-
-            if compare_versions_less_than(version, get_workload_version(test)):
-                logging.info(
-                    f"Skipped workload {test} because it requires version {get_workload_version(test)}")
                 break
 
             test_index += 1
@@ -423,6 +425,8 @@ def main():
             continue
         # Inner loop broken, skip remaining workloads
         break
+
+    logging.warning(f"Skipped workloads because of version incompatibility {workloads_to_skip}")
 
     if not_good_tests:
         exit(1)
