@@ -330,17 +330,17 @@ def main():
     else:
         iteration_cnt = 1
 
-    workloads_to_skip = [workload for workload in args.workloads.split(',')
-                         if is_version_at_least(version,
-                                                get_workload_version(workload))]
+    all_workloads = args.workloads.split(',')
     workloads_to_evaluate = [workload for workload in args.workloads.split(',')
-                             if not is_version_at_least(version,
-                                                        get_workload_version(workload))]
+                             if is_version_at_least(version,
+                                                    get_workload_version(workload))]
+    workloads_to_skip = set(all_workloads) - set(workloads_to_evaluate)
 
     if not workloads_to_evaluate:
-        logging.error(f"No workloads for evaluate have been found because of version incompatibility\n"
-                      f"Should be skipped: {workloads_to_skip}\n"
-                      f"Workloads to evaluate: {workloads_to_evaluate}")
+        logging.error(
+            f"No workloads for evaluate have been found because of version incompatibility\n"
+            f"Should be skipped: {workloads_to_skip}\n"
+            f"Workloads to evaluate: {workloads_to_evaluate}")
         exit(1)
 
     for test in workloads_to_evaluate:
