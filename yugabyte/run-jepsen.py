@@ -77,7 +77,7 @@ TEST_PER_VERSION = [
         ]
     },
     {
-        "start_version": "2.13.1.0-b0",
+        "start_version": "2.13.1.0-b1",
         "tests": [
             "ysql/append-rc"
         ]
@@ -117,7 +117,7 @@ def is_version_at_least(v_least, v_actual):
         if i == j:
             continue
         return i < j
-    return False
+    return True
 
 
 def cleanup():
@@ -287,7 +287,7 @@ def main():
     atexit.register(cleanup)
 
     # Sort old results in the beginning if it did not happen at the end of the last run.
-    run_cmd(SORT_RESULTS_SH)
+    # run_cmd(SORT_RESULTS_SH)
 
     start_time = time.time()
     nemeses = args.nemeses
@@ -332,8 +332,8 @@ def main():
 
     all_workloads = args.workloads.split(',')
     workloads_to_evaluate = [workload for workload in all_workloads
-                             if not is_version_at_least(version,
-                                                        get_workload_version(workload))]
+                             if is_version_at_least(get_workload_version(workload),
+                                                    version)]
     workloads_to_skip = set(all_workloads) - set(workloads_to_evaluate)
 
     if not workloads_to_evaluate:
