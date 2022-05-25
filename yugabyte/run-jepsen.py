@@ -110,13 +110,13 @@ def get_workload_version(workload):
     assert False, f"Unanable to find workload in tests: {TESTS}"
 
 
-def is_version_at_least(v_actual, v_least):
-    v_actual_split = re.split('\.|-b', v_actual)
+def is_version_at_least(v_least, v_actual):
     v_least_split = re.split('\.|-b', v_least)
-    for i, j in zip_longest(map(int, v_actual_split), map(int, v_least_split), fillvalue=0):
+    v_actual_split = re.split('\.|-b', v_actual)
+    for i, j in zip_longest(map(int, v_least_split), map(int, v_actual_split), fillvalue=0):
         if i == j:
             continue
-        return i > j
+        return i < j
     return False
 
 
@@ -332,8 +332,8 @@ def main():
 
     all_workloads = args.workloads.split(',')
     workloads_to_evaluate = [workload for workload in all_workloads
-                             if is_version_at_least(version,
-                                                    get_workload_version(workload))]
+                             if not is_version_at_least(version,
+                                                        get_workload_version(workload))]
     workloads_to_skip = set(all_workloads) - set(workloads_to_evaluate)
 
     if not workloads_to_evaluate:
