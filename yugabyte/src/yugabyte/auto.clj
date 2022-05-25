@@ -321,7 +321,7 @@
      :--pgsql_proxy_bind_address (cn/ip node)]
     []))
 
-(defn tserver-workload-specific
+(defn tserver-workload-specific-opts
   "Version-specific flags"
   [test]
   (if (and (= (:workload test) :ysql/append-rc))
@@ -413,7 +413,7 @@
             :--rpc_slow_query_threshold_ms 1000
             :--load_balancer_max_concurrent_adds 10
             (tserver-api-opts (:api test) node)
-            (tserver-workload-specific test)
+            (tserver-workload-specific-opts test)
 
             ; Heartbeats
             ;:--heartbeat_interval_ms 100

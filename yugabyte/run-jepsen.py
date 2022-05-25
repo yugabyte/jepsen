@@ -110,10 +110,10 @@ def get_workload_version(workload):
     assert False, f"Unanable to find workload in tests: {TESTS}"
 
 
-def compare_versions_less_than(v1, v2):
-    v1_split = re.split('\.|-b', v1)
-    v2_split = re.split('\.|-b', v2)
-    for i, j in zip_longest(map(int, v1_split), map(int, v2_split), fillvalue=0):
+def is_versions_at_least(v_least, v_actual):
+    v_least_split = re.split('\.|-b', v_least)
+    v_actual_split = re.split('\.|-b', v_actual)
+    for i, j in zip_longest(map(int, v_least_split), map(int, v_actual_split), fillvalue=0):
         if i == j:
             continue
         return i < j
