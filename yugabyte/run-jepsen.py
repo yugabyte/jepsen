@@ -331,7 +331,7 @@ def main():
         iteration_cnt = 1
 
     all_workloads = args.workloads.split(',')
-    workloads_to_evaluate = [workload for workload in args.workloads.split(',')
+    workloads_to_evaluate = [workload for workload in all_workloads
                              if is_version_at_least(version,
                                                     get_workload_version(workload))]
     workloads_to_skip = set(all_workloads) - set(workloads_to_evaluate)
