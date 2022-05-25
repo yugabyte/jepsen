@@ -110,7 +110,7 @@ def get_workload_version(workload):
     assert False, f"Unanable to find workload in tests: {TESTS}"
 
 
-def is_versions_at_least(v_actual, v_least):
+def is_version_at_least(v_actual, v_least):
     v_actual_split = re.split('\.|-b', v_actual)
     v_least_split = re.split('\.|-b', v_least)
     for i, j in zip_longest(map(int, v_actual_split), map(int, v_least_split), fillvalue=0):
@@ -331,11 +331,11 @@ def main():
         iteration_cnt = 1
 
     workloads_to_skip = [workload for workload in args.workloads.split(',')
-                         if is_versions_at_least(version,
-                                                 get_workload_version(workload))]
+                         if is_version_at_least(version,
+                                                get_workload_version(workload))]
     workloads_to_evaluate = [workload for workload in args.workloads.split(',')
-                             if not is_versions_at_least(version,
-                                                         get_workload_version(workload))]
+                             if not is_version_at_least(version,
+                                                        get_workload_version(workload))]
 
     if not workloads_to_evaluate:
         logging.error(f"No workloads for evaluate have been found because of version incompatibility\n"
