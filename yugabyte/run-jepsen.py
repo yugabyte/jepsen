@@ -113,11 +113,10 @@ def get_workload_version(workload):
 def is_version_at_least(v_least, v_actual):
     v_least_split = re.split('\.|-b', v_least)
     v_actual_split = re.split('\.|-b', v_actual)
-    for i, j in zip_longest(map(int, v_least_split), map(int, v_actual_split), fillvalue=0):
-        if i == j:
-            continue
-        return i < j
-    return True
+    return next(
+        (i < j for i, j in
+         zip_longest(map(int, v_least_split), map(int, v_actual_split), fillvalue=0) if
+         i != j), True)
 
 
 def cleanup():
@@ -176,8 +175,8 @@ def run_cmd(cmd,
     stderr_path = None
     keep_output_log_file = True
     if log_name_prefix is not None:
-        stdout_path = os.path.join(LOGS_DIR, log_name_prefix + '_stdout.log')
-        stderr_path = os.path.join(LOGS_DIR, log_name_prefix + '_stderr.log')
+        stdout_path = os.path.join(LOGS_DIR, f'{log_name_prefix}_stdout.log')
+        stderr_path = os.path.join(LOGS_DIR, f'{log_name_prefix}_stderr.log')
         logging.info("stdout log: %s", stdout_path)
         logging.info("stderr log: %s", stderr_path)
 
@@ -272,6 +271,10 @@ def parse_args():
         default=','.join(NEMESES),
         help='Comma-seperated list of nemeses. Default: ' + ','.join(NEMESES))
     parser.add_argument(
+        '--additional-args',
+        default="",
+        help='Additional args for lein run cmd')
+    parser.add_argument(
         '--iterations',
         type=int,
         help='Run each workload repeatedly for this many iterations.')
@@ -320,10 +323,11 @@ def main():
     not_good_tests = []
     lein_cmd = " ".join(["lein run test",
                          "--os debian",
-                         "--url " + url,
-                         "--nemesis " + nemeses,
-                         "--concurrency " + args.concurrency
-                         ])
+                         f"--url {url}",
+                         f"--nemesis {nemeses}",
+                         f"--concurrency {args.concurrency}",
+                         args.additional_args])
+
     if args.iterations:
         lein_cmd += " --test-count 1"
         iteration_cnt = args.iterations
@@ -353,7 +357,7 @@ def main():
                 break
 
             test_index += 1
-            test_description_str = "workload " + test + ", nemesis " + nemeses
+            test_description_str = f"workload {test}, nemesis {nemeses}"
             logging.info(
                 "\n%s\nStarting test run #%d - %s\n%s",
                 "=" * 80,
@@ -372,10 +376,8 @@ def main():
                 full_cmd,
                 timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
                 exit_on_error=False,
-                log_name_prefix="{}_nemesis_{}_{}".format(test.replace('/', '-'),
-                                                          nemeses, test_index),
-                num_lines_to_show=30
-            )
+                log_name_prefix=f"{test.replace('/', '-')}_nemesis_{nemeses}_{test_index}",
+                num_lines_to_show=30)
 
             test_elapsed_time_sec = time.time() - test_start_time_sec
             if result.timed_out:
@@ -404,7 +406,7 @@ def main():
             else:
                 num_non_zero_exit_code += 1
 
-            run_cmd(SORT_RESULTS_SH + " " + nemeses)
+            run_cmd(f"{SORT_RESULTS_SH} {nemeses}")
 
             logging.info(
                 "\n%s\nFinished test run #%d (%s)\n%s",
