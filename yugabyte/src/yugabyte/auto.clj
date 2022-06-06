@@ -31,6 +31,9 @@
   clock skew between servers"
   100)
 
+(defn split-on-space [word]
+  (clojure.string/split word #"\s"))
+
 ; OS-level polymorphic functions for Yugabyte
 (defprotocol OS
   (install-python! [os]))
@@ -344,6 +347,12 @@
 * hard nofile 1048576
 * soft nofile 1048576")
 
+(defn cmd-flags [flags]
+  (->> flags
+       split-on-space
+       (filter #(not (clojure.string/blank? %)))
+       (clojure.string/join " ")))
+
 (defrecord YugaByteDB
   []
   Auto
@@ -394,6 +403,7 @@
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
             (master-api-opts (:api test) node)
+            (cmd-flags (:master-flags test))
             )))
 
   (start-tserver! [db test node]
@@ -414,6 +424,7 @@
             :--load_balancer_max_concurrent_adds 10
             (tserver-api-opts (:api test) node)
             (tserver-workload-specific-opts test)
+            (cmd-flags (:tserver-flags test))
 
             ; Heartbeats
             ;:--heartbeat_interval_ms 100
