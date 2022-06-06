@@ -93,11 +93,9 @@
     :validate [pos? "Must be a positive integer"]]
 
    [nil "--tserver-flags FLAGS" "Additional flags for tserver"
-    :assoc-fn (fn [m k v] (update m :tserver-flags v))
     :default ""]
 
    [nil "--master-flags FLAGS" "Additional flags for master"
-    :assoc-fn (fn [m k v] (update m :master-flags v))
     :default ""]
 
    [nil "--yugabyte-ssh" "Override SSH options with hardcoded defaults for Yugabyte's internal testing environment"

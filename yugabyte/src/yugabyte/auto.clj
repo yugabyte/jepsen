@@ -352,7 +352,7 @@
                   split-on-space
                   (filter #(not (clojure.string/blank? %))))
         flag? #(keyword %)]
-    (map flag? args)))
+    (into [] (map flag? args))))
 
 (defrecord YugaByteDB
   []
