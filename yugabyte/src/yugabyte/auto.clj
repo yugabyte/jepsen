@@ -348,10 +348,11 @@
 * soft nofile 1048576")
 
 (defn cmd-flags [flags]
-  (->> flags
-       split-on-space
-       (filter #(not (clojure.string/blank? %)))
-       (clojure.string/join " ")))
+  (let [args (->> flags
+                  split-on-space
+                  (filter #(not (clojure.string/blank? %))))
+        flag? #(keyword %)]
+    (map flag? args)))
 
 (defrecord YugaByteDB
   []
