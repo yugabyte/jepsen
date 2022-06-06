@@ -30,6 +30,7 @@ import sys
 import time
 import logging
 import argparse
+import shlex
 
 from functools import cmp_to_key
 from collections import namedtuple
@@ -224,8 +225,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--use-release-builds',
-        default=False,
-        help='URL prefix'
+        action='store_true',
+        help='Search in release build, mandatory if use release builds (with even major version)'
     )
     parser.add_argument(
         '--url-prefix',
@@ -235,6 +236,11 @@ def parse_args():
         '--web-dir',
         default='.',
         help='Web directory'
+    )
+    parser.add_argument(
+        '--revert',
+        action='store_true',
+        help='Revert version search to find a fix, not a problem.'
     )
     parser.add_argument(
         '--start-version',
@@ -360,10 +366,8 @@ def evaluate_jepsen_for_version(args, version, tarfile):
                 full_cmd,
                 timeout=TEST_AND_ANALYSIS_TIMEOUT_SEC,
                 exit_on_error=False,
-                log_name_prefix="{}_nemesis_{}_{}".format(test.replace('/', '-'),
-                                                          nemeses, test_index),
-                num_lines_to_show=30
-            )
+                log_name_prefix=f"{test.replace('/', '-')}_nemesis_{nemeses}_{test_index}",
+                num_lines_to_show=30)
 
             test_elapsed_time_sec = time.time() - test_start_time_sec
             if result.timed_out:
@@ -431,17 +435,20 @@ def main():
 
     atexit.register(cleanup)
 
-    versions = subprocess.run(["aws s3 ls s3://releases.yugabyte.com | awk '{ sub(/PRE /, \"\"); print }' | awk '{ sub(/\\//, \"\"); print }'"],
-                              stdout=subprocess.PIPE,
-                              shell=True,
-                              universal_newlines=True).stdout.split("\n")
+    versions = subprocess.run(
+        [
+            "aws s3 ls s3://releases.yugabyte.com | awk '{ sub(/PRE /, \"\"); print }' | awk '{ sub(/\\//, \"\"); print }'"],
+        stdout=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True).stdout.split("\n")
     clean_versions = [row.strip() for row in versions if
                       re.search(r"^\d+\.\d+\.\d+\.\d+-b\d+$", row.strip())]
     sorted_versions = sorted(clean_versions, key=cmp_to_key(compare_versions))
     start_version = args.start_version
-    end_version = sorted_versions[-1] if not args.end_version else args.end_version
+    end_version = args.end_version or sorted_versions[-1]
     sorted_versions_in_range = list(filter(
-        lambda version: compare_versions(version, start_version) >= 0 >= compare_versions(version, end_version),
+        lambda version: compare_versions(version, start_version) >= 0 >= compare_versions(version,
+                                                                                          end_version),
         sorted_versions))
     versions_under_test = [
         version
@@ -458,10 +465,12 @@ def main():
 
         yb_release = versions_under_test[middle]
         s3_path = f"s3://releases.yugabyte.com/{yb_release}"
-        tarfile = subprocess.run(["aws s3 ls %s/yugabyte-%s- | awk \'/(alma|centos).*-x86_64.tar.gz$/ {print $NF}\'" % (s3_path, yb_release)],
-                                 stdout=subprocess.PIPE,
-                                 shell=True,
-                                 universal_newlines=True).stdout.split("\n")[0]
+        tarfile = subprocess.run([
+            "aws s3 ls %s/yugabyte-%s- | awk \'/(alma|centos).*-x86_64.tar.gz$/ {print $NF}\'" %
+            (s3_path, yb_release)],
+            stdout=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True).stdout.split("\n")[0]
         print(f"Downloading tarfile {tarfile}")
         subprocess.run([f"aws s3 cp {s3_path}/{tarfile} {args.web_dir}"],
                        stdout=subprocess.PIPE,
@@ -471,9 +480,14 @@ def main():
         if evaluate_jepsen_for_version(
                 args, yb_release, tarfile
         ):
-            low = middle + 1
+            if args.revert:
+                high = middle - 1
+            else:
+                low = middle + 1
+        elif args.revert:
+            low = middle - 1
         else:
-            high = middle - 1
+            high = middle + 1
 
         print("Removing logs directory")
         print(
@@ -493,7 +507,6 @@ def main():
                 universal_newlines=True,
             )
         )
-
 
     print(versions_under_test[low])
 
