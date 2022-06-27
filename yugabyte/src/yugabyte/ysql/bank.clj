@@ -89,8 +89,7 @@
   (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
-      (c/with-txn
-        c
+      ((j/with-db-transaction [c c {:isolation isolation}]
         (let [accs (shuffle (:accounts test))]
           (->> accs
                (mapv (fn [a]

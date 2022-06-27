@@ -48,7 +48,8 @@
   (invoke-op! [this test op c conn-wrapper]
     (case (:f op)
       :read
-      (assoc op :type :ok, :value (read-accounts-map test op c))
+      (j/with-db-transaction [c c {:isolation isolation}]
+        (assoc op :type :ok, :value (read-accounts-map test op c)))
 
       :update
       (j/with-db-transaction [c c {:isolation isolation}]
