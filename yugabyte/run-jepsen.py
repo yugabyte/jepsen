@@ -54,32 +54,41 @@ TEST_PER_VERSION = [
     {
         "start_version": "1.3.1.0",
         "tests": [
-            "ycql/counter",
-            "ycql/set",
-            "ycql/set-index",
-            "ycql/bank",
-            "ycql/bank-inserts",
-            "ycql/long-fork",
-            "ycql/single-key-acid",
-            "ycql/multi-key-acid",
+            # YCQL snapshot isolation
+            "ycql/si.counter",
+            "ycql/si.set",
+            "ycql/si.set-index",
+            "ycql/si.bank",
+            "ycql/si.bank-inserts",
+            "ycql/si.long-fork",
+            "ycql/si.single-key-acid",
+            "ycql/si.multi-key-acid",
 
-            "ysql/counter",
-            "ysql/set",
-            "ysql/bank",
-            "ysql/bank-contention",
-            "ysql/bank-multitable",
-            "ysql/long-fork",
-            "ysql/single-key-acid",
-            "ysql/multi-key-acid",
-            "ysql/append",
-            "ysql/append-si",
-            "ysql/default-value",
+
+            # YSQL serializable
+            "ysql/sz.counter",
+            "ysql/sz.set",
+            "ysql/sz.bank",
+            "ysql/sz.bank-contention",
+            "ysql/sz.bank-multitable",
+            "ysql/sz.long-fork",
+            "ysql/sz.single-key-acid",
+            "ysql/sz.multi-key-acid",
+            "ysql/sz.default-value",
+            "ysql/sz.append",
+
+            # YSQL snapshot isolation
+            "ysql/si.append-si",
+            "ysql/si.bank",
+            "ysql/si.bank-contention",
+            "ysql/si.bank-multitable",
         ]
     },
     {
         "start_version": "2.13.1.0-b1",
         "tests": [
-            "ysql/append-rc"
+            # YSQL read committed
+            "ysql/rc.append"
         ]
     }
 ]
