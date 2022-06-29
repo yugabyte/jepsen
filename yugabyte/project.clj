@@ -11,7 +11,9 @@
                  [org.postgresql/postgresql "42.2.5"]
                  [org.slf4j/jcl-over-slf4j "1.7.25"]
                  [org.slf4j/jul-to-slf4j "1.7.25"]
+                 [version-clj "2.0.2"]
                  [clj-wallhack "1.0.1"]]
-  :main yugabyte.runner)
+  :main yugabyte.runner
+  :jvm-opts ["-Djava.awt.headless=true"]))
 ;  :aot [yugabyte.runner
 ;        clojure.tools.logging.impl])
