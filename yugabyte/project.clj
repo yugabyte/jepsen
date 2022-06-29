@@ -14,6 +14,6 @@
                  [version-clj "2.0.2"]
                  [clj-wallhack "1.0.1"]]
   :main yugabyte.runner
-  :jvm-opts ["-Djava.awt.headless=true"]))
+  :jvm-opts ["-Djava.awt.headless=true"])
 ;  :aot [yugabyte.runner
 ;        clojure.tools.logging.impl])
