@@ -78,16 +78,16 @@
 (def workloads-ycql
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ycql{:none            noop-test
-         :si.counter         (with-client counter/workload (yugabyte.ycql.counter/->CQLCounterClient))
-         :si.set             (with-client set/workload (yugabyte.ycql.set/->CQLSetClient))
-         :si.set-index       (with-client set/workload (yugabyte.ycql.set/->CQLSetIndexClient))
-         :si.bank            (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLBank))
-         :si.bank-inserts    (with-client bank-improved/workload-with-inserts (yugabyte.ycql.bank-improved/->CQLBankImproved))
+         :counter         (with-client counter/workload (yugabyte.ycql.counter/->CQLCounterClient))
+         :set             (with-client set/workload (yugabyte.ycql.set/->CQLSetClient))
+         :set-index       (with-client set/workload (yugabyte.ycql.set/->CQLSetIndexClient))
+         :bank            (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLBank))
+         :bank-inserts    (with-client bank-improved/workload-with-inserts (yugabyte.ycql.bank-improved/->CQLBankImproved))
          ; Shouldn't be used until we support transactions with selects.
          ; :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLMultiBank))
-         :si.long-fork       (with-client long-fork/workload (yugabyte.ycql.long-fork/->CQLLongForkIndexClient))
-         :si.single-key-acid (with-client single-key-acid/workload (yugabyte.ycql.single-key-acid/->CQLSingleKey))
-         :si.multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ycql.multi-key-acid/->CQLMultiKey))})
+         :long-fork       (with-client long-fork/workload (yugabyte.ycql.long-fork/->CQLLongForkIndexClient))
+         :single-key-acid (with-client single-key-acid/workload (yugabyte.ycql.single-key-acid/->CQLSingleKey))
+         :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ycql.multi-key-acid/->CQLMultiKey))})
 
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."

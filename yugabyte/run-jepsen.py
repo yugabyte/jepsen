@@ -55,14 +55,14 @@ TEST_PER_VERSION = [
         "start_version": "1.3.1.0",
         "tests": [
             # YCQL snapshot isolation
-            "ycql/si.counter",
-            "ycql/si.set",
-            "ycql/si.set-index",
-            "ycql/si.bank",
-            "ycql/si.bank-inserts",
-            "ycql/si.long-fork",
-            "ycql/si.single-key-acid",
-            "ycql/si.multi-key-acid",
+            "ycql/counter",
+            "ycql/set",
+            "ycql/set-index",
+            "ycql/bank",
+            "ycql/bank-inserts",
+            "ycql/long-fork",
+            "ycql/single-key-acid",
+            "ycql/multi-key-acid",
 
 
             # YSQL serializable
