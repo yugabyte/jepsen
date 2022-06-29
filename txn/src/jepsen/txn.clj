@@ -16,27 +16,58 @@
           init-state
           history))
 
+(defn op-mops
+  "A lazy sequence of all [op mop] pairs from a history."
+  [history]
+  (mapcat (fn [op] (map (fn [mop] [op mop]) (:value op))) history))
+
 (defn ext-reads
   "Given a transaction, returns a map of keys to values for its external reads:
   values that transaction observed which it did not write itself."
   [txn]
-  (->> txn
-       (reduce (fn [[ext ignore?] [f k v]]
-                 [(if (or (= :w f)
-                          (ignore? k))
-                    ext
-                    (assoc ext k v))
-                  (conj ignore? k)])
-               [{} #{}])
-       first))
+  (loop [ext      (transient {})
+         ignore?  (transient #{})
+         txn      txn]
+    (if (seq txn)
+      (let [[f k v] (first txn)]
+         (recur (if (or (not= :r f)
+                        (ignore? k))
+                  ext
+                  (assoc! ext k v))
+                (conj! ignore? k)
+                (next txn)))
+      (persistent! ext))))
 
 (defn ext-writes
   "Given a transaction, returns the map of keys to values for its external
   writes: final values written by the txn."
   [txn]
-  (reduce (fn [ext [f k v]]
-            (if (= :r f)
-              ext
-              (assoc ext k v)))
-          {}
-          txn))
+  (loop [ext (transient {})
+         txn txn]
+    (if (seq txn)
+      (let [[f k v] (first txn)]
+        (recur (if (= :r f)
+                 ext
+                 (assoc! ext k v))
+               (next txn)))
+      (persistent! ext))))
+
+(defn int-write-mops
+  "Returns a map of keys to vectors of of all non-final write mops to that key."
+  [txn]
+  (loop [int (transient {})
+         txn txn]
+    (if (seq txn)
+      (let [[f k v :as mop] (first txn)]
+        (recur (if (= :r f)
+                 int
+                 (let [writes (get int k [])]
+                   (assoc! int k (conj writes mop))))
+               (next txn)))
+      ; All done; trim final writes.
+      (->> int
+           persistent!
+           (keep (fn [[k vs]]
+                   (when (< 1 (count vs))
+                     [k (subvec vs 0 (dec (count vs)))])))
+           (into {})))))

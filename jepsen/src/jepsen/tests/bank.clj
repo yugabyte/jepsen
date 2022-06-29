@@ -25,7 +25,7 @@
 (defn transfer
   "Generator of a transfer: a random amount between two randomly selected
   accounts."
-  [test process]
+  [test _]
   {:type  :invoke
    :f     :transfer
    :value {:from    (rand-nth (:accounts test))

@@ -12,7 +12,8 @@
             [gnuplot.core :as g]
             [knossos.core :as knossos]
             [knossos.op :as op]
-            [knossos.history :as history]))
+            [knossos.history :as history]
+            [slingshot.slingshot :refer [try+ throw+]]))
 
 (def default-nemesis-color "#cccccc")
 (def nemesis-alpha 0.6)
@@ -231,12 +232,10 @@
 
 (defn interval->times
   "Given an interval of two operations [a b], returns the times [time-a time-b]
-  covering the interval. If b is missing, uses the maximum from (:xrange plot)."
-  [plot [a b]]
+  covering the interval. If b is missing, yields [time-a nil]."
+  [[a b]]
   [(double (util/nanos->secs (:time a)))
-   (if b
-     (double (util/nanos->secs (:time b)))
-     (second (:xrange plot)))])
+   (when b (double (util/nanos->secs (:time b))))])
 
 (defn nemesis-regions
   "Given nemesis activity, emits a sequence of gnuplot commands rendering
@@ -258,11 +257,12 @@
                                     (* height (inc i)))
                  top             (+ bot height)]
              (->> (:intervals n)
-                  (map (partial interval->times plot))
+                  (map interval->times)
                   (map (fn [[start stop]]
                          [:set :obj :rect
                           :from (g/list start [:graph (+ bot padding)])
-                          :to   (g/list stop  [:graph (- top padding)])
+                          :to   (g/list (or stop [:graph 1])
+                                        [:graph (- top padding)])
                           :fillcolor :rgb color
                           :fillstyle :transparent :solid transparency
                           :noborder]))))))
@@ -299,7 +299,7 @@
   [plot nemeses]
   (->> nemeses
        (map (fn [n]
-              {:title     (:name n)
+              {:title     (str (:name n))
                :with      :lines
                :linecolor ['rgb (or (:fill-color n)
                                     (:color n)
@@ -372,7 +372,9 @@
   by iterating over each series :data."
   [plot]
   (let [data    (mapcat :data (:series plot))
-        _       (assert (seq data))
+        _       (when-not (seq data)
+                  (throw+ {:type ::no-points
+                           :plot plot}))
         [x0 y0] (first data)
         [xmin xmax ymin ymax] (reduce (fn [[xmin xmax ymin ymax] [x y :as pair]]
                                              [(min xmin x)
@@ -432,7 +434,7 @@
   "
   [opts]
   ; (info :plotting (with-out-str (pprint opts)))
-  (assert (every? seq (map :data (:series opts)))
+  (assert (every? sequential? (map :data (:series opts)))
           (str "Series has no :data points\n"
                (with-out-str (pprint (remove (comp seq :data)
                                              (:series opts))))))
@@ -476,8 +478,8 @@
       ;        (pprint commands)
       ;        (pprint (map (partial take 2) data))))
       (try (g/raw-plot! commands data)
-           (catch java.io.IOException _
-             (throw (IllegalStateException. "Error rendering plot, verify gnuplot is installed and reachable")))))))
+           (catch java.io.IOException e
+             (throw (IllegalStateException. "Error rendering plot, verify gnuplot is installed and reachable" e)))))))
 
 (defn point-graph!
   "Writes a plot of raw latency data points."
@@ -486,7 +488,7 @@
         history     (util/history->latencies history)
         datasets    (invokes-by-f-type history)
         fs          (util/polysort (keys datasets))
-        fs->points  (fs->points fs)
+        fs->points- (fs->points fs)
         output-path (.getCanonicalPath (store/path! test
                                                     subdirectory
                                                     "latency-raw.png"))
@@ -496,7 +498,7 @@
                              {:title     (str (util/name+ f) " " (name t))
                               :with      'points
                               :linetype  (type->color t)
-                              :pointtype (fs->points f)
+                              :pointtype (fs->points- f)
                               :data      (map latency-point data)}))
                          (remove nil?))]
     (-> {:preamble           preamble
@@ -505,8 +507,8 @@
          :series             series}
         (with-range)
         (with-nemeses history nemeses)
-        plot!)
-    output-path))
+        plot!
+        (try+ (catch [:type ::no-points] _ :no-points)))))
 
 (defn quantiles-graph!
   "Writes a plot of latency quantiles, by f, over time."
@@ -525,8 +527,8 @@
                                  (latencies->quantiles dt qs)
                                  (vector f)))))
         fs          (util/polysort (keys datasets))
-        fs->points  (fs->points fs)
-        qs->colors  (qs->colors qs)
+        fs->points- (fs->points fs)
+        qs->colors- (qs->colors qs)
         output-path (.getCanonicalPath
                      (store/path! test
                                   subdirectory
@@ -536,15 +538,16 @@
         series      (for [f fs, q qs]
                       {:title     (str (util/name+ f) " " q)
                        :with      'linespoints
-                       :linetype  (qs->colors q)
-                       :pointtype  (fs->points f)
+                       :linetype  (qs->colors- q)
+                       :pointtype  (fs->points- f)
                        :data      (get-in datasets [f q])})]
     (-> {:preamble preamble
          :series   series
          :logscale :y}
         (with-range)
         (with-nemeses history nemeses)
-        plot!)))
+        plot!
+        (try+ (catch [:type ::no-points] _ :no-points)))))
 
 (defn rate-preamble
   "Gnuplot commands for setting up a rate plot."
@@ -574,7 +577,7 @@
                                               #(+ td (or % 0))))
                                  {}))
         fs          (util/polysort (keys datasets))
-        fs->points  (fs->points fs)
+        fs->points- (fs->points fs)
         output-path (.getCanonicalPath (store/path! test
                                                     subdirectory
                                                     "rate.png"))
@@ -584,7 +587,7 @@
                    {:title     (str (util/name+ f) " " (name t))
                     :with      'linespoints
                     :linetype  (type->color t)
-                    :pointtype (fs->points f)
+                    :pointtype (fs->points- f)
                     :data      (let [m (get-in datasets [f t])]
                                  (map (juxt identity #(get m % 0))
                                       (buckets dt t-max)))})]
@@ -592,4 +595,5 @@
          :series    series}
         (with-range)
         (with-nemeses history nemeses)
-        plot!)))
+        plot!
+        (try+ (catch [:type ::no-points] _ :no-points)))))

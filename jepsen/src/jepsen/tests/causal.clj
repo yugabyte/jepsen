@@ -115,16 +115,17 @@
 (defn cw1 [_ _] {:type :invoke, :f :write, :value 1})
 (defn cw2 [_ _] {:type :invoke, :f :write, :value 2})
 
-(defn test [opts]
+(defn test
+  [opts]
   {:checker (independent/checker (check (causal-register)))
    :generator (->> (independent/concurrent-generator
-                    1
-                    (range)
-                    (fn [k] (gen/seq [ri cw1 r cw2 r])))
+                     1
+                     (range)
+                     (fn [k] [ri cw1 r cw2 r]))
                    (gen/stagger 1)
                    (gen/nemesis
-                    (gen/seq (cycle [(gen/sleep 10)
-                                     {:type :info, :f :start}
-                                     (gen/sleep 10)
-                                     {:type :info, :f :stop}])))
+                     (cycle [(gen/sleep 10)
+                             {:type :info, :f :start}
+                             (gen/sleep 10)
+                             {:type :info, :f :stop}]))
                    (gen/time-limit (:time-limit opts)))})

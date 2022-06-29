@@ -1,7 +1,7 @@
 (ns jepsen.util-test
-  (:use clojure.test
-        clojure.pprint
-        jepsen.util))
+  (:refer-clojure :exclude [parse-long])
+  (:use clojure.test)
+  (:require [jepsen.util :refer :all]))
 
 (deftest majority-test
   (is (= 1 (majority 0)))
@@ -78,7 +78,7 @@
 
 (deftest letr-test
   (testing "no bindings"
-    (is (= (letr []) nil))
+    (is (= (letr [] nil) nil))
     (is (= (letr [] 1 2) 2)))
 
   (testing "standard bindings"
@@ -112,14 +112,14 @@
 
 (deftest timeout-test
   ; Fast operations pass through the inner result or exception.
-  (is ::success (timeout 1000 ::timed-out
-                         ::success))
+  (is (= ::success (timeout 1000 ::timed-out
+                            ::success)))
   (is (thrown? ArithmeticException
                (timeout 1000 ::timed-out
                         (/ 1 0))))
   ; Slow operations are interrupted and return timeout value.
-  (is ::timed-out (timeout 10 ::timed-out
-                           (Thread/sleep 1000)))
+  (is (= ::timed-out (timeout 10 ::timed-out
+                              (Thread/sleep 1000))))
   ; This is a more complicated version of the previous test that
   ; verifies that the function is interrupted when a timeout occurs.
   (let* [p (promise)
@@ -129,8 +129,8 @@
                         (deliver p ::finished)
                         (catch InterruptedException e
                           (deliver p ::exception))))]
-    (is ::timed-out ret)
-    (is ::exception (deref p 10 ::timed-out))))
+    (is (= ::timed-out ret))
+    (is (= ::exception (deref p 10 ::timed-out)))))
 
 (deftest lazy-atom-test
   (testing "reads"
@@ -161,3 +161,14 @@
         e2 {:process :nemesis, :f :stop, :value 2}]
     (is (= [[s1 e1] [s2 e2] [s3 e1] [s4 e2]]
            (nemesis-intervals [s1 s2 s3 s4 e1 e2])))))
+
+(deftest rand-exp-test
+  (let [n             500
+        target-mean   30
+        samples       (take n (repeatedly (partial rand-exp target-mean)))
+        sum           (reduce + samples)
+        mean          (/ sum n)]
+    ;(prn samples)
+    (is (< (* target-mean 0.7)
+           mean
+           (* target-mean 1.3)))))

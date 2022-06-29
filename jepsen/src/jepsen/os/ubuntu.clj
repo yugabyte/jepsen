@@ -1,7 +1,7 @@
 (ns jepsen.os.ubuntu
   "Common tasks for Ubuntu boxes. Tested against Ubuntu 18.04."
-  (:use clojure.tools.logging)
   (:require [clojure.set :as set]
+            [clojure.tools.logging :refer [info]]
             [jepsen.util :refer [meh]]
             [jepsen.os :as os]
             [jepsen.control :as c :refer [|]]
@@ -22,26 +22,25 @@
     (c/su
       ; Packages!
       (debian/install [:apt-transport-https
-                :wget
-                :curl
-                :vim
-                :man-db
-                :faketime
-                :ntpdate
-                :unzip
-                :iptables
-                :psmisc
-                :tar
-                :bzip2
-                :libzip4
-                :iputils-ping
-                :iproute2
-                :rsyslog
-                :sudo
-                :logrotate]))
+                       :wget
+                       :curl
+                       :vim
+                       :man-db
+                       :faketime
+                       :ntpdate
+                       :unzip
+                       :iptables
+                       :psmisc
+                       :tar
+                       :bzip2
+                       :iputils-ping
+                       :iproute2
+                       :rsyslog
+                       :sudo
+                       :logrotate]))
 
     (meh (net/heal! (:net test) test)))
 
   (teardown! [_ test node]))
 
-  (def os "An implementation of the Ubuntu OS." (Ubuntu.))
+(def os "An implementation of the Ubuntu OS." (Ubuntu.))

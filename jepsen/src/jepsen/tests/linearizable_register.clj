@@ -42,12 +42,12 @@
                   (range)
                   (fn [k]
                     (cond->> (gen/reserve n r (gen/mix [w cas cas]))
-                         ; We randomize the limit a bit so that over time, keys
-                         ; become misaligned, which prevents us from lining up
-                         ; on Significant Event Boundaries.
-                         (:per-key-limit opts)
-                         (gen/limit (* (+ (rand 0.1) 0.9)
-                                       (:per-key-limit opts )))
+                      ; We randomize the limit a bit so that over time, keys
+                      ; become misaligned, which prevents us from lining up
+                      ; on Significant Event Boundaries.
+                      (:per-key-limit opts)
+                      (gen/limit (* (+ (rand 0.1) 0.9)
+                                    (:per-key-limit opts 20)))
 
-                         true
-                         (gen/process-limit (:process-limit opts 20))))))})
+                      true
+                      (gen/process-limit (:process-limit opts 20))))))})
