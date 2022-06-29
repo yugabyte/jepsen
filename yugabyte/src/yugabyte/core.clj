@@ -92,7 +92,7 @@
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ysql{:none               noop-test
-         :sz.sleep           sleep-test
+         :sleep              sleep-test
          :sz.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
          :sz.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient))
          ; This one doesn't work because of https://github.com/YugaByte/yugabyte-db/issues/1554
