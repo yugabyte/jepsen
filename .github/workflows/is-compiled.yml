@@ -21,5 +21,5 @@ jobs:
       with:
         expected: "Syntax error reading source at"
         actual: ${{ steps.lein_run_test_output.outputs.result }}
-        comparison: containsNot
+        comparison: notcontains
         
