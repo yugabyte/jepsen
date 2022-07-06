@@ -14,14 +14,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Run tests
-      #run: echo "result=$(lein run test 2>&1 | grep Syntax)" >> $GITHUB_ENV
-      run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1)"
+      run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1 | grep Syntax)"
       id: lein_run_test_output
       continue-on-error: true
     - uses: nick-fields/assert-action@v1
       with:
         expected: "Syntax error reading source at"
-        # actual: ${{ env.result }}
         actual: ${{ steps.lein_run_test_output.outputs.result }}
         comparison: notcontains
         
