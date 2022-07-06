@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Run tests
-      run: lein run test
+      run: cd yugabyte && lein run test
       id: run_lein_test
     - uses: nick-fields/assert-action@v1
       with:
