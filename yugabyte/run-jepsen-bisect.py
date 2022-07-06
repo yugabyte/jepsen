@@ -21,19 +21,18 @@
 A script to run multiple YugaByte DB Jepsen tests in a loop and organize the results.
 """
 
-import atexit
-import errno
+import argparse
+import logging
 import os
 import re
 import subprocess
+from collections import namedtuple
+from functools import cmp_to_key
+
+import atexit
+import errno
 import sys
 import time
-import logging
-import argparse
-import shlex
-
-from functools import cmp_to_key
-from collections import namedtuple
 from itertools import zip_longest
 
 CmdResult = namedtuple('CmdResult',
@@ -50,8 +49,6 @@ SINGLE_TEST_RUN_TIME = 600
 SINGLE_TEST_RUN_TIME_FOR_SET_TEST = 300
 
 TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
-NODES_FILE = os.path.expanduser("~/code/jepsen/nodes")
-DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar.gz"
 
 TESTS = [
     "ycql/counter",
@@ -63,18 +60,26 @@ TESTS = [
     "ycql/single-key-acid",
     "ycql/multi-key-acid",
 
-    "ysql/counter",
-    "ysql/set",
-    "ysql/bank",
-    "ysql/bank-contention",
-    "ysql/bank-multitable",
-    "ysql/long-fork",
-    "ysql/single-key-acid",
-    "ysql/multi-key-acid",
-    "ysql/append",
-    "ysql/append-si",
-    "ysql/append-rc",
-    "ysql/default-value",
+    # YSQL serializable
+    "ysql/sz.counter",
+    "ysql/sz.set",
+    "ysql/sz.bank",
+    "ysql/sz.bank-contention",
+    "ysql/sz.bank-multitable",
+    "ysql/sz.long-fork",
+    "ysql/sz.single-key-acid",
+    "ysql/sz.multi-key-acid",
+    "ysql/sz.default-value",
+    "ysql/sz.append",
+
+    # YSQL snapshot isolation
+    "ysql/si.append-si",
+    "ysql/si.bank",
+    "ysql/si.bank-contention",
+    "ysql/si.bank-multitable",
+
+    # YSQL read committed
+    "ysql/rc.append"
 ]
 NEMESES = [
     "none",
@@ -83,7 +88,6 @@ NEMESES = [
     "pause-tserver",
     "pause-master",
     "partition",
-    # "clock-skew",
 ]
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -257,10 +261,6 @@ def parse_args():
         help='Maximum time to run for. The actual run time could be a few minutes longer than '
              'this.')
     parser.add_argument(
-        '--enable-clock-skew',
-        action='store_true',
-        help='Enable clock skew nemesis. This will not work on LXC.')
-    parser.add_argument(
         '--concurrency',
         default='4n',
         help='Concurrency to specify, e.g. 2n, 4n, or 5n, where n means the number of nodes.')
@@ -290,7 +290,7 @@ def compare_versions(v1, v2):
                 return -1
             else:
                 return 1
-    except Exception as e:
+    except Exception:
         return 0
     return 0
 
@@ -301,8 +301,6 @@ def evaluate_jepsen_for_version(args, version, tarfile):
     # Sort old results in the beginning if it did not happen at the end of the last run.
     start_time = time.time()
     nemeses = args.nemeses
-    if args.enable_clock_skew:
-        nemeses += ',clock-skew'
 
     num_tests_run = 0
     num_timed_out_tests = 0
@@ -508,7 +506,7 @@ def main():
             )
         )
 
-    print(versions_under_test[low])
+    print(f"Version with introduced failure - {versions_under_test[low]}")
 
 
 if __name__ == '__main__':
