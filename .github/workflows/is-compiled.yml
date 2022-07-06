@@ -14,12 +14,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Run tests
-      run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1 | grep Syntax)"
+      run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1 | grep 'Must be one of')"
       id: lein_run_test_output
-      continue-on-error: true
     - uses: nick-fields/assert-action@v1
       with:
-        expected: "Syntax error reading source at"
+        # we do expect to see workload arg missing error here
+        expected: "workload Must be one of"
         actual: ${{ steps.lein_run_test_output.outputs.result }}
-        comparison: notcontains
+        comparison: contains
         
