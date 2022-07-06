@@ -98,7 +98,7 @@
                (assoc op :type :ok, :value))))
 
       :transfer
-      (let [{:keys [from to amount]} (:value op)]
+      ((let [{:keys [from to amount]} (:value op)]
         (j/with-db-transaction [c c {:isolation isolation}]
           (let [b-from-before (c/select-single-value op c (str table-name from) :balance (str "id = " from))
                 b-to-before   (c/select-single-value op c (str table-name to) :balance (str "id = " to))
