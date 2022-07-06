@@ -13,10 +13,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Run tests
+    - name: Try to run simple command
       run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1 | grep 'Must be one of')"
       id: lein_run_test_output
     - uses: nick-fields/assert-action@v1
+      name: Validate correct output for previous command
       with:
         # we do expect to see workload arg missing error here
         expected: "workload Must be one of"
