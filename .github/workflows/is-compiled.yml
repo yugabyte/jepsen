@@ -19,5 +19,7 @@ jobs:
       continue-on-error: true
     - uses: nick-fields/assert-action@v1
       with:
-        contains: "workload Must be one of"
+        expected: "workload Must be one of"
         actual: ${{ steps.run_lein_test.outputs.value }}
+        comparison: contains
+        
