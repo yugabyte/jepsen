@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Run tests
-      run: echo "::set-output name=result::$(cd yugabyte && lein run test)"
+      run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1 | grep Syntax)"
       id: lein_run_test_output
       continue-on-error: true
     - uses: nick-fields/assert-action@v1
