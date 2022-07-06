@@ -14,12 +14,11 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Run tests
-      run: cd yugabyte && echo `lein run test`
-      id: run_lein_test
+      run: echo "run_lein_test_output=$(cd yugabyte && lein run test)" >> $GITHUB_ENV
       continue-on-error: true
     - uses: nick-fields/assert-action@v1
       with:
         expected: "workload Must be one of"
-        actual: ${{ steps.run_lein_test.outputs }}
+        actual: ${{ env.run_lein_test_output }}
         comparison: contains
         
