@@ -20,6 +20,6 @@ jobs:
     - uses: nick-fields/assert-action@v1
       with:
         expected: "workload Must be one of"
-        actual: ${{ steps.run_lein_test.outputs.value }}
+        actual: ${{ steps.run_lein_test.outputs }}
         comparison: contains
         
