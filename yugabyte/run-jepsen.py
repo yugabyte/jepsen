@@ -89,6 +89,9 @@ TEST_PER_VERSION = [
         "tests": [
             # YSQL read committed
             "ysql/rc.append"
+            "ysql/rc.bank"
+            "ysql/rc.bank-contention"
+            "ysql/rc.bank-multitable"
         ]
     }
 ]
