@@ -110,7 +110,7 @@
          :rc.append          (with-client append/workload-rc (ysql.append/->Client :read-committed))
          :rc.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true  :read-committed))
          :rc.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true  :read-committed))
-         :rc.bank-contention (with-client bank/workload-allow-neg ((yugabyte.ysql.bank-improved/->YSQLBankContentionClient :read-committed))
+         :rc.bank-contention (with-client bank/workload-allow-neg (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :read-committed))
          ; See https://docs.yugabyte.com/latest/architecture/transactions/isolation-levels/
          ; :snapshot-isolation maps to :repeatable_read SQL
          :si.append          (with-client append/workload-si (ysql.append/->Client :repeatable-read))
