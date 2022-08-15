@@ -59,10 +59,11 @@ TEST_PER_VERSION = [
             "ycql/set",
             "ycql/set-index",
             "ycql/bank",
-            "ycql/bank-inserts",
             "ycql/long-fork",
             "ycql/single-key-acid",
             "ycql/multi-key-acid",
+            # Disabled
+            # "ycql/bank-inserts",
 
 
             # YSQL serializable
