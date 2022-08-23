@@ -62,7 +62,8 @@ TEST_PER_VERSION = [
             "ycql/long-fork",
             "ycql/single-key-acid",
             "ycql/multi-key-acid",
-            # Disabled
+            # Disabled https://github.com/yugabyte/yugabyte-db/issues/10328
+            # Related to multipage index scan https://github.com/yugabyte/yugabyte-db/issues/13502
             # "ycql/bank-inserts",
 
 
