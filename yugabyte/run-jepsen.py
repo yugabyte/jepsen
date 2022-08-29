@@ -403,7 +403,7 @@ def main():
                 else:
                     logging.error("File %s does not exist!", jepsen_log_file)
 
-            tc = TestCase(name=f"{test.replace('/', '-')}.nemesis.{nemeses}.{test_index}",
+            tc = TestCase(name=f"{test.replace('/', '-')}.{nemeses}",
                           classname=test.replace('/', '-'),
                           elapsed_sec=test_elapsed_time_sec,
                           url=args.build_url,
