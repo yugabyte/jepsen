@@ -205,8 +205,8 @@ def run_cmd(cmd,
 
         if timeout:
             deadline = time.time() + timeout
-            while p.poll() is None and (timeout is None or time.time() < deadline):
-                time.sleep(1)
+        while p.poll() is None and (timeout is None or time.time() < deadline):
+            time.sleep(1)
 
         if p.poll() is None:
             timed_out = True
