@@ -471,7 +471,7 @@ def main():
     logging.warning(f"Skipped workloads because of version incompatibility {workloads_to_skip}")
 
     logging.info("Generating JUnit XML report")
-    ts = TestSuite("Jepsen", test_cases)
+    ts = TestSuite(f"Jepsen {version}", test_cases)
 
     with open("jepsen-junit.xml", "w") as xml_report:
         xml_report.write(to_xml_report_string([ts]))
