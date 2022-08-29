@@ -36,7 +36,8 @@ from itertools import zip_longest, chain
 from junit_xml import TestCase, TestSuite, to_xml_report_string
 
 CmdResult = namedtuple('CmdResult',
-                       ['returncode',
+                       ['output',
+                        'returncode',
                         'timed_out',
                         'everything_looks_good'])
 
@@ -174,7 +175,6 @@ def show_last_lines(file_path, n_lines):
 
 
 def run_cmd(cmd,
-            shell=True,
             timeout=None,
             exit_on_error=True,
             log_name_prefix=None,
@@ -222,13 +222,14 @@ def run_cmd(cmd,
             if exit_on_error:
                 sys.exit(returncode)
         everything_looks_good = False
+        last_lines_of_output, _ = get_last_lines(stdout_path, 50)
         if stdout_path is not None and os.path.exists(stdout_path):
-            last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
                 line.startswith('Everything looks good!') for line in last_lines_of_output)
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
+            output="" if everything_looks_good else last_lines_of_output,
             returncode=returncode,
             timed_out=timed_out,
             everything_looks_good=everything_looks_good)
@@ -254,6 +255,10 @@ def run_cmd(cmd,
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--build_url',
+        default="",
+        help='Jenkins build URL')
     parser.add_argument(
         '--url',
         default=DEFAULT_TARBALL_URL,
@@ -397,9 +402,10 @@ def main():
                 else:
                     logging.error("File %s does not exist!", jepsen_log_file)
 
-            tc = TestCase(name=test.split["/"][0],
+            tc = TestCase(name=test.split("/")[0],
                           classname=f"{test.replace('/', '-')}.nemesis.{nemeses}.{test_index}",
                           elapsed_sec=test_elapsed_time_sec,
+                          url=args.build_url,
                           stdout='Everything looks good!' if result.everything_looks_good else "")
             logging.info(
                 "Test run #%d: elapsed_time=%.1f, returncode=%d, everything_looks_good=%s",
@@ -422,6 +428,7 @@ def main():
 
                 tc.add_error_info(message)
 
+            test_cases.append(tc)
             if result.returncode == 0:
                 num_zero_exit_code += 1
             else:
