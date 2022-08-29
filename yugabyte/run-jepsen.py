@@ -230,7 +230,7 @@ def run_cmd(cmd,
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
-            output="" if everything_looks_good else last_lines_of_output,
+            output=None if everything_looks_good else last_lines_of_output,
             returncode=returncode,
             timed_out=timed_out,
             everything_looks_good=everything_looks_good)
@@ -403,11 +403,12 @@ def main():
                 else:
                     logging.error("File %s does not exist!", jepsen_log_file)
 
-            tc = TestCase(name=test.split("/")[0],
-                          classname=f"{test.replace('/', '-')}.nemesis.{nemeses}.{test_index}",
+            tc = TestCase(name=f"{test.replace('/', '-')}.nemesis.{nemeses}.{test_index}",
+                          classname=test.replace('/', '-'),
                           elapsed_sec=test_elapsed_time_sec,
                           url=args.build_url,
-                          stdout='Everything looks good!' if result.everything_looks_good else "")
+                          stdout='Everything looks good!' if result.everything_looks_good else "",
+                          stderr=result.output)
             logging.info(
                 "Test run #%d: elapsed_time=%.1f, returncode=%d, everything_looks_good=%s",
                 test_index, test_elapsed_time_sec, result.returncode,
@@ -422,12 +423,16 @@ def main():
 
                 if result.timed_out:
                     message = "Timed out"
+
+                    tc.add_error_info(message)
                 elif not result.everything_looks_good:
                     message = "Failure on result validation"
+
+                    tc.add_error_info(message)
                 else:
                     message = f"Process exited with error code {result.returncode}"
 
-                tc.add_error_info(message)
+                    tc.add_failure_info(message, failure_type="exit code")
 
             test_cases.append(tc)
             if result.returncode == 0:
