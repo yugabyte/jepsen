@@ -222,8 +222,9 @@ def run_cmd(cmd,
             if exit_on_error:
                 sys.exit(returncode)
         everything_looks_good = False
-        last_lines_of_output, _ = get_last_lines(stdout_path, 50)
+        last_lines_of_output = ""
         if stdout_path is not None and os.path.exists(stdout_path):
+            last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
                 line.startswith('Everything looks good!') for line in last_lines_of_output)
         if everything_looks_good:
