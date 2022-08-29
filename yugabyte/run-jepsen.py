@@ -26,12 +26,12 @@ import logging
 import os
 import re
 import subprocess
-from collections import namedtuple
-
 import atexit
 import errno
 import sys
 import time
+
+from collections import namedtuple
 from itertools import zip_longest, chain
 from junit_xml import TestCase, TestSuite, to_xml_report_string
 
@@ -118,7 +118,7 @@ def get_workload_version(workload):
         for tests in el["tests"]:
             if workload in tests:
                 return el["start_version"]
-    assert False, f"Unanable to find workload in tests: {TESTS}"
+    raise EnvironmentError(f"Unanable to find workload in tests: {TESTS}")
 
 
 def is_version_at_least(v_least, v_actual):
@@ -203,8 +203,7 @@ def run_cmd(cmd,
 
         child_processes.append(p)
 
-        if timeout:
-            deadline = time.time() + timeout
+        deadline = time.time() + timeout if timeout else float('inf')
         while p.poll() is None and (timeout is None or time.time() < deadline):
             time.sleep(1)
 
@@ -313,9 +312,9 @@ def main():
     total_test_time_sec = 0
 
     if os.path.isdir(LOGS_DIR):
-        logging.info("Directory %s already exists", LOGS_DIR)
+        logging.info(f"Directory {LOGS_DIR} already exists", )
     else:
-        logging.info("Creating directory %s", LOGS_DIR)
+        logging.info(f"Creating directory {LOGS_DIR}")
         os.mkdir(LOGS_DIR)
 
     test_index = 0
@@ -326,10 +325,11 @@ def main():
     url = args.url
 
     version = None
-    for match in re.finditer(r"(?<=yugabyte\-)(\d+\.\d+(\.\d+){0,2}(-b\d+)?)", url, re.MULTILINE):
+    for match in re.finditer(r"(?<=yugabyte-)(\d+\.\d+(\.\d+){0,2}(-b\d+)?)", url, re.MULTILINE):
         version = match.group()
         break
-    assert version is not None, f"Failed to parse version from URL {url}"
+    if version is None:
+        raise AttributeError(f"Failed to parse version from URL {url}")
 
     not_good_tests = []
     lein_cmd = " ".join(["lein run test",
