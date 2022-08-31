@@ -478,7 +478,7 @@ def main():
     logging.info("Generating JUnit XML report")
     ts = TestSuite(f"Jepsen {version}", test_cases.values())
 
-    with open("jepsen-junit.xml", "w") as xml_report:
+    with open(f"jepsen-junit-{nemeses}.xml", "w") as xml_report:
         xml_report.write(to_xml_report_string([ts]))
 
     if not_good_tests:
