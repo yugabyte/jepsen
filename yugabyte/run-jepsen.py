@@ -26,12 +26,12 @@ import logging
 import os
 import re
 import subprocess
+from collections import namedtuple
+
 import atexit
 import errno
 import sys
 import time
-
-from collections import namedtuple
 from itertools import zip_longest, chain
 from junit_xml import TestCase, TestSuite, to_xml_report_string
 
@@ -80,7 +80,7 @@ TEST_PER_VERSION = [
             "ysql/sz.append",
 
             # YSQL snapshot isolation
-            "ysql/si.append-si",
+            "ysql/si.append",
             "ysql/si.bank",
             "ysql/si.bank-contention",
             "ysql/si.bank-multitable",
@@ -357,7 +357,7 @@ def main():
             f"Workloads to evaluate: {workloads_to_evaluate}")
         exit(1)
 
-    test_cases = []
+    test_cases = {}
     for test in workloads_to_evaluate:
         for iteration in range(iteration_cnt):
             total_elapsed_time_sec = time.time() - start_time
@@ -403,8 +403,9 @@ def main():
                 else:
                     logging.error("File %s does not exist!", jepsen_log_file)
 
-            tc = TestCase(name=f"{test.replace('/', '-')}.{nemeses}",
-                          classname=test.replace('/', '-'),
+            test_name = f"{test.replace('/', '-')}/{nemeses}"
+            tc = TestCase(name=test_name,
+                          classname=test.split('/')[0],
                           elapsed_sec=test_elapsed_time_sec,
                           url=args.build_url,
                           stdout='Everything looks good!' if result.everything_looks_good else "",
@@ -416,6 +417,9 @@ def main():
 
             if result.everything_looks_good:
                 num_everything_looks_good += 1
+
+                if test_name not in test_cases:
+                    test_cases[test_name] = tc
             else:
                 tc.add_error_info(test_description_str)
                 num_not_everything_looks_good += 1
@@ -434,7 +438,9 @@ def main():
 
                     tc.add_failure_info(message, failure_type="exit code")
 
-            test_cases.append(tc)
+                # always add latest failed run for the results
+                test_cases[test_name] = tc
+
             if result.returncode == 0:
                 num_zero_exit_code += 1
             else:
@@ -471,7 +477,7 @@ def main():
     logging.warning(f"Skipped workloads because of version incompatibility {workloads_to_skip}")
 
     logging.info("Generating JUnit XML report")
-    ts = TestSuite(f"Jepsen {version}", test_cases)
+    ts = TestSuite(f"Jepsen {version}", test_cases.values())
 
     with open("jepsen-junit.xml", "w") as xml_report:
         xml_report.write(to_xml_report_string([ts]))
