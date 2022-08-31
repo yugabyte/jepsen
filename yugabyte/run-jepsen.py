@@ -408,7 +408,6 @@ def main():
                           classname=test.split('/')[0],
                           elapsed_sec=test_elapsed_time_sec,
                           url=args.build_url,
-                          stdout='Everything looks good!' if result.everything_looks_good else "",
                           stderr=result.output)
             logging.info(
                 "Test run #%d: elapsed_time=%.1f, returncode=%d, everything_looks_good=%s",
