@@ -403,7 +403,7 @@ def main():
                 else:
                     logging.error("File %s does not exist!", jepsen_log_file)
 
-            test_name = f"{test}-{nemeses}"
+            test_name = f"{test}_{nemeses}"
             tc = TestCase(name=test_name,
                           classname=test.split('/')[0],
                           elapsed_sec=test_elapsed_time_sec,
