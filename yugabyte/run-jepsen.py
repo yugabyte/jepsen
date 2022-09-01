@@ -403,7 +403,7 @@ def main():
                 else:
                     logging.error("File %s does not exist!", jepsen_log_file)
 
-            test_name = f"{test.replace('/', '-')}/{nemeses}"
+            test_name = f"{test}-{nemeses}"
             tc = TestCase(name=test_name,
                           classname=test.split('/')[0],
                           elapsed_sec=test_elapsed_time_sec,
@@ -476,9 +476,9 @@ def main():
     logging.warning(f"Skipped workloads because of version incompatibility {workloads_to_skip}")
 
     logging.info("Generating JUnit XML report")
-    ts = TestSuite(f"Jepsen {version}", test_cases.values())
+    ts = TestSuite(f"Jepsen {nemeses.replace(',', '-')} {version}", test_cases.values())
 
-    with open(f"jepsen-junit-{nemeses}.xml", "w") as xml_report:
+    with open(f"jepsen-junit-{nemeses.replace(',', '-')}.xml", "w") as xml_report:
         xml_report.write(to_xml_report_string([ts]))
 
     if not_good_tests:
