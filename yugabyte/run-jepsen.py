@@ -221,7 +221,7 @@ def run_cmd(cmd,
             if exit_on_error:
                 sys.exit(returncode)
         everything_looks_good = False
-        last_lines_of_output = ""
+        last_lines_of_output = []
         if stdout_path is not None and os.path.exists(stdout_path):
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
@@ -229,7 +229,7 @@ def run_cmd(cmd,
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
-            output=None if everything_looks_good else last_lines_of_output,
+            output=None if everything_looks_good else "\n".join([truncate_line(line) for line in last_lines_of_output]),
             returncode=returncode,
             timed_out=timed_out,
             everything_looks_good=everything_looks_good)
