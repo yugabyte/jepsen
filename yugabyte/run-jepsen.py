@@ -22,7 +22,6 @@ A script to run multiple YugaByte DB Jepsen tests in a loop and organize the res
 """
 
 import argparse
-import glob
 import json
 import logging
 import os
@@ -113,6 +112,7 @@ SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 STORE_DIR = os.path.join(SCRIPT_DIR, "store")
 LOGS_DIR = os.path.join(SCRIPT_DIR, "logs")
 SORT_RESULTS_SH = os.path.join(SCRIPT_DIR, "sort-results.sh")
+REGEX_MAJOR_VERSION = r"^(\d+)\.(\d+)"
 
 child_processes = []
 
@@ -149,9 +149,8 @@ def truncate_line(line, max_chars=500):
     if len(line) <= max_chars:
         return line
     res_candidate = line[:max_chars] + "... (skipped %d chars)" % (len(line) - max_chars)
-    if len(line) <= len(res_candidate):
-        return line
-    return res_candidate
+
+    return line if len(line) <= len(res_candidate) else res_candidate
 
 
 def get_last_lines(file_path, n_lines):
@@ -184,11 +183,12 @@ def send_report_to_reportportal(
         reportportal_base_url,
         reportportal_project_name,
         reportportal_api_token,
-        full_version,
+        version,
         jenkins_url,
 ):
-    major_version = full_version.split("-b")[0]
-    build_version = full_version.split("-b")[1]
+    full_version = version.split("-b")[0]
+    major_version = ".".join(re.findall(REGEX_MAJOR_VERSION, version)[0])
+    build_version = version.split("-b")[1]
 
     url = f"{reportportal_base_url}/api/v1/{reportportal_project_name}/launch/import"
 
