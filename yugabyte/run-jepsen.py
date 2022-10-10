@@ -556,13 +556,16 @@ def main():
 
     logging.info("Sending JUnit XML report")
     ts = TestSuite(f"Jepsen {nemeses.replace(',', '-')} {version}", test_cases.values())
-    send_report_to_reportportal(f"jepsen-junit-{nemeses.replace(',', '-')}.xml",
-                                to_xml_report_string([ts]),
-                                args.reportportal_base_url,
-                                args.reportportal_project_name,
-                                args.reportportal_api_token,
-                                version,
-                                args.build_url)
+    if args.reportportal_base_url and args.reportportal_project_name and args.reportportal_api_token:
+        send_report_to_reportportal(f"jepsen-junit-{nemeses.replace(',', '-')}.xml",
+                                    to_xml_report_string([ts]),
+                                    args.reportportal_base_url,
+                                    args.reportportal_project_name,
+                                    args.reportportal_api_token,
+                                    version,
+                                    args.build_url)
+    else:
+        logging.warning("Skipped ReportPortal reporting due to missing args")
 
     logging.info("Storing JUnit XML reports locally")
     with open(f"jepsen-junit-{nemeses.replace(',', '-')}.xml", "w") as xml_report:
