@@ -394,6 +394,7 @@
               experimental-tuning-flags)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--ysql_enable_packed_row
             (master-api-opts (:api test) node)
             )))
 
@@ -412,6 +413,7 @@
             ; Tracing
             :--enable_tracing
             :--rpc_slow_query_threshold_ms 1000
+            :--ysql_enable_packed_row
             (tserver-api-opts (:api test) node)
             (tserver-workload-specific-opts test)
 
