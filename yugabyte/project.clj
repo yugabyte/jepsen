@@ -7,10 +7,8 @@
                  [clj-http "3.8.0" :exclusions [commons-logging]]
                  [jepsen "0.3.0"]
                  [com.yugabyte/cassaforte "3.0.0-alpha2-yb-1"]
-                 [org.clojure/java.jdbc "0.7.9"]
+                 [org.clojure/java.jdbc "0.7.12"]
                  [org.postgresql/postgresql "42.2.5"]
-                 [org.slf4j/jcl-over-slf4j "1.7.25"]
-                 [org.slf4j/jul-to-slf4j "1.7.25"]
                  [version-clj "2.0.2"]
                  [clj-wallhack "1.0.1"]]
   :main yugabyte.runner
