@@ -184,6 +184,13 @@
          :private-key-path         (str (System/getenv "HOME")
                                         "/.yugabyte/yugabyte-dev-aws-keypair.pem")}})
 
+(defn lxc-defaults
+  "Default LXC container options"
+  []
+  {:ssh {:port              22
+         :private-key-path  "~/.ssh/id_rsa"
+         :username          "root"}})
+
 (def trace-logging
   "Logging configuration for the test which sets up traces for queries."
   {:logging {:overrides {;"com.datastax"                            :trace
@@ -295,7 +302,7 @@
                    :generator
                    :final-generator
                    :checker)
-           (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
+           (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults) (lxc-defaults))
            (when (:trace-cql opts) (trace-logging))
            {:client          (:client workload)
             :nemesis         (:nemesis nemesis)
