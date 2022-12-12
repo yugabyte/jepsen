@@ -2,13 +2,10 @@
   "Given a single table of two-column composite key and one value column,
   execute reads and transactional batches of writes.
   Verify that history remains linearizable."
-  (:require [clojure.tools.logging :refer [debug info warn]]
-            [jepsen.client :as client]
-            [jepsen.checker :as checker]
+  (:require [jepsen.checker :as checker]
             [jepsen.generator :as gen]
             [jepsen.independent :as independent]
             [jepsen.util :as util]
-            [jepsen.checker.timeline :as timeline]
             [knossos.model :as model]
             [yugabyte.generator :as ygen])
   (:import (knossos.model Model)))
@@ -68,6 +65,6 @@
                            (gen/process-limit threads)))))
      :checker   (independent/checker
                   (checker/compose
-                    {:timeline (timeline/html)
+                    {                                       ;:timeline (timeline/html)
                      :linear   (checker/linearizable
                                  {:model (multi-register {})})}))}))

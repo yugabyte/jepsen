@@ -13,11 +13,9 @@
   - Workers 0 to 4 and 10 to 14 will be updating their respective rows
   - Workers 5 to 9 and 15 to 19 will be reading their respective rows"
   (:require [clojure [pprint :refer :all]]
-            [clojure.tools.logging :refer [debug info warn]]
             [jepsen.checker :as checker]
             [jepsen.generator :as gen]
             [jepsen.independent :as independent]
-            [jepsen.checker.timeline :as timeline]
             [knossos.model :as model]
             [yugabyte.generator :as ygen]))
 
@@ -41,6 +39,6 @@
                            (gen/process-limit threads)))))
      :checker   (independent/checker
                   (checker/compose
-                    {:timeline (timeline/html)
+                    {                                       ;:timeline (timeline/html)
                      :linear   (checker/linearizable
                                  {:model (model/cas-register 0)})}))}))
