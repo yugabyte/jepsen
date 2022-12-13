@@ -2,7 +2,8 @@
   "General helper utility functions"
   (:require [jepsen.checker :as checker]
             [jepsen.checker.timeline :as timeline]
-            [hiccup.core :as h])
+            [hiccup.core :as h]
+            [jepsen.store :as store])
   (:import (java.util Date)
            (java.text SimpleDateFormat)))
 
