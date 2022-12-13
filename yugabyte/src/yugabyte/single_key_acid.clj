@@ -17,6 +17,7 @@
             [jepsen.generator :as gen]
             [jepsen.independent :as independent]
             [knossos.model :as model]
+            [yugabyte.utils :as utils]
             [yugabyte.generator :as ygen]))
 
 (def keys-count 2)
@@ -39,6 +40,6 @@
                            (gen/process-limit threads)))))
      :checker   (independent/checker
                   (checker/compose
-                    {                                       ;:timeline (timeline/html)
+                    {:timeline (utils/html)
                      :linear   (checker/linearizable
                                  {:model (model/cas-register 0)})}))}))

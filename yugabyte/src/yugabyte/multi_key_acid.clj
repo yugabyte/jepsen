@@ -7,6 +7,7 @@
             [jepsen.independent :as independent]
             [jepsen.util :as util]
             [knossos.model :as model]
+            [yugabyte.utils :as utils]
             [yugabyte.generator :as ygen])
   (:import (knossos.model Model)))
 
@@ -65,6 +66,6 @@
                            (gen/process-limit threads)))))
      :checker   (independent/checker
                   (checker/compose
-                    {                                       ;:timeline (timeline/html)
+                    {:timeline (utils/html)
                      :linear   (checker/linearizable
                                  {:model (multi-register {})})}))}))
