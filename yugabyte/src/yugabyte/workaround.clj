@@ -39,6 +39,6 @@
                              (map (partial timeline/pair->div
                                            history
                                            test
-                                           (timeline/process-index history))))]]])
+                                           (process-index history))))]]])
              (spit (store/path! test (:subdirectory opts) "timeline.html")))
         {:valid? true}))))
