@@ -6,9 +6,10 @@
             [jepsen.generator :as gen]
             [jepsen.util :as util]
             [knossos.model :as model]
-            [yugabyte.independent :as independent]
             [yugabyte.generator :as ygen]
-            [jepsen.checker.timeline :as timeline]))
+            [yugabyte.independent :as independent]
+            [jepsen.checker.timeline :as timeline])
+  (:import (knossos.model Model)))
 
 (defrecord MultiRegister []
   Model
