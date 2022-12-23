@@ -17,7 +17,7 @@
             [jepsen.generator :as gen]
             [jepsen.independent :as independent]
             [knossos.model :as model]
-            [yugabyte.workaround :as wa]
+            [yugabyte.independent :as wa]
             [yugabyte.generator :as ygen]))
 
 (def keys-count 2)

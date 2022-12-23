@@ -7,9 +7,8 @@
             [jepsen.independent :as independent]
             [jepsen.util :as util]
             [knossos.model :as model]
-            [yugabyte.workaround :as wa]
-            [yugabyte.generator :as ygen])
-  (:import (knossos.model Model)))
+            [yugabyte.independent :as wa]
+            [yugabyte.generator :as ygen]))
 
 (defrecord MultiRegister []
   Model
