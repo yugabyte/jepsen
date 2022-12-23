@@ -15,10 +15,10 @@
   (:require [clojure [pprint :refer :all]]
             [jepsen.checker :as checker]
             [jepsen.generator :as gen]
-            [jepsen.independent :as independent]
             [knossos.model :as model]
-            [yugabyte.independent :as wa]
-            [yugabyte.generator :as ygen]))
+            [yugabyte.independent :as independent]
+            [yugabyte.generator :as ygen]
+            [jepsen.checker.timeline :as timeline]))
 
 (def keys-count 2)
 
@@ -40,6 +40,6 @@
                            (gen/process-limit threads)))))
      :checker   (independent/checker
                   (checker/compose
-                    {:timeline (wa/html)
+                    {:timeline (timeline/html)
                      :linear   (checker/linearizable
                                  {:model (model/cas-register 0)})}))}))
