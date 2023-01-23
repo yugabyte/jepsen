@@ -91,29 +91,29 @@
 
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."
-  #:ysql{:none                  noop-test
-         :sleep                 sleep-test
-         :counter               (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
-         :set                   (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient))
+  #:ysql{:none               noop-test
+         :sleep              sleep-test
+         :sz.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
+         :sz.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient))
          ; This one doesn't work because of https://github.com/YugaByte/yugabyte-db/issues/1554
          ; :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
-         :bank                  (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true))
-         :bank-multitable       (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true))
-         :bank-contention       (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient))
-         :long-fork             (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
-         :single-key-acid       (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
-         :multi-key-acid        (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
+         :sz.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :serializable))
+         :sz.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true :serializable))
+         :sz.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :serializable))
+         :sz.long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
+         :sz.single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
+         :sz.multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
+         :sz.append          (with-client append/workload-serializable (ysql.append/->Client :serializable))
+         :sz.append-table    (with-client append/workload-serializable (ysql.append-table/->Client :serializable))
+         :sz.default-value   (with-client default-value/workload (ysql.default-value/->Client))
+         :rc.append          (with-client append/workload-rc (ysql.append/->Client :read-committed))
          ; See https://docs.yugabyte.com/latest/architecture/transactions/isolation-levels/
          ; :snapshot-isolation maps to :repeatable_read SQL
-         :append-rc             (with-client append/workload-rc (ysql.append/->Client :read-committed :optimistic))
-         :append-si             (with-client append/workload-si (ysql.append/->Client :repeatable-read :optimistic))
-         :append                (with-client append/workload-serializable (ysql.append/->Client :serializable :optimistic))
-         :append-rc-pessimistic (with-client append/workload-rc (ysql.append/->Client :read-committed :pessimistic))
-         :append-si-pessimistic (with-client append/workload-si (ysql.append/->Client :repeatable-read :pessimistic))
-         :append-pessimistic    (with-client append/workload-serializable (ysql.append/->Client :serializable :pessimistic))
-         :append-table          (with-client append/workload-serializable (ysql.append-table/->Client :serializable))
-         :default-value         (with-client default-value/workload (ysql.default-value/->Client))})
+         :si.append          (with-client append/workload-si (ysql.append/->Client :repeatable-read))
+         :si.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
+         :si.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
+         :si.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :repeatable-read))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
