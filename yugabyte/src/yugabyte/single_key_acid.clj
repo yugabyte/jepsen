@@ -15,8 +15,8 @@
   (:require [clojure [pprint :refer :all]]
             [jepsen.checker :as checker]
             [jepsen.generator :as gen]
+            [jepsen.independent :as independent]
             [knossos.model :as model]
-            [yugabyte.independent :as independent]
             [yugabyte.generator :as ygen]
             [jepsen.checker.timeline :as timeline]))
 

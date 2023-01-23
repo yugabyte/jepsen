@@ -5,9 +5,9 @@
   (:require [jepsen.checker :as checker]
             [jepsen.generator :as gen]
             [jepsen.util :as util]
+            [jepsen.independent :as independent]
             [knossos.model :as model]
             [yugabyte.generator :as ygen]
-            [yugabyte.independent :as independent]
             [jepsen.checker.timeline :as timeline])
   (:import (knossos.model Model)))
 
