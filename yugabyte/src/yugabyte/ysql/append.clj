@@ -64,16 +64,17 @@
 (defn append-primary!
   "Writes a key based on primary key."
   [locking conn table row col v]
-  (let [_ (lock-row-if-needed locking conn col table v row)
-        r (c/execute! conn [(str "update " table
-                                 " set " col " = CONCAT(" col ", ',', ?) "
-                                 "where k = ?") v row])]
-    (when (= [0] r)
-      ; No rows updated
-      (c/execute! conn
-                  [(str "insert into " table
-                        " (k, k2, " col ") values (?, ?, ?)") row row v]))
-    v))
+  (j/with-db-transaction
+    (let [_ (lock-row-if-needed locking conn col table v row)
+          r (c/execute! conn [(str "update " table
+                                   " set " col " = CONCAT(" col ", ',', ?) "
+                                   "where k = ?") v row])]
+      (when (= [0] r)
+        ; No rows updated
+        (c/execute! conn
+                    [(str "insert into " table
+                          " (k, k2, " col ") values (?, ?, ?)") row row v]))
+      v))
 
 (defn read-secondary
   "Reads a key based on a predicate over a secondary key, k2"
