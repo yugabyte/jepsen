@@ -394,6 +394,8 @@
               experimental-tuning-flags)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--enable_wait_queues
+            :--enable_deadlock_detection
             (master-api-opts (:api test) node)
             )))
 
@@ -412,6 +414,8 @@
             ; Tracing
             :--enable_tracing
             :--rpc_slow_query_threshold_ms 1000
+            :--enable_wait_queues
+            :--enable_deadlock_detection
             (tserver-api-opts (:api test) node)
             (tserver-workload-specific-opts test)
 
