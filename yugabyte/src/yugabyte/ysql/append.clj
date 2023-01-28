@@ -74,7 +74,7 @@
         (c/execute! conn
                     [(str "insert into " table
                           " (k, k2, " col ") values (?, ?, ?)") row row v]))
-      v))
+      v)))
 
 (defn read-secondary
   "Reads a key based on a predicate over a secondary key, k2"
