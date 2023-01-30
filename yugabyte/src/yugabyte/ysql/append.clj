@@ -64,7 +64,7 @@
 (defn append-primary!
   "Writes a key based on primary key."
   [locking conn table row col v]
-  (j/with-db-transaction
+  (j/with-db-transaction [conn conn]
     (let [_ (lock-row-if-needed locking conn col table v row)
           r (c/execute! conn [(str "update " table
                                    " set " col " = CONCAT(" col ", ',', ?) "
