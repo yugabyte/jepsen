@@ -3,7 +3,6 @@
   (:require [clojure.java.io :as io]
             [clojure.tools.logging :refer :all]
             [clojure.string :as str]
-            [clojure.pprint :refer [pprint]]
             [clj-http.client :as http]
             [dom-top.core :as dt]
             [jepsen.control :as c]
@@ -322,11 +321,21 @@
      :--pgsql_proxy_bind_address (cn/ip node)]
     []))
 
-(defn tserver-workload-specific-opts
+(defn tserver-read-committed-flags
   "Version-specific flags"
   [test]
-  (if (and (= (:workload test) :ysql/append-rc))
+  (if (contains? [:ysql/rc.ol.append :ysql/rc.pl.append] (:workload test))
     [:--yb_enable_read_committed_isolation]
+    []))
+
+(defn master-tserver-pessimistic-locking-flags
+  "Version-specific flags"
+  [test]
+  (if (contains? [:ysql/rc.ol.append :ysql/rc.pl.append
+                  :ysql/si.ol.append :ysql/si.pl.append
+                  :ysql/sz.ol.append :ysql/sz.pl.append] (:workload test))
+    [:--enable_wait_queues
+     :--enable_deadlock_detection]
     []))
 
 (def experimental-tuning-flags
@@ -394,8 +403,7 @@
               experimental-tuning-flags)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
-            :--enable_wait_queues
-            :--enable_deadlock_detection
+            (master-tserver-pessimistic-locking-flags test)
             (master-api-opts (:api test) node)
             )))
 
@@ -414,10 +422,9 @@
             ; Tracing
             :--enable_tracing
             :--rpc_slow_query_threshold_ms 1000
-            :--enable_wait_queues
-            :--enable_deadlock_detection
             (tserver-api-opts (:api test) node)
-            (tserver-workload-specific-opts test)
+            (tserver-read-committed-flags test)
+            (master-tserver-pessimistic-locking-flags test)
 
             ; Heartbeats
             ;:--heartbeat_interval_ms 100
