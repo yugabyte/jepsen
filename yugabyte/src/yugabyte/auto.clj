@@ -331,9 +331,9 @@
 (defn master-tserver-pessimistic-locking-flags
   "Version-specific flags"
   [test]
-  (if (contains? [:ysql/rc.ol.append :ysql/rc.pl.append
-                  :ysql/si.ol.append :ysql/si.pl.append
-                  :ysql/sz.ol.append :ysql/sz.pl.append] (:workload test))
+  (if (contains? [:ysql/rc.pl.append
+                  :ysql/si.pl.append
+                  :ysql/sz.pl.append] (:workload test))
     [:--enable_wait_queues
      :--enable_deadlock_detection]
     []))
