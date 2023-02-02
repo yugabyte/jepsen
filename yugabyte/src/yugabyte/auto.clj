@@ -322,18 +322,16 @@
     []))
 
 (defn tserver-read-committed-flags
-  "Version-specific flags"
+  "Read committed specific flags"
   [test]
-  (if (contains? [:ysql/rc.ol.append :ysql/rc.pl.append] (:workload test))
+  (if (clojure.string/includes? (name (:workload test)) "rc.")
     [:--yb_enable_read_committed_isolation]
     []))
 
 (defn master-tserver-pessimistic-locking-flags
-  "Version-specific flags"
+  "Pessimistic specific flags"
   [test]
-  (if (contains? [:ysql/rc.pl.append
-                  :ysql/si.pl.append
-                  :ysql/sz.pl.append] (:workload test))
+  (if (clojure.string/includes? (name (:workload test)) "pl.")
     [:--enable_wait_queues
      :--enable_deadlock_detection]
     []))
