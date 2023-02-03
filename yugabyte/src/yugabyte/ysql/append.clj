@@ -43,12 +43,6 @@
                  "")]
     (str "select (" col ") from " table " where k = ?" clause)))
 
-(defn lock-row-if-needed
-  [locking conn col table v row]
-  (if (= :pessimistic locking)
-    (c/execute! conn [(select-with-lock locking col table) v row]))
-  nil)
-
 (defn read-primary
   "Reads a key based on primary key"
   [locking conn table row col]
@@ -63,18 +57,16 @@
 
 (defn append-primary!
   "Writes a key based on primary key."
-  [locking conn table row col v]
-  (j/with-db-transaction [conn conn]
-    (let [_ (lock-row-if-needed locking conn col table v row)
-          r (c/execute! conn [(str "update " table
-                                   " set " col " = CONCAT(" col ", ',', ?) "
-                                   "where k = ?") v row])]
-      (when (= [0] r)
-        ; No rows updated
-        (c/execute! conn
-                    [(str "insert into " table
-                          " (k, k2, " col ") values (?, ?, ?)") row row v]))
-      v)))
+  [conn table row col v]
+  (let [r (c/execute! conn [(str "update " table
+                                 " set " col " = CONCAT(" col ", ',', ?) "
+                                 "where k = ?") v row])]
+    (when (= [0] r)
+      ; No rows updated
+      (c/execute! conn
+                  [(str "insert into " table
+                        " (k, k2, " col ") values (?, ?, ?)") row row v]))
+    v))
 
 (defn read-secondary
   "Reads a key based on a predicate over a secondary key, k2"
@@ -114,7 +106,7 @@
            (read-primary locking conn table row col)
 
            :append
-           (append-primary! locking conn table row col v))]))
+           (append-primary! conn table row col v))]))
 
 (defrecord InternalClient [isolation locking]
   c/YSQLYbClient
