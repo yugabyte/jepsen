@@ -52,14 +52,14 @@
 (defn read-primary
   "Reads a key based on primary key"
   [locking conn table row col]
-    (some-> conn
-            (c/query [(select-with-pessimistic locking col table) row])
-            first
-            (get (keyword col))
-            (str/split #",")
-            (->>                                            ; Append might generate a leading , if the row already exists
-              (remove str/blank?)
-              (mapv #(Long/parseLong %)))))
+  (some-> conn
+          (c/query [(select-with-pessimistic locking col table) row])
+          first
+          (get (keyword col))
+          (str/split #",")
+          (->>                                              ; Append might generate a leading , if the row already exists
+            (remove str/blank?)
+            (mapv #(Long/parseLong %)))))
 
 (defn append-primary!
   "Writes a key based on primary key."
