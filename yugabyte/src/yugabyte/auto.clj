@@ -328,7 +328,7 @@
     [:--yb_enable_read_committed_isolation]
     []))
 
-(defn master-tserver-pessimistic-locking-flags
+(defn master-tserver-wait-on-conflict-flags
   "Pessimistic specific flags"
   [test]
   (if (clojure.string/includes? (name (:workload test)) "pl.")
@@ -401,7 +401,7 @@
               experimental-tuning-flags)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
-            (master-tserver-pessimistic-locking-flags test)
+            (master-tserver-wait-on-conflict-flags test)
             (master-api-opts (:api test) node)
             )))
 
@@ -422,7 +422,7 @@
             :--rpc_slow_query_threshold_ms 1000
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
-            (master-tserver-pessimistic-locking-flags test)
+            (master-tserver-wait-on-conflict-flags test)
 
             ; Heartbeats
             ;:--heartbeat_interval_ms 100

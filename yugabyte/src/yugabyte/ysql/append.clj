@@ -36,7 +36,7 @@
   [test k]
   (str "v" (mod k keys-per-row)))
 
-(defn select-with-pessimistic
+(defn select-with-lock
   [locking col table]
   (let [clause (if (= :pessimistic locking)
                  (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
@@ -46,14 +46,14 @@
 (defn lock-row-if-needed
   [locking conn col table v row]
   (if (= :pessimistic locking)
-    (c/execute! conn [(select-with-pessimistic locking col table) v row]))
+    (c/execute! conn [(select-with-lock locking col table) v row]))
   nil)
 
 (defn read-primary
   "Reads a key based on primary key"
   [locking conn table row col]
   (some-> conn
-          (c/query [(select-with-pessimistic locking col table) row])
+          (c/query [(select-with-lock locking col table) row])
           first
           (get (keyword col))
           (str/split #",")
