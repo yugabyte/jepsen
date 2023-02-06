@@ -127,14 +127,15 @@
 
   (invoke-op! [this test op c conn-wrapper]
     (let [txn      (:value op)
-          locking (if (= :pessimistic locking)
+          locking (if (and (= :pessimistic locking))
                     (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
                     "")
           use-txn? (< 1 (count txn))
           txn'     (if use-txn?
                      (j/with-db-transaction [c c {:isolation isolation}]
                                               (mapv (partial mop! locking c test) txn))
-                     (mapv (partial mop! locking c test) txn))]
-      (assoc op :type :ok, :value txn', :locking locking))))
+                     (mapv (partial mop! locking c test) txn))
+          htxn      (assoc txn' :wait-lock locking)]
+      (assoc op :type :ok, :value htxn))))
 
 (c/defclient Client InternalClient)
