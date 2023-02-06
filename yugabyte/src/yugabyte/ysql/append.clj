@@ -38,10 +38,7 @@
 
 (defn select-with-lock
   [locking col table]
-  (let [clause (if (= :pessimistic locking)
-                 (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
-                 "")]
-    (str "select (" col ") from " table " where k = ?" clause)))
+    (str "select (" col ") from " table " where k = ?" locking))
 
 (defn read-primary
   "Reads a key based on primary key"
@@ -130,11 +127,14 @@
 
   (invoke-op! [this test op c conn-wrapper]
     (let [txn      (:value op)
+          locking (if (= :pessimistic locking)
+                    (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
+                    "")
           use-txn? (< 1 (count txn))
           txn'     (if use-txn?
                      (j/with-db-transaction [c c {:isolation isolation}]
-                                            (mapv (partial mop! locking c test) txn))
+                                              (mapv (partial mop! locking c test) txn))
                      (mapv (partial mop! locking c test) txn))]
-      (assoc op :type :ok, :value txn'))))
+      (assoc op :type :ok, :value txn', :locking locking))))
 
 (c/defclient Client InternalClient)
