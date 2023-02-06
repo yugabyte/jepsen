@@ -135,7 +135,7 @@
                      (j/with-db-transaction [c c {:isolation isolation}]
                                               (mapv (partial mop! locking c test) txn))
                      (mapv (partial mop! locking c test) txn))
-          htxn      (assoc txn' :wait-lock locking)]
-      (assoc op :type :ok, :value htxn))))
+          txn'      (assoc txn' :wait-lock locking)]
+      (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
