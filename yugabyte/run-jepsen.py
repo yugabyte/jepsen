@@ -98,7 +98,7 @@ TEST_PER_VERSION = [
         ]
     },
     {
-        "start_version": "2.15.4.0-b1",
+        "start_version": "2.17.2.0-b1",
         "tests": [
             "ysql/sz.pl.append",
             "ysql/si.pl.append",
