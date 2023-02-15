@@ -329,10 +329,17 @@
     []))
 
 (defn master-tserver-random-clock-skew
-  "Enable random clock skew"
+  "Enable random clock skew
+
+  max-skew parameter is less than (1000 / (tservers + master))
+  as a result we should avoid random +500+500+500 skews in all masters e.g.
+
+  half-skew is needed to generate negative skews"
   [test]
   (if (:clock-skew-flags test)
-    [:--time_source (format "skewed,%s" (- (rand-int 900) 450))]
+    (let [max-skew  (int (/ 1000 (+ (:replication-factor test) (count (:nodes test)))))
+          half-skew (int (/ max-skew 2))]
+      [:--time_source (format "skewed,%s" (- (rand-int max-skew) half-skew))])
     []))
 
 (defn master-tserver-wait-on-conflict-flags
