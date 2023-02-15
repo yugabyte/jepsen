@@ -53,6 +53,12 @@
    [nil "--experimental-tuning-flags" "Enable some experimental tuning flags which are supposed to help YB recover faster"
     :default false]
 
+   [nil "--heartbeat-flags" "Enable heartbeat tserver tracing flags on YB"
+    :default false]
+
+   [nil "--clock-skew-flags" "Enable soft clock skew flags on YB"
+    :default true]
+
    [nil "--final-recovery-time SECONDS" "How long to wait for the cluster to stabilize at the end of a test"
     :default 30
     :parse-fn parse-long
