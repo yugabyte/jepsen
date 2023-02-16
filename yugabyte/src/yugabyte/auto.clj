@@ -330,7 +330,7 @@
 
 (defn get-random-node-skew
   [len_nodes node_ip]
-  (int (/ 1000 len_nodes)))
+  (rand-int (int (/ 1000 len_nodes))))
 
 (def get-node-skew
   (memoize get-random-node-skew))
@@ -346,7 +346,7 @@
   (if (:clock-skew-flags test)
     (let [max-skew  (get-node-skew (count (:nodes test)) (cn/ip node))
           half-skew (int (/ max-skew 2))]
-      [:--time_source (format "skewed,%s" (- (rand-int max-skew) half-skew))])
+      [:--time_source (format "skewed,%s" (- max-skew half-skew))])
     []))
 
 (defn master-tserver-wait-on-conflict-flags
