@@ -329,7 +329,7 @@
     []))
 
 (defn get-random-node-skew
-  [len_nodes node]
+  [len_nodes node_ip]
   (int (/ 1000 len_nodes)))
 
 (def get-node-skew
@@ -344,7 +344,7 @@
   half-skew is needed to generate negative skews"
   [test node]
   (if (:clock-skew-flags test)
-    (let [max-skew  (get-node-skew (count (:nodes test)) node)
+    (let [max-skew  (get-node-skew (count (:nodes test)) (cn/ip node))
           half-skew (int (/ max-skew 2))]
       [:--time_source (format "skewed,%s" (- (rand-int max-skew) half-skew))])
     []))
