@@ -328,16 +328,23 @@
     [:--yb_enable_read_committed_isolation]
     []))
 
+(defn get-random-node-skew
+  [test node]
+  (int (/ 1000 (count (:nodes test)))))
+
+(def get-node-skew
+  (memoize get-random-node-skew))
+
 (defn master-tserver-random-clock-skew
   "Enable random clock skew
 
   max-skew parameter is less than (1000 / (tservers + master))
-  as a result we should avoid random +500+500+500 skews in all masters e.g.
+  as a result we should avoid random +500 and -500 skews in all masters e.g.
 
   half-skew is needed to generate negative skews"
-  [test]
+  [test node]
   (if (:clock-skew-flags test)
-    (let [max-skew  (int (/ 1000 (+ (:replication-factor test) (count (:nodes test)))))
+    (let [max-skew  (get-node-skew test node)
           half-skew (int (/ max-skew 2))]
       [:--time_source (format "skewed,%s" (- (rand-int max-skew) half-skew))])
     []))
@@ -433,7 +440,7 @@
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
             (master-tserver-experimental-tuning-flags test)
-            (master-tserver-random-clock-skew test)
+            (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
             (master-api-opts (:api test) node)
             )))
@@ -452,7 +459,7 @@
             :--enable_tracing
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
-            (master-tserver-random-clock-skew test)
+            (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
