@@ -345,7 +345,9 @@
   [test node]
   (if (:clock-skew-flags test)
     (let [max-skew  (int (/ 1000 (count (:nodes test))))
-          host-skew  (get-node-skew max-skew (cn/ip node))
+          host-skew  (if (:extreme-skew test)
+                       (get-random-node-skew max-skew (cn/ip node))
+                       (get-node-skew max-skew (cn/ip node)))
           half-skew (int (/ max-skew 2))]
       [:--time_source (format "skewed,%s" (- host-skew half-skew))])
     []))
