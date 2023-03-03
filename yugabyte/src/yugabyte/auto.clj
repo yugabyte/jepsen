@@ -338,13 +338,13 @@
 (defn master-tserver-random-clock-skew
   "Enable random clock skew
 
-  max-skew parameter is less than (1000 / (tservers + master))
-  as a result we should avoid random +500 and -500 skews in all masters e.g.
+  max-skew parameter is less than (490 / (tservers + master))
+  as a result we should avoid random -500 skews in all masters e.g.
 
   half-skew is needed to generate negative skews"
   [test node]
   (if (:clock-skew-flags test)
-    (let [max-skew  (int (/ 1000 (count (:nodes test))))
+    (let [max-skew  (int (/ 490 (count (:nodes test))))
           host-skew  (if (:extreme-skew test)
                        (get-random-node-skew max-skew (cn/ip node))
                        (get-node-skew max-skew (cn/ip node)))
