@@ -96,7 +96,7 @@ TEST_PER_VERSION = [
         "tests": [
             # YSQL read committed
             "ysql/rc.ol.append",
-            "ysql/rc.pl.append"
+            "ysql/rc.pl.append",
         ]
     }
 ]
