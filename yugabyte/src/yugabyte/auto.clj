@@ -461,6 +461,8 @@
             ; Tracing
             :--enable_tracing
             :--rpc_slow_query_threshold_ms 1000
+            :--dump_transactions
+            :--vmodule "conflict_resolution=4,wait_queue=4,deadlock_detector=4"
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
