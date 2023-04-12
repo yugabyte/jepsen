@@ -38,9 +38,7 @@
 
 (defn select-with-lock
   [locking col table]
-  (let [clause (if (= :pessimistic locking)
-                 (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
-                 "")]
+  (let [clause (rand-nth ["" " for update" " for no key update" " for share" " for key share"])]
     (str "select (" col ") from " table " where k = ?" clause)))
 
 (defn read-primary
