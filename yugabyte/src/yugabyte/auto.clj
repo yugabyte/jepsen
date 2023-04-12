@@ -444,7 +444,7 @@
             :--replication_factor (:replication-factor test)
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
-            (master-tserver-wait-on-conflict-flags test)
+            ;(master-tserver-wait-on-conflict-flags test)
             (master-api-opts (:api test) node)
             )))
 
@@ -464,7 +464,7 @@
             :--vmodule "conflict_resolution=4,wait_queue=4,deadlock_detector=4"
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
-            (master-tserver-wait-on-conflict-flags test)
+            ;(master-tserver-wait-on-conflict-flags test)
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
