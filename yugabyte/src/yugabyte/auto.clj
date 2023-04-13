@@ -367,9 +367,10 @@
   "Pessimistic specific flags"
   [test]
   (if (clojure.string/includes? (name (:workload test)) "geo.")
-    [:--placement_cloud :gcp
-     :--placement_region (str "jepsen-" (swap! node-id inc))
-     :--placement_zone (str "jepsen-" (swap! node-id inc) "a")]
+    (let [node-id-int (swap! node-id inc)]
+      [:--placement_cloud :gcp
+       :--placement_region (str "jepsen-" node-id-int)
+       :--placement_zone (str "jepsen-" node-id-int "a")])
     []))
 
 
