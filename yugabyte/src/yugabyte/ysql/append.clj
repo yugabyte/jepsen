@@ -145,7 +145,14 @@
                                        (range keys-per-row)))
                                 {:conditional? true
                                  :table-spec   (geo-table-clause geo-partitioning)}))))
-         dorun))
+         dorun)
+    (if (= geo-partitioning :geo)
+      (do
+        (yugabyte.auto/yb-admin :create_transaction_table :jepsen_1_transactions)
+        (yugabyte.auto/yb-admin :modify_table_placement_info :system :jepsen_1_transactions "gcp.jepsen-1.jepsen-1a" 3)
+        (yugabyte.auto/yb-admin :create_transaction_table :jepsen_2_transactions)
+        (yugabyte.auto/yb-admin :modify_table_placement_info :system :jepsen_2_transactions "gcp.jepsen-2.jepsen-2a" 3)))
+    )
 
   (invoke-op! [this test op c conn-wrapper]
     (let [txn (:value op)
