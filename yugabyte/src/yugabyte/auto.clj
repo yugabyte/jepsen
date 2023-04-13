@@ -468,10 +468,10 @@
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
-            )
+            )))
 
-          (stop-master! [db]
-                        (c/su (cu/stop-daemon! ce-master-pidfile)))))
+    (stop-master! [db]
+                  (c/su (cu/stop-daemon! ce-master-pidfile)))
 
   (stop-tserver! [db]
     (c/su (cu/stop-daemon! ce-tserver-pidfile))
