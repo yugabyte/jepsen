@@ -515,7 +515,12 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    ; NOOP placeholder, can be used to initialize cluster for different APIs
+    (if (clojure.string/includes? (name (:workload test)) "geo.")
+      (do
+        (yugabyte.auto/yb-admin test :create_transaction_table :transactions_jepsen_1)
+        (yugabyte.auto/yb-admin test :modify_table_placement_info :system :transactions_jepsen_1 "gcp.jepsen-1.jepsen-1a" 3)
+        (yugabyte.auto/yb-admin test :create_transaction_table :transactions_jepsen_1)
+        (yugabyte.auto/yb-admin test :modify_table_placement_info :system :transactions_jepsen_2 "gcp.jepsen-2.jepsen-2a" 3)))
     )
 
   db/LogFiles
