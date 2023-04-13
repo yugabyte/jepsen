@@ -128,10 +128,10 @@
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
+    (setup-geo-partition c geo-partitioning)
     (->> (range (table-count test))
          (map table-name)
          (map (fn [table]
-                (setup-geo-partition c geo-partitioning)
                 (info "Creating table" table)
                 (c/execute! c (j/create-table-ddl
                                 table
