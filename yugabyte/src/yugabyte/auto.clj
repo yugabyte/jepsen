@@ -24,8 +24,6 @@
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
 
-(def node-id (atom 0))
-
 (def max-bump-time-ops-per-test
   "Upper bound on number of bump time ops per test, needed to estimate max
   clock skew between servers"
@@ -363,11 +361,18 @@
      :--enable_deadlock_detection]
     []))
 
+(defn get-random-node-geo
+  [count_nodes node_ip]
+  (rand-int count_nodes))
+
+(def get-node-geo
+  (memoize get-random-node-geo))
+
 (defn master-tserver-geo-partitioning-flags
   "Pessimistic specific flags"
-  [test]
+  [test node nodes]
   (if (clojure.string/includes? (name (:workload test)) "geo.")
-    (let [node-id-int (swap! node-id inc)]
+    (let [node-id-int (get-node-geo (count nodes) (cn/ip node))]
       [:--placement_cloud :gcp
        :--placement_region (str "jepsen-" node-id-int)
        :--placement_zone (str "jepsen-" node-id-int "a")])
