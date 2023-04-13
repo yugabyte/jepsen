@@ -108,13 +108,29 @@
            :append
            (append-primary! conn table row col v))]))
 
-(defrecord InternalClient [isolation locking]
+(defn setup-geo-partition
+  [conn geo-partitioning]
+  (if (= geo-partitioning :geo)
+    (c/execute! conn [("CREATE TABLESPACE geo_tablespace
+    WITH (replica_placement='{\"num_replicas\": 3,
+    \"placement_blocks\": [
+    {\"cloud\":\"gcp\",\"region\":\"jepsen-1\",\"zone\":\"jepsen-1a\",\"min_num_replicas\":1,\"leader_preference\":1},
+    {\"cloud\":\"gcp\",\"region\":\"jepsen-2\",\"zone\":\"jepsen-2a\",\"min_num_replicas\":1,\"leader_preference\":2},
+    {\"cloud\":\"gcp\",\"region\":\"jepsen-3\",\"zone\":\"jepsen-3a\",\"min_num_replicas\":1}]}');")])))
+
+(defn geo-table-clause
+  (if (= geo-partitioning :geo)
+    ("TABLESPACE geo_tablespace")
+    ("")))
+
+(defrecord InternalClient [isolation locking geo-partitioning]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
     (->> (range (table-count test))
          (map table-name)
          (map (fn [table]
+                (setup-geo-partition c geo-partitioning)
                 (info "Creating table" table)
                 (c/execute! c (j/create-table-ddl
                                 table
@@ -125,7 +141,8 @@
                                   ; Columns for n values packed in this row
                                   (map (fn [i] [(col-for test i) :text])
                                        (range keys-per-row)))
-                                {:conditional? true}))))
+                                {:conditional? true
+                                 :table-spec (geo-table-clause geo-partitioning)}))))
          dorun))
 
   (invoke-op! [this test op c conn-wrapper]

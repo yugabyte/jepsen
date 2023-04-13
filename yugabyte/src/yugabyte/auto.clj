@@ -1,7 +1,6 @@
 (ns yugabyte.auto
   "Shared automation functions for configuring, starting and stopping nodes."
-  (:require [clojure.java.io :as io]
-            [clojure.tools.logging :refer :all]
+  (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
             [clj-http.client :as http]
             [dom-top.core :as dt]
@@ -21,9 +20,11 @@
   "Where we unpack the Yugabyte package"
   "/home/yugabyte")
 
-(def master-log-dir  (str dir "/master/logs"))
+(def master-log-dir (str dir "/master/logs"))
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
+
+(def node-id (atom 0))
 
 (def max-bump-time-ops-per-test
   "Upper bound on number of bump time ops per test, needed to estimate max
@@ -45,13 +46,13 @@
     ))
 
 (defprotocol Auto
-  (install!       [db test])
-  (configure!     [db test node])
-  (start-master!  [db test node])
+  (install! [db test])
+  (configure! [db test node])
+  (start-master! [db test node])
   (start-tserver! [db test node])
-  (stop-master!   [db])
-  (stop-tserver!  [db])
-  (wipe!          [db]))
+  (stop-master! [db])
+  (stop-tserver! [db])
+  (wipe! [db]))
 
 (defmacro suppress-interrupted-exception
   "When there's an error encountered on one of the node, the whole cluster worker thread group
@@ -128,7 +129,8 @@
 (defn await-masters
   "Waits until all masters for a test are online, according to this node."
   [test]
-  (dt/with-retry [tries 20]
+  (dt/with-retry
+    [tries 20]
     (when (< 0 tries 20)
       (info "Waiting for masters to come online")
       (Thread/sleep 1000))
@@ -146,16 +148,17 @@
 
     (catch RuntimeException e
       (condp re-find (.getMessage e)
-        #"Could not locate the leader master"     (retry (dec tries))
-        #"Timed out"                              (retry (dec tries))
+        #"Could not locate the leader master" (retry (dec tries))
+        #"Timed out" (retry (dec tries))
         #"Leader not yet ready to serve requests" (retry (dec tries))
-        #"Could not locate the leader master"     (retry (dec tries))
+        #"Could not locate the leader master" (retry (dec tries))
         (throw e)))))
 
 (defn await-tservers
   "Waits until all tservers for a test are online, according to this node."
   [test]
-  (dt/with-retry [tries 60]
+  (dt/with-retry
+    [tries 60]
     (when (< 0 tries)
       (info "Waiting for tservers to come online")
       (Thread/sleep 1000))
@@ -173,11 +176,11 @@
 
     (catch RuntimeException e
       (condp re-find (.getMessage e)
-        #"Leader not yet ready to serve requests"   (retry (dec tries))
+        #"Leader not yet ready to serve requests" (retry (dec tries))
         #"This leader has not yet acquired a lease" (retry (dec tries))
-        #"Could not locate the leader master"       (retry (dec tries))
-        #"Leader not yet replicated NoOp"           (retry (dec tries))
-        #"Not the leader"                           (retry (dec tries))
+        #"Could not locate the leader master" (retry (dec tries))
+        #"Leader not yet replicated NoOp" (retry (dec tries))
+        #"Not the leader" (retry (dec tries))
         (throw e)))))
 
 (defn start! [db test node]
@@ -252,13 +255,13 @@
       )))
 
 (defn get-installed-url
-      "Returns URL from which YugaByte was installed on node"
-      []
-      (try
-        (c/exec :cat installed-url-file)
-        (catch RuntimeException e
-          ; Probably not installed
-          )))
+  "Returns URL from which YugaByte was installed on node"
+  []
+  (try
+    (c/exec :cat installed-url-file)
+    (catch RuntimeException e
+      ; Probably not installed
+      )))
 
 (defn get-download-url
   "Returns URL to tarball for specific released version"
@@ -274,14 +277,14 @@
                (catch RuntimeException e nil))))
 
 ; Community-edition-specific files
-(def ce-data-dir        (str dir "/data"))
+(def ce-data-dir (str dir "/data"))
 
-(def ce-master-bin      (str dir "/bin/yb-master"))
-(def ce-master-log-dir  (str ce-data-dir "/yb-data/master/logs"))
-(def ce-master-logfile  (str ce-master-log-dir "/stdout"))
-(def ce-master-pidfile  (str dir "/master.pid"))
+(def ce-master-bin (str dir "/bin/yb-master"))
+(def ce-master-log-dir (str ce-data-dir "/yb-data/master/logs"))
+(def ce-master-logfile (str ce-master-log-dir "/stdout"))
+(def ce-master-pidfile (str dir "/master.pid"))
 
-(def ce-tserver-bin     (str dir "/bin/yb-tserver"))
+(def ce-tserver-bin (str dir "/bin/yb-tserver"))
 (def ce-tserver-log-dir (str ce-data-dir "/yb-data/tserver/logs"))
 (def ce-tserver-logfile (str ce-tserver-log-dir "/stdout"))
 (def ce-tserver-pidfile (str dir "/tserver.pid"))
@@ -290,7 +293,7 @@
   "Shared options for both master and tserver"
   [node]
   [; Data files!
-   :--fs_data_dirs         ce-data-dir
+   :--fs_data_dirs ce-data-dir
    ; Limit memory to 2GB
    :--memory_limit_hard_bytes 2147483648
    ; Fewer shards to improve perf
@@ -344,10 +347,10 @@
   half-skew is needed to generate negative skews"
   [test node]
   (if (:clock-skew-flags test)
-    (let [max-skew  (int (/ 490 (count (:nodes test))))
-          host-skew  (if (:extreme-skew test)
-                       (get-random-node-skew max-skew (cn/ip node))
-                       (get-node-skew max-skew (cn/ip node)))
+    (let [max-skew (int (/ 490 (count (:nodes test))))
+          host-skew (if (:extreme-skew test)
+                      (get-random-node-skew max-skew (cn/ip node))
+                      (get-node-skew max-skew (cn/ip node)))
           half-skew (int (/ max-skew 2))]
       [:--time_source (format "skewed,%s" (- host-skew half-skew))])
     []))
@@ -358,6 +361,15 @@
   (if (clojure.string/includes? (name (:workload test)) "pl.")
     [:--enable_wait_queues
      :--enable_deadlock_detection]
+    []))
+
+(defn master-tserver-geo-partitioning-flags
+  "Pessimistic specific flags"
+  [test]
+  (if (clojure.string/includes? (name (:workload test)) "geo.")
+    [:--placement_cloud :gcp
+     :--placement_region (str "jepsen-" (swap! node-id inc))
+     :--placement_zone (str "jepsen-" (swap! node-id inc) "a")]
     []))
 
 
@@ -385,8 +397,7 @@
      :--leader_failure_max_missed_heartbeat_periods 2
      :--leader_failure_exp_backoff_max_delta_ms 5000
      :--rpc_default_keepalive_time_ms 5000
-     :--rpc_connection_timeout_ms 1500
-     ]
+     :--rpc_connection_timeout_ms 1500]
     []))
 
 (def limits-conf
@@ -403,7 +414,7 @@
       (c/cd dir
             ; Post-install takes forever, so let's try and skip this on
             ; subsequent runs
-            (let [url           (or (:url test) (get-download-url (:version test)))
+            (let [url (or (:url test) (get-download-url (:version test)))
                   installed-url (get-installed-url)]
               (when-not (= url installed-url)
                 (info "Replacing version" installed-url "with" url)
@@ -445,6 +456,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
+            (master-tserver-geo-partitioning-flags test)
             (master-api-opts (:api test) node)
             )))
 
@@ -464,6 +476,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
+            (master-tserver-geo-partitioning-flags test)
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
