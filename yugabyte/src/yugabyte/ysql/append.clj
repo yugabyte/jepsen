@@ -130,6 +130,12 @@
 
   (setup-cluster! [this test c conn-wrapper]
     (setup-geo-partition c geo-partitioning)
+    (if (clojure.string/includes? (name (:workload test)) "geo.")
+      (do
+        (yugabyte.auto/yb-admin test :create_transaction_table :transactions_jepsen_1)
+        (yugabyte.auto/yb-admin test :modify_table_placement_info :system :transactions_jepsen_1 "gcp.jepsen-1.jepsen-1a" 3)
+        (yugabyte.auto/yb-admin test :create_transaction_table :transactions_jepsen_1)
+        (yugabyte.auto/yb-admin test :modify_table_placement_info :system :transactions_jepsen_2 "gcp.jepsen-2.jepsen-2a" 3)))
     (->> (range (table-count test))
          (map table-name)
          (map (fn [table]
