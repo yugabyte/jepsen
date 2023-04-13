@@ -123,8 +123,8 @@
 (defn geo-table-clause
   [geo-partitioning]
   (if (= geo-partitioning :geo)
-    ("TABLESPACE geo_tablespace")
-    ("")))
+    "TABLESPACE geo_tablespace"
+    ""))
 
 (defrecord InternalClient [isolation locking geo-partitioning]
   c/YSQLYbClient
