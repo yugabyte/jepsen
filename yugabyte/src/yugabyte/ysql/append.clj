@@ -38,10 +38,7 @@
 
 (defn select-with-lock
   [locking col table]
-  (let [clause (if (= :pessimistic locking)
-                 (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
-                 "")]
-    (str "select (" col ") from " table " where k = ?" clause)))
+  (str "select (" col ") from " table " where k = ? for key share"))
 
 (defn read-primary
   "Reads a key based on primary key"
