@@ -363,7 +363,7 @@
 
 (defn get-random-node-geo
   [count_nodes node_ip]
-  (rand-int count_nodes))
+  (+ 1 (rand-int count_nodes)))
 
 (def get-node-geo
   (memoize get-random-node-geo))
@@ -372,8 +372,7 @@
   "Geo partitioning specific flags"
   [test node nodes]
   (if (clojure.string/includes? (name (:workload test)) "geo.")
-    ; todo in geo append test we using 3 zones
-    (let [node-id-int (get-node-geo 3 (cn/ip node))]
+    (let [node-id-int (get-node-geo 2 (cn/ip node))]
       [:--placement_cloud :gcp
        :--placement_region (str "jepsen-" node-id-int)
        :--placement_zone (str "jepsen-" node-id-int "a")])
