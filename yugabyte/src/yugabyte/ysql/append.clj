@@ -99,8 +99,8 @@
   micro-op."
   [locking conn test [f k v]]
   (let [table (table-for test k)
-        row   (row-for test k)
-        col   (col-for test k)]
+        row (row-for test k)
+        col (col-for test k)]
     [f k (case f
            :r
            (read-primary locking conn table row col)
@@ -111,12 +111,14 @@
 (defn setup-geo-partition
   [conn geo-partitioning]
   (if (= geo-partitioning :geo)
-    (c/execute! conn ["CREATE TABLESPACE geo_tablespace
-    WITH (replica_placement='{\"num_replicas\": 3,
-    \"placement_blocks\": [
-    {\"cloud\":\"gcp\",\"region\":\"jepsen-1\",\"zone\":\"jepsen-1a\",\"min_num_replicas\":1,\"leader_preference\":1},
-    {\"cloud\":\"gcp\",\"region\":\"jepsen-2\",\"zone\":\"jepsen-2a\",\"min_num_replicas\":1,\"leader_preference\":2},
-    {\"cloud\":\"gcp\",\"region\":\"jepsen-3\",\"zone\":\"jepsen-3a\",\"min_num_replicas\":1}]}');"])))
+    (j/execute! conn
+                ["CREATE TABLESPACE geo_tablespace
+                WITH (replica_placement='{\"num_replicas\": 3,
+                \"placement_blocks\": [
+                {\"cloud\":\"gcp\",\"region\":\"jepsen-1\",\"zone\":\"jepsen-1a\",\"min_num_replicas\":1,\"leader_preference\":1},
+                {\"cloud\":\"gcp\",\"region\":\"jepsen-2\",\"zone\":\"jepsen-2a\",\"min_num_replicas\":1,\"leader_preference\":2},
+                {\"cloud\":\"gcp\",\"region\":\"jepsen-3\",\"zone\":\"jepsen-3a\",\"min_num_replicas\":1}]}');"]
+                {:transaction? false})))
 
 (defn geo-table-clause
   [geo-partitioning]
@@ -143,16 +145,16 @@
                                   (map (fn [i] [(col-for test i) :text])
                                        (range keys-per-row)))
                                 {:conditional? true
-                                 :table-spec (geo-table-clause geo-partitioning)}))))
+                                 :table-spec   (geo-table-clause geo-partitioning)}))))
          dorun))
 
   (invoke-op! [this test op c conn-wrapper]
-    (let [txn      (:value op)
+    (let [txn (:value op)
           use-txn? (< 1 (count txn))
-          txn'     (if use-txn?
-                     (j/with-db-transaction [c c {:isolation isolation}]
-                                            (mapv (partial mop! locking c test) txn))
-                     (mapv (partial mop! locking c test) txn))]
+          txn' (if use-txn?
+                 (j/with-db-transaction [c c {:isolation isolation}]
+                                        (mapv (partial mop! locking c test) txn))
+                 (mapv (partial mop! locking c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
