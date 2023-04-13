@@ -111,14 +111,15 @@
 (defn setup-geo-partition
   [conn geo-partitioning]
   (if (= geo-partitioning :geo)
-    (c/execute! conn [("CREATE TABLESPACE geo_tablespace
+    (c/execute! conn ["CREATE TABLESPACE geo_tablespace
     WITH (replica_placement='{\"num_replicas\": 3,
     \"placement_blocks\": [
     {\"cloud\":\"gcp\",\"region\":\"jepsen-1\",\"zone\":\"jepsen-1a\",\"min_num_replicas\":1,\"leader_preference\":1},
     {\"cloud\":\"gcp\",\"region\":\"jepsen-2\",\"zone\":\"jepsen-2a\",\"min_num_replicas\":1,\"leader_preference\":2},
-    {\"cloud\":\"gcp\",\"region\":\"jepsen-3\",\"zone\":\"jepsen-3a\",\"min_num_replicas\":1}]}');")])))
+    {\"cloud\":\"gcp\",\"region\":\"jepsen-3\",\"zone\":\"jepsen-3a\",\"min_num_replicas\":1}]}');"])))
 
 (defn geo-table-clause
+  [geo-partitioning]
   (if (= geo-partitioning :geo)
     ("TABLESPACE geo_tablespace")
     ("")))
