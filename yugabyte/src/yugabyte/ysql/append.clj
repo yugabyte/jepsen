@@ -7,6 +7,7 @@
   (:require [clojure.string :as str]
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
+            [clojure.data.json :as json]
             [yugabyte.ysql.client :as c]))
 
 (defn table-count
@@ -108,52 +109,69 @@
            :append
            (append-primary! conn table row col v))]))
 
-(defn setup-geo-partition
-  [conn geo-partitioning]
-  (if (= geo-partitioning :geo)
-    (j/execute! conn
-                ["CREATE TABLESPACE geo_tablespace
-                WITH (replica_placement='{\"num_replicas\": 3,
-                \"placement_blocks\": [
-                {\"cloud\":\"gcp\",\"region\":\"jepsen-1\",\"zone\":\"jepsen-1a\",\"min_num_replicas\":1,\"leader_preference\":1},
-                {\"cloud\":\"gcp\",\"region\":\"jepsen-2\",\"zone\":\"jepsen-2a\",\"min_num_replicas\":1,\"leader_preference\":2}]}');"]
-                {:transaction? false})))
+(defn create-geo-tablespace
+  [conn table-name num-replicas placements]
+  (j/execute! conn
+              [(str "CREATE TABLESPACE " table-name
+                    "WITH (replica_placement='{\"num_replicas\": " num-replicas ","
+                    "\"placement_blocks\": " (json/write-str placements) "}');")]
+              {:transaction? false})
 
-(defn geo-table-clause
-  [geo-partitioning]
-  (if (= geo-partitioning :geo)
-    "TABLESPACE geo_tablespace"
-    ""))
+  (defn setup-geo-partition
+    [conn geo-partitioning]
+    (if (= geo-partitioning :geo)
+      (create-geo-tablespace
+        conn
+        "geo_tablespace"
+        3
+        [
+         {:cloud             :gcp
+          :region            :jepsen-1
+          :zone              :jepsen-1a
+          :min_num_preplicas 1
+          :leader_preference 1}
+         {:cloud             :gcp
+          :region            :jepsen-2
+          :zone              :jepsen-2a
+          :min_num_preplicas 1
+          :leader_preference 2},
+         ])))
 
-(defrecord InternalClient [isolation locking geo-partitioning]
-  c/YSQLYbClient
+  (defn geo-table-clause
+    [geo-partitioning tablespace-name]
+    (if (= geo-partitioning :geo)
+      (str "TABLESPACE " tablespace-name)
+      ""))
 
-  (setup-cluster! [this test c conn-wrapper]
-    (setup-geo-partition c geo-partitioning)
-    (->> (range (table-count test))
-         (map table-name)
-         (map (fn [table]
-                (info "Creating table" table)
-                (c/execute! c (j/create-table-ddl
-                                table
-                                (into
-                                  [;[:k :int "unique"]
-                                   [:k :int "PRIMARY KEY"]
-                                   [:k2 :int]]
-                                  ; Columns for n values packed in this row
-                                  (map (fn [i] [(col-for test i) :text])
-                                       (range keys-per-row)))
-                                {:conditional? true
-                                 :table-spec   (geo-table-clause geo-partitioning)}))))
-         dorun))
+  (defrecord InternalClient [isolation locking geo-partitioning]
+    c/YSQLYbClient
 
-  (invoke-op! [this test op c conn-wrapper]
-    (let [txn (:value op)
-          use-txn? (< 1 (count txn))
-          txn' (if use-txn?
-                 (j/with-db-transaction [c c {:isolation isolation}]
-                                        (mapv (partial mop! locking c test) txn))
-                 (mapv (partial mop! locking c test) txn))]
-      (assoc op :type :ok, :value txn'))))
+    (setup-cluster! [this test c conn-wrapper]
+      (setup-geo-partition c geo-partitioning)
+      (->> (range (table-count test))
+           (map table-name)
+           (map (fn [table]
+                  (info "Creating table" table)
+                  (c/execute! c (j/create-table-ddl
+                                  table
+                                  (into
+                                    [;[:k :int "unique"]
+                                     [:k :int "PRIMARY KEY"]
+                                     [:k2 :int]]
+                                    ; Columns for n values packed in this row
+                                    (map (fn [i] [(col-for test i) :text])
+                                         (range keys-per-row)))
+                                  {:conditional? true
+                                   :table-spec   (geo-table-clause geo-partitioning)}))))
+           dorun))
 
-(c/defclient Client InternalClient)
+    (invoke-op! [this test op c conn-wrapper]
+      (let [txn (:value op)
+            use-txn? (< 1 (count txn))
+            txn' (if use-txn?
+                   (j/with-db-transaction [c c {:isolation isolation}]
+                                          (mapv (partial mop! locking c test) txn))
+                   (mapv (partial mop! locking c test) txn))]
+        (assoc op :type :ok, :value txn'))))
+
+  (c/defclient Client InternalClient)

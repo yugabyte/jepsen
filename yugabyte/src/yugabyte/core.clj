@@ -2,12 +2,9 @@
   "Integrates workloads, nemeses, and automation to construct test maps."
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
-            [clojure.pprint :refer [pprint]]
             [jepsen.checker :as checker]
-            [jepsen.client :as client]
             [jepsen.generator :as gen]
             [jepsen.tests :as tests]
-            [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
             [jepsen.os.centos :as centos]
             [yugabyte [append :as append]
