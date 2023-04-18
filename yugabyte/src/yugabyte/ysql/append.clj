@@ -125,16 +125,20 @@
       {
        :num_replicas     3
        :placement_blocks [
-                          {:cloud             :ybc
+                          {
+                           :cloud             :ybc
                            :region            :jepsen-1
                            :zone              :jepsen-1a
                            :min_num_replicas  1
-                           :leader_preference 1}
-                          {:cloud             :ybc
+                           :leader_preference 1
+                           }
+                          {
+                           :cloud             :ybc
                            :region            :jepsen-2
                            :zone              :jepsen-2a
                            :min_num_replicas  1
-                           :leader_preference 2},
+                           :leader_preference 2
+                           }
                           ]
        })))
 

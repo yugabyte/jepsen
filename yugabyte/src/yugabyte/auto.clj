@@ -362,19 +362,15 @@
      :--enable_deadlock_detection]
     []))
 
-(defn get-random-node-geo
-  [count_nodes node_ip]
-  (+ 1 (rand-int count_nodes)))
-
-(def get-node-geo
-  (memoize get-random-node-geo))
-
 (defn master-tserver-geo-partitioning-flags
-  "Geo partitioning specific flags"
+  "Geo partitioning specific mapping flags
+  Each node will be mapped to id in [1 2] and then used in each node."
   [test node nodes]
   (if (clojure.string/includes? (name (:workload test)) "geo.")
-    (let [node-id-int (get-node-geo 2 (cn/ip node))]
-      [:--placement_cloud :gcp
+    (let [geo-ids (map #(+ 1 (mod % 2)) (range (count nodes)))
+          geo-node-map (zipmap nodes geo-ids)
+          node-id-int (get geo-node-map node)]
+      [:--placement_cloud :ybc
        :--placement_region (str "jepsen-" node-id-int)
        :--placement_zone (str "jepsen-" node-id-int "a")])
     []))
