@@ -110,44 +110,47 @@
            (append-primary! conn table row col v))]))
 
 (defn create-geo-tablespace
-  [conn table-name num-replicas placements]
+  [conn table-name replica-placement]
   (j/execute! conn
               [(str "CREATE TABLESPACE " table-name
-                    "WITH (replica_placement='{\"num_replicas\": " num-replicas ","
-                    "\"placement_blocks\": " (json/write-str placements) "}');")]
-              {:transaction? false})
+                    "WITH (replica_placement='" (json/write-str replica-placement) "');")]
+              {:transaction? false}))
 
-  (defn setup-geo-partition
-    [conn geo-partitioning]
-    (if (= geo-partitioning :geo)
-      (create-geo-tablespace
-        conn
-        "geo_tablespace"
-        3
-        [
-         {:cloud             :gcp
-          :region            :jepsen-1
-          :zone              :jepsen-1a
-          :min_num_preplicas 1
-          :leader_preference 1}
-         {:cloud             :gcp
-          :region            :jepsen-2
-          :zone              :jepsen-2a
-          :min_num_preplicas 1
-          :leader_preference 2},
-         ])))
+(defn setup-geo-partition
+  [conn geo-partitioning tablespace-name]
+  (if (= geo-partitioning :geo)
+    (create-geo-tablespace
+      conn
+      tablespace-name
+      {
+       :num_replicas     3
+       :placement_blocks [
+                          {:cloud             :ybc
+                           :region            :jepsen-1
+                           :zone              :jepsen-1a
+                           :min_num_preplicas 1
+                           :leader_preference 1}
+                          {:cloud             :ybc
+                           :region            :jepsen-2
+                           :zone              :jepsen-2a
+                           :min_num_preplicas 1
+                           :leader_preference 2},
+                          ]
+       })))
 
-  (defn geo-table-clause
-    [geo-partitioning tablespace-name]
-    (if (= geo-partitioning :geo)
-      (str "TABLESPACE " tablespace-name)
-      ""))
+(defn geo-table-clause
+  [geo-partitioning tablespace-name]
+  (if (= geo-partitioning :geo)
+    (str "TABLESPACE " tablespace-name)
+    ""))
 
-  (defrecord InternalClient [isolation locking geo-partitioning]
-    c/YSQLYbClient
+(defrecord InternalClient [isolation locking geo-partitioning]
+  c/YSQLYbClient
 
-    (setup-cluster! [this test c conn-wrapper]
-      (setup-geo-partition c geo-partitioning)
+  (setup-cluster! [this test c conn-wrapper]
+    (let [tablespace-name "geo_tablespace"]
+      (info "Create tablespace " tablespace-name)
+      (setup-geo-partition c geo-partitioning tablespace-name)
       (->> (range (table-count test))
            (map table-name)
            (map (fn [table]
@@ -162,16 +165,16 @@
                                     (map (fn [i] [(col-for test i) :text])
                                          (range keys-per-row)))
                                   {:conditional? true
-                                   :table-spec   (geo-table-clause geo-partitioning)}))))
-           dorun))
+                                   :table-spec   (geo-table-clause geo-partitioning tablespace-name)}))))
+           dorun)))
 
-    (invoke-op! [this test op c conn-wrapper]
-      (let [txn (:value op)
-            use-txn? (< 1 (count txn))
-            txn' (if use-txn?
-                   (j/with-db-transaction [c c {:isolation isolation}]
-                                          (mapv (partial mop! locking c test) txn))
-                   (mapv (partial mop! locking c test) txn))]
-        (assoc op :type :ok, :value txn'))))
+  (invoke-op! [this test op c conn-wrapper]
+    (let [txn (:value op)
+          use-txn? (< 1 (count txn))
+          txn' (if use-txn?
+                 (j/with-db-transaction [c c {:isolation isolation}]
+                                        (mapv (partial mop! locking c test) txn))
+                 (mapv (partial mop! locking c test) txn))]
+      (assoc op :type :ok, :value txn'))))
 
-  (c/defclient Client InternalClient)
+(c/defclient Client InternalClient)
