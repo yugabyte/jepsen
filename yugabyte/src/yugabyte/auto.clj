@@ -514,11 +514,11 @@
     (if (clojure.string/includes? (name (:workload test)) "geo.")
       (do
         (info "Creating transactional table " :transactions_jepsen_1)
-        (yugabyte.auto/yb-admin test :create_transaction_table :transactions_jepsen_1)
-        (yugabyte.auto/yb-admin test :modify_table_placement_info :system :transactions_jepsen_1 "ybc.jepsen-1.jepsen-1a" 2)
+        (yb-admin test :create_transaction_table :transactions_jepsen_1)
+        (yb-admin test :modify_table_placement_info :system :transactions_jepsen_1 "ybc.jepsen-1.jepsen-1a" 2)
         (info "Creating transactional table " :transactions_jepsen_2)
-        (yugabyte.auto/yb-admin test :create_transaction_table :transactions_jepsen_2)
-        (yugabyte.auto/yb-admin test :modify_table_placement_info :system :transactions_jepsen_2 "ybc.jepsen-2.jepsen-2a" 2)))
+        (yb-admin test :create_transaction_table :transactions_jepsen_2)
+        (yb-admin test :modify_table_placement_info :system :transactions_jepsen_2 "ybc.jepsen-2.jepsen-2a" 2)))
     )
 
   db/LogFiles
