@@ -112,7 +112,7 @@
 (defn create-geo-tablespace
   [conn table-name replica-placement]
   (j/execute! conn
-              [(str "CREATE TABLESPACE " table-name
+              [(str "CREATE TABLESPACE " table-name " "
                     "WITH (replica_placement='" (json/write-str replica-placement) "');")]
               {:transaction? false}))
 
