@@ -200,12 +200,12 @@
                     (do
                       (info "Create table partitions for " table)
                       (c/execute! c (str "CREATE TABLE " table "_1a"
-                                         "PARTITION OF " table " (k, k2, geo_partition) "
-                                         "PRIMARY KEY (k, geo_partition) FOR VALUES IN ('1a') "
+                                         "PARTITION OF " table " (k, k2, geo_partition, "
+                                         "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('1a') "
                                          "TABLESPACE (" tablespace-name "_1a)"))
                       (c/execute! c (str "CREATE TABLE " table "_2a"
-                                         "PARTITION OF " table " (k, k2, geo_partition) "
-                                         "PRIMARY KEY (k, geo_partition) FOR VALUES IN ('2a') "
+                                         "PARTITION OF " table " (k, k2, geo_partition, "
+                                         "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('2a') "
                                          "TABLESPACE (" tablespace-name "_2a)"))))))
            dorun)))
 
