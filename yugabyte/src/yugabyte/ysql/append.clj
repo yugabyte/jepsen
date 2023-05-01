@@ -163,12 +163,18 @@
 (defn get-create-table-columns-clause
   [geo-partitioning]
   (if (= geo-partitioning :geo)
-    [[:k :int "PRIMARY KEY"]
+    [[:k :int]
      [:k2 :int]
-     [:geo_partition :varchar "PRIMARY KEY"]]
+     [:geo_partition :varchar]]
     [;[:k :int "unique"]
      [:k :int "PRIMARY KEY"]
      [:k2 :int]]))
+
+(defn get-table-spec
+  [geo-partitioning]
+  (if (= geo-partitioning :geo)
+    "PARTITION BY LIST (geo_partition)"
+    ""))
 
 (defrecord InternalClient [isolation locking geo-partitioning]
   c/YSQLYbClient
@@ -189,7 +195,7 @@
                                     (map (fn [i] [(col-for test i) :text])
                                          (range keys-per-row)))
                                   {:conditional? true
-                                   :table-spec   (str "PARTITION BY LIST (geo_partition)")}))
+                                   :table-spec   (get-table-spec geo-partitioning)}))
                   (if (= geo-partitioning :geo)
                     (do
                       (info "Create table partitions for " table)
