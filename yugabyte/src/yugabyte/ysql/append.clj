@@ -37,6 +37,12 @@
   [test k]
   (str "v" (mod k keys-per-row)))
 
+(defn get-geo-insert-column
+  [geo-partitioning v]
+  (if (= geo-partitioning :geo)
+    (str ", geo_partition"))
+    ""))
+
 (defn get-geo-insert-row
   [geo-partitioning v]
   (if (= geo-partitioning :geo)
