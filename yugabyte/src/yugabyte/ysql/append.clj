@@ -77,7 +77,7 @@
                                  " set " col " = CONCAT(" col ", ',', ?) "
                                  "where k = ?") v row])]
     (info (str "insert into " table
-               " (k, k2, " col (get-geo-insert-row geo-partitioning v) ")"
+               " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
                " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")"))
     (when (= [0] r)
       ; No rows updated
