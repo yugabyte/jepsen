@@ -54,7 +54,7 @@
 
 (defn read-primary
   "Reads a key based on primary key"
-  [geo-partitioning locking conn table row col]
+  [locking conn table row col]
   (some-> conn
           (c/query [(select-with-lock locking col table) row])
           first
@@ -74,7 +74,8 @@
       ; No rows updated
       (c/execute! conn
                   [(str "insert into " table
-                        " (k, k2, " col (get-geo-insert-row geo-partitioning v) ") values (?, ?, ?)") row row v]))
+                        " (k, k2, " col (get-geo-insert-row geo-partitioning v) ")"
+                        " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")") row row v]))
     v))
 
 (defn read-secondary
@@ -113,7 +114,7 @@
         geo? ()]
     [f k (case f
            :r
-           (read-primary geo-partitioning locking conn table row col)
+           (read-primary locking conn table row col)
 
            :append
            (append-primary! geo-partitioning conn table row col v))]))
