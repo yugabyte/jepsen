@@ -165,7 +165,7 @@
   (if (= geo-partitioning :geo)
     [[:k :int "PRIMARY KEY"]
      [:k2 :int]
-     [:geo_partition :varchar]]
+     [:geo_partition :varchar "PRIMARY KEY"]]
     [;[:k :int "unique"]
      [:k :int "PRIMARY KEY"]
      [:k2 :int]]))
