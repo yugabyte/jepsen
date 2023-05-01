@@ -70,7 +70,6 @@
   (let [r (c/execute! conn [(str "update " table
                                  " set " col " = CONCAT(" col ", ',', ?) "
                                  "where k = ?") v row])]
-    (info geo-partitioning conn table row col v)
     (when (= [0] r)
       ; No rows updated
       (c/execute! conn
@@ -112,7 +111,6 @@
   (let [table (table-for test k)
         row (row-for test k)
         col (col-for test k)]
-    (info geo-partitioning locking conn test [f k v])
     [f k (case f
            :r
            (read-primary locking conn table row col)
@@ -194,6 +192,7 @@
                                    :table-spec   (str "PARTITION BY LIST (geo_partition)")}))
                   (if (= geo-partitioning :geo)
                     (do
+                      (info "Create table partitions for " table)
                       (c/execute! c (str "CREATE TABLE " table "_1a"
                                          "PARTITION OF " table " (k, k2, geo_partition) "
                                          "PRIMARY KEY (k) FOR VALUES IN ('1a') "
