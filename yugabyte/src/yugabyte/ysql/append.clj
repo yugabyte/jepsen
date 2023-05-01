@@ -43,14 +43,6 @@
     (str ", geo_partition")
     ""))
 
-(defn get-geo-insert-row
-  [geo-partitioning v]
-  (if (= geo-partitioning :geo)
-    (str ", " (if (mod v 2)
-                "'1a'"
-                "'2a'"))
-    ""))
-
 (defn select-with-lock
   [locking col table]
   (let [clause (if (= :pessimistic locking)
@@ -81,10 +73,20 @@
                " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")"))
     (when (= [0] r)
       ; No rows updated
-      (c/execute! conn
-                  [(str "insert into " table
-                        " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
-                        " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")") row row v]))
+      (if (= geo-partitioning :geo)
+        (if (mod v 2)
+          (c/execute! conn
+                      [(str "insert into " table
+                            " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
+                            " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")") row row v "'1a'"])
+          (c/execute! conn
+                      [(str "insert into " table
+                            " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
+                            " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")") row row v "'2a'"]))
+        (c/execute! conn
+                    [(str "insert into " table
+                          " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
+                          " values (?, ?, ?)") row row v])))
     v))
 
 (defn read-secondary
@@ -118,8 +120,8 @@
   micro-op."
   [geo-partitioning locking conn test [f k v]]
   (let [table (table-for test k)
-        row (row-for test k)
-        col (col-for test k)]
+        row   (row-for test k)
+        col   (col-for test k)]
     [f k (case f
            :r
            (read-primary locking conn table row col)
@@ -219,12 +221,12 @@
            dorun)))
 
   (invoke-op! [this test op c conn-wrapper]
-    (let [txn (:value op)
+    (let [txn      (:value op)
           use-txn? (< 1 (count txn))
-          txn' (if use-txn?
-                 (j/with-db-transaction [c c {:isolation isolation}]
-                                        (mapv (partial mop! geo-partitioning locking c test) txn))
-                 (mapv (partial mop! geo-partitioning locking c test) txn))]
+          txn'     (if use-txn?
+                     (j/with-db-transaction [c c {:isolation isolation}]
+                                            (mapv (partial mop! geo-partitioning locking c test) txn))
+                     (mapv (partial mop! geo-partitioning locking c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
