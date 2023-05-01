@@ -38,7 +38,7 @@
   (str "v" (mod k keys-per-row)))
 
 (defn get-geo-insert-column
-  [geo-partitioning v]
+  [geo-partitioning]
   (if (= geo-partitioning :geo)
     (str ", geo_partition"))
     "")
@@ -83,7 +83,7 @@
       ; No rows updated
       (c/execute! conn
                   [(str "insert into " table
-                        " (k, k2, " col (get-geo-insert-row geo-partitioning v) ")"
+                        " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
                         " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")") row row v]))
     v))
 
