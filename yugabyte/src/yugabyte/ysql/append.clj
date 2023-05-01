@@ -155,7 +155,7 @@
                              :region            :jepsen-2
                              :zone              :jepsen-2a
                              :min_num_replicas  1
-                             :leader_preference 2
+                             :leader_preference 1
                              }
                             ]
          }))))
