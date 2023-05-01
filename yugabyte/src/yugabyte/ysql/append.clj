@@ -200,7 +200,7 @@
                                          "PARTITION OF " table " (k, k2, geo_partition) "
                                          "PRIMARY KEY (k) FOR VALUES IN ('2a') "
                                          "TABLESPACE (" tablespace-name "_2a)")))))))
-           dorun)))
+           dorun))
 
   (invoke-op! [this test op c conn-wrapper]
     (let [txn (:value op)
