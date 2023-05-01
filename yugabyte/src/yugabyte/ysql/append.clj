@@ -40,7 +40,7 @@
 (defn get-geo-insert-column
   [geo-partitioning]
   (if (= geo-partitioning :geo)
-    (str ", geo_partition"))
+    (str ", geo_partition")
     "")
 
 (defn get-geo-insert-row
