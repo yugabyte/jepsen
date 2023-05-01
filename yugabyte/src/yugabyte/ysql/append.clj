@@ -41,7 +41,7 @@
   [geo-partitioning v]
   (if (= geo-partitioning :geo)
     (str ", geo_partition"))
-    ""))
+    "")
 
 (defn get-geo-insert-row
   [geo-partitioning v]
