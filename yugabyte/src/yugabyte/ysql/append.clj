@@ -51,7 +51,7 @@
     (str "select (" col ") from " table " where k = ?" clause)))
 
 (defn insert-primary-geo
-  [conn table geo-partitioning row v geo-row]
+  [conn table geo-partitioning col row v geo-row]
   (c/execute! conn
               [(str "insert into " table
                     " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
@@ -79,8 +79,8 @@
       ; No rows updated
       (if (= geo-partitioning :geo)
         (if (mod v 2)
-          (insert-primary-geo conn table geo-partitioning row v "'1a'")
-          (insert-primary-geo conn table geo-partitioning row v "'2a'"))
+          (insert-primary-geo conn table geo-partitioning col row v "'1a'")
+          (insert-primary-geo conn table geo-partitioning col row v "'2a'"))
         (c/execute! conn
                     [(str "insert into " table
                           " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
