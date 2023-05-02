@@ -50,6 +50,13 @@
                  "")]
     (str "select (" col ") from " table " where k = ?" clause)))
 
+(defn insert-primary-geo
+  [conn table geo-partitioning row v geo-row]
+  (c/execute! conn
+              [(str "insert into " table
+                    " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
+                    " values (?, ?, ?" (if (= geo-partitioning :geo) ", ?" "") ")") row row v geo-row]))
+
 (defn read-primary
   "Reads a key based on primary key"
   [locking conn table row col]
@@ -68,21 +75,12 @@
   (let [r (c/execute! conn [(str "update " table
                                  " set " col " = CONCAT(" col ", ',', ?) "
                                  "where k = ?") v row])]
-    (info (str "insert into " table
-               " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
-               " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")"))
     (when (= [0] r)
       ; No rows updated
       (if (= geo-partitioning :geo)
         (if (mod v 2)
-          (c/execute! conn
-                      [(str "insert into " table
-                            " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
-                            " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")") row row v "'1a'"])
-          (c/execute! conn
-                      [(str "insert into " table
-                            " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
-                            " values (?, ?, ?" (if (= geo-partitioning :geo) ",?" "") ")") row row v "'2a'"]))
+          (insert-primary-geo conn table geo-partitioning row v "'1a'")
+          (insert-primary-geo conn table geo-partitioning row v "'2a'"))
         (c/execute! conn
                     [(str "insert into " table
                           " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
@@ -209,11 +207,12 @@
                                    :table-spec   (get-table-spec geo-partitioning)}))
                   (if (= geo-partitioning :geo)
                     (do
-                      (info "Create table partitions for " table)
+                      (info "Create table partitions for " table "_1a for '1a'")
                       (c/execute! c (str "CREATE TABLE " table "_1a "
                                          "PARTITION OF " table " (k, k2, geo_partition, "
                                          "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('1a') "
                                          "TABLESPACE " tablespace-name "_1a"))
+                      (info "Create table partitions for " table "_2a for '2a'")
                       (c/execute! c (str "CREATE TABLE " table "_2a "
                                          "PARTITION OF " table " (k, k2, geo_partition, "
                                          "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('2a') "
