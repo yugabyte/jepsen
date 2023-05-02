@@ -142,7 +142,7 @@
         conn
         (str tablespace-name "_1a")
         {
-         :num_replicas     3
+         :num_replicas     2
          :placement_blocks [
                             {
                              :cloud             :ybc
@@ -157,7 +157,7 @@
         conn
         (str tablespace-name "_2a")
         {
-         :num_replicas     3
+         :num_replicas     2
          :placement_blocks [
                             {
                              :cloud             :ybc
