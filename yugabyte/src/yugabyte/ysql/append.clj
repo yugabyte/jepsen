@@ -186,7 +186,7 @@
     ""))
 
 (defn create-partitioning-table
-  [table tablespace-name postfix]
+  [c table tablespace-name postfix]
   (info "Create table partitions for " table "_" postfix " for '" postfix "'")
   (c/execute! c (str "CREATE TABLE " table "_" postfix " "
                      "PARTITION OF " table " (k, k2, geo_partition, "
@@ -215,8 +215,8 @@
                                    :table-spec   (get-table-spec geo-partitioning)}))
                   (if (= geo-partitioning :geo)
                     (do
-                      (create-partitioning-table table tablespace-name "1a")
-                      (create-partitioning-table table tablespace-name "2a")))))
+                      (create-partitioning-table c table tablespace-name "1a")
+                      (create-partitioning-table c table tablespace-name "2a")))))
            dorun)))
 
   (invoke-op! [this test op c conn-wrapper]
