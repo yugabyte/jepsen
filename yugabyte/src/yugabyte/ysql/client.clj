@@ -73,8 +73,10 @@
 (defn execute!
   "Like jdbc execute!, but includes a default timeout and (optionally) :op-index comment."
   ([op conn sql-params]
+   (info sql-params)
    (execute! conn (append-op-index op sql-params)))
   ([conn sql-params]
+   (info sql-params)
    (j/execute! conn sql-params {:timeout default-timeout})))
 
 (defn select-first-row
