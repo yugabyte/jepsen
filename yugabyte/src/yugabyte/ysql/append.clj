@@ -37,18 +37,18 @@
   [test k]
   (str "v" (mod k keys-per-row)))
 
-(defn get-geo-insert-column
-  [geo-partitioning]
-  (if (= geo-partitioning :geo)
-    (str ", geo_partition")
-    ""))
-
-(defn select-with-lock
+(defn select-with-optional-lock
   [locking col table]
   (let [clause (if (= :pessimistic locking)
                  (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
                  "")]
     (str "select (" col ") from " table " where k = ?" clause)))
+
+(defn get-geo-insert-column
+  [geo-partitioning]
+  (if (= geo-partitioning :geo)
+    (str ", geo_partition")
+    ""))
 
 (defn insert-primary-geo
   [conn table geo-partitioning col row v geo-row]
@@ -61,7 +61,7 @@
   "Reads a key based on primary key"
   [locking conn table row col]
   (some-> conn
-          (c/query [(select-with-lock locking col table) row])
+          (c/query [(select-with-optional-lock locking col table) row])
           first
           (get (keyword col))
           (str/split #",")
@@ -185,6 +185,14 @@
     "PARTITION BY LIST (geo_partition)"
     ""))
 
+(defn create-partitioning-table
+  [table tablespace-name postfix]
+  (info "Create table partitions for " table "_" postfix " for '" postfix "'")
+  (c/execute! c (str "CREATE TABLE " table "_" postfix " "
+                     "PARTITION OF " table " (k, k2, geo_partition, "
+                     "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('" postfix "') "
+                     "TABLESPACE " tablespace-name "_" postfix)))
+
 (defrecord InternalClient [isolation locking geo-partitioning]
   c/YSQLYbClient
 
@@ -207,16 +215,8 @@
                                    :table-spec   (get-table-spec geo-partitioning)}))
                   (if (= geo-partitioning :geo)
                     (do
-                      (info "Create table partitions for " table "_1a for '1a'")
-                      (c/execute! c (str "CREATE TABLE " table "_1a "
-                                         "PARTITION OF " table " (k, k2, geo_partition, "
-                                         "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('1a') "
-                                         "TABLESPACE " tablespace-name "_1a"))
-                      (info "Create table partitions for " table "_2a for '2a'")
-                      (c/execute! c (str "CREATE TABLE " table "_2a "
-                                         "PARTITION OF " table " (k, k2, geo_partition, "
-                                         "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('2a') "
-                                         "TABLESPACE " tablespace-name "_2a"))))))
+                      (create-partitioning-table table tablespace-name "1a")
+                      (create-partitioning-table table tablespace-name "2a")))))
            dorun)))
 
   (invoke-op! [this test op c conn-wrapper]
