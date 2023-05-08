@@ -175,7 +175,7 @@
 (defn get-create-table-columns-clause
   [geo-partitioning]
   (if (= geo-partitioning :geo)
-    [[:k :int]
+    [[:k :int "PRIMARY KEY"]
      [:k2 :int]
      ;[:geo_partition :varchar]
      ]
