@@ -477,6 +477,8 @@
             ce-tserver-bin
             (ce-shared-opts node)
             :--tserver_master_addrs (master-addresses test)
+
+            :--sql_log_statement :all
             ; Tracing
             :--enable_tracing
             :--rpc_slow_query_threshold_ms 1000
