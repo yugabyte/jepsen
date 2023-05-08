@@ -83,7 +83,7 @@
       ;    (insert-primary-geo conn table geo-partitioning col row v "2a"))
         (c/execute! conn
                     [(str "insert into " table
-                          " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
+                          " (k, k2, " col ")"
                           " values (?, ?, ?)") row row v]))
     ;)
     v))
