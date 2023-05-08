@@ -85,7 +85,7 @@
                     [(str "insert into " table
                           " (k, k2, " col ")"
                           " values (?, ?, ?)") row row v]))
-    ;)
+    )
     v))
 
 (defn read-secondary
