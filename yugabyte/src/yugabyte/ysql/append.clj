@@ -77,10 +77,10 @@
                                  "where k = ?") v row])]
     (when (= [0] r)
       ; No rows updated
-      ;(if (= geo-partitioning :geo)
-      ;  (if (mod v 2)
-      ;    (insert-primary-geo conn table geo-partitioning col row v "1a")
-      ;    (insert-primary-geo conn table geo-partitioning col row v "2a"))
+      (if (= geo-partitioning :geo)
+        (if (mod v 2)
+          (insert-primary-geo conn table geo-partitioning col row v "1a")
+          (insert-primary-geo conn table geo-partitioning col row v "2a"))
         (c/execute! conn
                     [(str "insert into " table
                           " (k, k2, " col ")"
