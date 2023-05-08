@@ -459,6 +459,7 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--sql_log_statement :all
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
