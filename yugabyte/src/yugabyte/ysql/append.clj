@@ -55,7 +55,7 @@
   (c/execute! conn
               [(str "insert into " table
                     " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
-                    " values (?, ?, ?" (if (= geo-partitioning :geo) ", ?" "") ")") row row v geo-row]))
+                    " values (?, ?, ?, ?)") row row v geo-row]))
 
 (defn read-primary
   "Reads a key based on primary key"
