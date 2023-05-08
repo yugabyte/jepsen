@@ -184,7 +184,8 @@
 (defn get-table-spec
   [geo-partitioning]
   (if (= geo-partitioning :geo)
-    "PARTITION BY LIST (geo_partition)"
+    ""
+    ;"PARTITION BY LIST (geo_partition)"
     ""))
 
 (defn create-partitioning-table
@@ -216,10 +217,11 @@
                                          (range keys-per-row)))
                                   {:conditional? true
                                    :table-spec   (get-table-spec geo-partitioning)}))
-                  (if (= geo-partitioning :geo)
-                    (do
-                      (create-partitioning-table c table tablespace-name "1a")
-                      (create-partitioning-table c table tablespace-name "2a")))))
+                  ;(if (= geo-partitioning :geo)
+                  ;  (do
+                  ;    (create-partitioning-table c table tablespace-name "1a")
+                  ;    (create-partitioning-table c table tablespace-name "2a")))
+                  ))
            dorun)))
 
   (invoke-op! [this test op c conn-wrapper]
