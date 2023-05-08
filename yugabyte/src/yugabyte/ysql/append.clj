@@ -178,7 +178,7 @@
     [[:k :int]
      [:k2 :int]
      [:geo_partition :varchar]
-     "PRIMARY KEY (k, geo_partition)"]
+     ["PRIMARY KEY (k, geo_partition)"] ]
     [;[:k :int "unique"]
      [:k :int "PRIMARY KEY"]
      [:k2 :int]]))
