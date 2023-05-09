@@ -462,7 +462,7 @@
             (master-tserver-experimental-tuning-flags test)
             ;(master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            ;(master-tserver-geo-partitioning-flags test node (:nodes test))
+            (master-tserver-geo-partitioning-flags test node (:nodes test))
             (master-api-opts (:api test) node)
             )))
 
@@ -482,7 +482,7 @@
             (master-tserver-experimental-tuning-flags test)
             ;(master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            ;(master-tserver-geo-partitioning-flags test node (:nodes test))
+            (master-tserver-geo-partitioning-flags test node (:nodes test))
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
