@@ -186,7 +186,6 @@
 (defn get-table-spec
   [geo-partitioning]
   (if (= geo-partitioning :geo)
-    ""
     "PARTITION BY LIST (geo_partition)"
     ""))
 
