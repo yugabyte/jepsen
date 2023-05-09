@@ -187,7 +187,7 @@
   [geo-partitioning]
   (if (= geo-partitioning :geo)
     ""
-    ;"PARTITION BY LIST (geo_partition)"
+    "PARTITION BY LIST (geo_partition)"
     ""))
 
 (defn create-partitioning-table
@@ -196,7 +196,7 @@
   (c/execute! c (str "CREATE TABLE " table "_" postfix " "
                      "PARTITION OF " table " (k, k2, geo_partition, "
                      "PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('" postfix "') "
-                     ;"TABLESPACE " tablespace-name "_" postfix
+                     "TABLESPACE " tablespace-name "_" postfix
                      )))
 
 (defrecord InternalClient [isolation locking geo-partitioning]
@@ -205,7 +205,7 @@
   (setup-cluster! [this test c conn-wrapper]
     (let [tablespace-name "geo_tablespace"]
       (info "Create tablespace " tablespace-name)
-      ;(setup-geo-partition c geo-partitioning tablespace-name)
+      (setup-geo-partition c geo-partitioning tablespace-name)
       (->> (range (table-count test))
            (map table-name)
            (map (fn [table]
@@ -219,10 +219,10 @@
                                          (range keys-per-row)))
                                   {:conditional? true
                                    :table-spec   (get-table-spec geo-partitioning)}))
-                  ;(if (= geo-partitioning :geo)
-                  ;  (do
-                  ;    (create-partitioning-table c table tablespace-name "1a")
-                  ;    (create-partitioning-table c table tablespace-name "2a")))
+                  (if (= geo-partitioning :geo)
+                    (do
+                      (create-partitioning-table c table tablespace-name "1a")
+                      (create-partitioning-table c table tablespace-name "2a")))
                   ))
            dorun)))
 
