@@ -84,9 +84,7 @@
         (c/execute! conn
                     [(str "insert into " table
                           " (k, k2, " col ")"
-                          " values (?, ?, ?)") row row v]))
-    )
-    v))
+                          " values (?, ?, ?)") row row v]))) v))
 
 (defn read-secondary
   "Reads a key based on a predicate over a secondary key, k2"
@@ -119,8 +117,8 @@
   micro-op."
   [geo-partitioning locking conn test [f k v]]
   (let [table (table-for test k)
-        row   (row-for test k)
-        col   (col-for test k)]
+        row (row-for test k)
+        col (col-for test k)]
     [f k (case f
            :r
            (read-primary locking conn table row col)
@@ -228,12 +226,12 @@
            dorun)))
 
   (invoke-op! [this test op c conn-wrapper]
-    (let [txn      (:value op)
+    (let [txn (:value op)
           use-txn? (< 1 (count txn))
-          txn'     (if use-txn?
-                     (j/with-db-transaction [c c {:isolation isolation}]
-                                            (mapv (partial mop! geo-partitioning locking c test) txn))
-                     (mapv (partial mop! geo-partitioning locking c test) txn))]
+          txn' (if use-txn?
+                 (j/with-db-transaction [c c {:isolation isolation}]
+                                        (mapv (partial mop! geo-partitioning locking c test) txn))
+                 (mapv (partial mop! geo-partitioning locking c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
