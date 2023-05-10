@@ -57,6 +57,13 @@
                     " (k, k2, " col (get-geo-insert-column geo-partitioning) ")"
                     " values (?, ?, ?, ?)") row row v geo-row]))
 
+(defn insert-primary
+  [conn table col row v]
+  (c/execute! conn
+              [(str "insert into " table
+                    " (k, k2, " col ")"
+                    " values (?, ?, ?)") row row v]))
+
 (defn read-primary
   "Reads a key based on primary key"
   [locking conn table row col]
@@ -81,10 +88,7 @@
         (if (mod v 2)
           (insert-primary-geo conn table geo-partitioning col row v "1a")
           (insert-primary-geo conn table geo-partitioning col row v "2a"))
-        (c/execute! conn
-                    [(str "insert into " table
-                          " (k, k2, " col ")"
-                          " values (?, ?, ?)") row row v]))) v))
+        (insert-primary conn table col row v))) v))
 
 (defn read-secondary
   "Reads a key based on a predicate over a secondary key, k2"
@@ -127,11 +131,10 @@
            (append-primary! geo-partitioning conn table row col v))]))
 
 (defn create-geo-tablespace
-  [conn table-name replica-placement]
-  (info (str "CREATE TABLESPACE " table-name " "
-             "WITH (replica_placement='" (json/write-str replica-placement) "');"))
+  [conn tablespace-name replica-placement]
+  (info "Creating tablespace" tablespace-name)
   (j/execute! conn
-              [(str "CREATE TABLESPACE " table-name " "
+              [(str "CREATE TABLESPACE " tablespace-name " "
                     "WITH (replica_placement='" (json/write-str replica-placement) "');")]
               {:transaction? false}))
 
@@ -175,9 +178,7 @@
   (if (= geo-partitioning :geo)
     [[:k :int]
      [:k2 :int]
-     [:geo_partition :varchar]
-     ;["PRIMARY KEY (k, geo_partition)"]
-     ]
+     [:geo_partition :varchar]]
     [;[:k :int "unique"]
      [:k :int "PRIMARY KEY"]
      [:k2 :int]]))
@@ -194,7 +195,6 @@
   (c/execute! c (str "CREATE TABLE " table "_" postfix " "
                      "PARTITION OF " table " (k, k2, geo_partition"
                      ", PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('" postfix "') "
-                     ;") FOR VALUES IN ('" postfix "') "
                      ;"TABLESPACE " tablespace-name "_" postfix
                      )))
 
