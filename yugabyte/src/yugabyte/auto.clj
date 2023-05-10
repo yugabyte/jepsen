@@ -514,14 +514,14 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    ;(if (clojure.string/includes? (name (:workload test)) "geo.")
-    ;  (do
-    ;    (info "Creating transactional table " :transactions_jepsen_1)
-    ;    (yb-admin test :create_transaction_table :transactions_jepsen_1)
-    ;    (yb-admin test :modify_table_placement_info :system :transactions_jepsen_1 "ybc.jepsen-1.jepsen-1a" 2)
-    ;    (info "Creating transactional table " :transactions_jepsen_2)
-    ;    (yb-admin test :create_transaction_table :transactions_jepsen_2)
-    ;    (yb-admin test :modify_table_placement_info :system :transactions_jepsen_2 "ybc.jepsen-2.jepsen-2a" 2)))
+    (if (clojure.string/includes? (name (:workload test)) "geo.")
+      (do
+        (info "Creating transactional table " :transactions_jepsen_1)
+        (yb-admin test :create_transaction_table :transactions_jepsen_1)
+        (yb-admin test :modify_table_placement_info :system :transactions_jepsen_1 "ybc.jepsen-1.jepsen-1a" 2)
+        (info "Creating transactional table " :transactions_jepsen_2)
+        (yb-admin test :create_transaction_table :transactions_jepsen_2)
+        (yb-admin test :modify_table_placement_info :system :transactions_jepsen_2 "ybc.jepsen-2.jepsen-2a" 2)))
     )
 
   db/LogFiles
