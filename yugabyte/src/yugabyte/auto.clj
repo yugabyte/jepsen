@@ -459,7 +459,7 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
-            :--auto_create_local_transaction_tables :false
+            :--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             ;(master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
