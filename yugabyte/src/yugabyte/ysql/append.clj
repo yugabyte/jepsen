@@ -79,15 +79,17 @@
 (defn append-primary!
   "Writes a key based on primary key."
   [geo-partitioning conn table row col v]
-  (let [r (c/execute! conn [(str "update " table
-                                 " set " col " = CONCAT(" col ", ',', ?) "
-                                 "where k = ?") v row])]
+  (let [r (if (= geo-partitioning :geo)
+            (c/execute! conn [(str "update " table
+                                   " set " col " = CONCAT(" col ", ',', ?), geo_partition = '" (mod v 2) "a' "
+                                   "where k = ?") v row])
+            (c/execute! conn [(str "update " table
+                                   " set " col " = CONCAT(" col ", ',', ?) "
+                                   "where k = ?") v row])) ]
     (when (= [0] r)
       ; No rows updated
       (if (= geo-partitioning :geo)
-        (if (mod v 2)
-          (insert-primary-geo conn table geo-partitioning col row v "1a")
-          (insert-primary-geo conn table geo-partitioning col row v "2a"))
+        (insert-primary-geo conn table geo-partitioning col row v (str (mod v 2) "a"))
         (insert-primary conn table col row v))) v))
 
 (defn read-secondary
