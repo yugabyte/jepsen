@@ -64,6 +64,12 @@
                     " (k, k2, " col ")"
                     " values (?, ?, ?)") row row v]))
 
+(defn geo-row-update
+  [geo-partitioning v]
+  (if (= geo-partitioning :geo)
+    (str ", geo_partition = '" (mod v 2) "a'")
+    ""))
+
 (defn read-primary
   "Reads a key based on primary key"
   [locking conn table row col]
@@ -79,13 +85,9 @@
 (defn append-primary!
   "Writes a key based on primary key."
   [geo-partitioning conn table row col v]
-  (let [r (if (= geo-partitioning :geo)
-            (c/execute! conn [(str "update " table
-                                   " set " col " = CONCAT(" col ", ',', ?), geo_partition = '" (mod v 2) "a' "
-                                   "where k = ?") v row])
-            (c/execute! conn [(str "update " table
-                                   " set " col " = CONCAT(" col ", ',', ?) "
-                                   "where k = ?") v row])) ]
+  (let [r (c/execute! conn [(str "update " table
+                                 " set " col " = CONCAT(" col ", ',', ?)" (geo-row-update geo-partitioning v) " "
+                                 "where k = ?") v row])]
     (when (= [0] r)
       ; No rows updated
       (if (= geo-partitioning :geo)
