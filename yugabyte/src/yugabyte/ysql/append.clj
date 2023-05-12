@@ -199,8 +199,7 @@
   (c/execute! c (str "CREATE TABLE " table "_" postfix " "
                      "PARTITION OF " table " (k, k2, geo_partition"
                      ", PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('" postfix "') "
-                     "TABLESPACE " tablespace-name "_" postfix
-                     )))
+                     "TABLESPACE " tablespace-name "_" postfix)))
 
 (defrecord InternalClient [isolation locking geo-partitioning]
   c/YSQLYbClient
