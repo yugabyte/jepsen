@@ -366,6 +366,11 @@ def parse_args():
         action='store_true',
         help='Enable clock skew nemesis. This will not work on LXC.')
     parser.add_argument(
+        '--skip_unknown_results_threshold',
+        type=int,
+        default=0,
+        help='Skip reporting results after threshold of unknown results if they occurred.')
+    parser.add_argument(
         '--concurrency',
         default='4n',
         help='Concurrency to specify, e.g. 2n, 4n, or 5n, where n means the number of nodes.')
@@ -569,22 +574,23 @@ def main():
 
     logging.warning(f"Skipped workloads because of version incompatibility {workloads_to_skip}")
 
-    logging.info("Sending JUnit XML report")
-    ts = TestSuite(f"Jepsen {nemeses.replace(',', '-')} {version}", test_cases.values())
-    if args.reportportal_base_url and args.reportportal_project_name and args.reportportal_api_token:
-        send_report_to_reportportal(f"jepsen-junit-{nemeses.replace(',', '-')}.xml",
-                                    to_xml_report_string([ts]),
-                                    args.reportportal_base_url,
-                                    args.reportportal_project_name,
-                                    args.reportportal_api_token,
-                                    version,
-                                    args.build_url)
-    else:
-        logging.warning("Skipped ReportPortal reporting due to missing args")
+    if args.skip_unknown_results_threshold == 0 or len(not_good_tests) < args.skip_unknown_results_threshold:
+        logging.info("Sending JUnit XML report")
+        ts = TestSuite(f"Jepsen {nemeses.replace(',', '-')} {version}", test_cases.values())
+        if args.reportportal_base_url and args.reportportal_project_name and args.reportportal_api_token:
+            send_report_to_reportportal(f"jepsen-junit-{nemeses.replace(',', '-')}.xml",
+                                        to_xml_report_string([ts]),
+                                        args.reportportal_base_url,
+                                        args.reportportal_project_name,
+                                        args.reportportal_api_token,
+                                        version,
+                                        args.build_url)
+        else:
+            logging.warning("Skipped ReportPortal reporting due to missing args")
 
-    logging.info("Storing JUnit XML reports locally")
-    with open(f"jepsen-junit-{nemeses.replace(',', '-')}.xml", "w") as xml_report:
-        xml_report.write(to_xml_report_string([ts]))
+        logging.info("Storing JUnit XML reports locally")
+        with open(f"jepsen-junit-{nemeses.replace(',', '-')}.xml", "w") as xml_report:
+            xml_report.write(to_xml_report_string([ts]))
 
     if not_good_tests:
         exit(1)
