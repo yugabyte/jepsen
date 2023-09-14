@@ -24,27 +24,13 @@
 (def max-retry-attempts "Maximum number of attempts to be performed by with-retry" 30)
 (def max-delay-between-retries-ms "Maximum delay between retries for with-retry" 200)
 
-(defn db-test-spec
-  "Assemble a JDBC connection specification for a given Jepsen node."
-  [node]
-  {:dbtype         "postgresql"
-   :dbname         "postgres"
-   :classname      "org.postgresql.Driver"
-   :host           (name node)
-   :port           ysql-port
-   :user           "postgres"
-   :password       ""
-   :loginTimeout   (/ default-timeout 1000)
-   :connectTimeout (/ default-timeout 1000)
-   :socketTimeout  (/ default-timeout 1000)})
-
 
 
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
-  [node]
+  [dbname node]
   {:dbtype         "postgresql"
-   :dbname         "jepsen"
+   :dbname         dbname
    :classname      "org.postgresql.Driver"
    :host           (name node)
    :port           ysql-port
@@ -123,13 +109,13 @@
 
 (defn open-conn
   "Opens a connection to the given node."
-  [spec-fn node]
+  [dbname node]
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
-                (info "Connection" (spec-fn))
+                (info "Connection" dbname)
                 (util/retry 0.1
-                            (let [spec (spec-fn node)
+                            (let [spec (db-spec dbname node)
                                   conn (j/get-connection spec)
                                   spec' (j/add-connection spec conn)]
                               (.setTransactionIsolation conn conn-isolation-level)
@@ -152,7 +138,7 @@
   [node]
   (try+
     (-> node
-        (open-conn db-test-spec)
+        (open-conn "postgres")
         close-conn)
     (catch [:type :connection-timed-out] e
       (throw+ {:type :jepsen.db/setup-failed}))))
@@ -163,7 +149,7 @@
   (rc/open!
     (rc/wrapper
       {:name  node
-       :open  (partial open-conn db-spec node)
+       :open  (partial open-conn "jepsen" node)
        :close close-conn
        ; Do not log intermediate reconnection errors (if the reconnect fails, we'll still get it)
        :log?  false})))
