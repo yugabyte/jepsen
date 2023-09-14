@@ -150,8 +150,9 @@
   process if the cluster looks broken. Hack hack hack."
   [node]
   (try+
-    (open-conn db-test-spec node)
-    (close-conn node)
+    (-> node
+        (open-conn db-test-spec)
+        close-conn)
     (catch [:type :connection-timed-out] e
       (throw+ {:type :jepsen.db/setup-failed}))))
 
