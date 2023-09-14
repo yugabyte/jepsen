@@ -123,12 +123,13 @@
 
 (defn open-conn
   "Opens a connection to the given node."
-  [spec node]
+  [spec-fn node]
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
+                (info "Connection" (spec-fn))
                 (util/retry 0.1
-                            (let [spec (spec node)
+                            (let [spec (spec-fn node)
                                   conn (j/get-connection spec)
                                   spec' (j/add-connection spec conn)]
                               (.setTransactionIsolation conn conn-isolation-level)
