@@ -137,9 +137,8 @@
   process if the cluster looks broken. Hack hack hack."
   [node]
   (try+
-    (-> node
-        (open-conn "postgres")
-        close-conn)
+    (let [conn (open-conn "postgres" node)]
+      (close-conn conn))
     (catch [:type :connection-timed-out] e
       (throw+ {:type :jepsen.db/setup-failed}))))
 
