@@ -24,6 +24,22 @@
 (def max-retry-attempts "Maximum number of attempts to be performed by with-retry" 30)
 (def max-delay-between-retries-ms "Maximum delay between retries for with-retry" 200)
 
+(defn db-test-spec
+  "Assemble a JDBC connection specification for a given Jepsen node."
+  [node]
+  {:dbtype         "postgresql"
+   :dbname         "postgres"
+   :classname      "org.postgresql.Driver"
+   :host           (name node)
+   :port           ysql-port
+   :user           "postgres"
+   :password       ""
+   :loginTimeout   (/ default-timeout 1000)
+   :connectTimeout (/ default-timeout 1000)
+   :socketTimeout  (/ default-timeout 1000)})
+
+
+
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
   [node]
@@ -84,8 +100,8 @@
    (select-first-row nil conn table-name where-clause))
   ([op conn table-name where-clause]
    (let [query-string (str "SELECT * FROM " table-name " WHERE " where-clause " LIMIT 1")
-         query-res    (query op conn query-string)
-         res          (first query-res)]
+         query-res (query op conn query-string)
+         res (first query-res)]
      res)))
 
 (defn select-single-value
@@ -95,8 +111,8 @@
    (select-single-value nil conn table-name column-kw where-clause))
   ([op conn table-name column-kw where-clause]
    (let [query-string (str "SELECT " (name column-kw) " FROM " table-name " WHERE " where-clause " LIMIT 1")
-         query-res    (query op conn query-string)
-         res          (get (first query-res) column-kw)]
+         query-res (query op conn query-string)
+         res (get (first query-res) column-kw)]
      res)))
 
 (defn in
@@ -107,13 +123,13 @@
 
 (defn open-conn
   "Opens a connection to the given node."
-  [node]
+  [spec node]
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
                 (util/retry 0.1
-                            (let [spec  (db-spec node)
-                                  conn  (j/get-connection spec)
+                            (let [spec (spec node)
+                                  conn (j/get-connection spec)
                                   spec' (j/add-connection spec conn)]
                               (.setTransactionIsolation conn conn-isolation-level)
                               (assert spec')
@@ -134,9 +150,8 @@
   process if the cluster looks broken. Hack hack hack."
   [node]
   (try+
-    (-> node
-        open-conn
-        close-conn)
+    (open-conn db-test-spec node)
+    (close-conn node)
     (catch [:type :connection-timed-out] e
       (throw+ {:type :jepsen.db/setup-failed}))))
 
@@ -146,7 +161,7 @@
   (rc/open!
     (rc/wrapper
       {:name  node
-       :open  (partial open-conn node)
+       :open  (partial open-conn db-spec node)
        :close close-conn
        ; Do not log intermediate reconnection errors (if the reconnect fails, we'll still get it)
        :log?  false})))
@@ -299,16 +314,16 @@
   few times, to raise our chances of running a test successfully."
   [& body]
   `(util/with-retry [attempts# max-retry-attempts]
-     ~@body
-     (catch org.postgresql.util.PSQLException e#
-       (let [m# (.getMessage e#)]
-         (if (or (re-find #"duplicate key value violates unique constraint" m#)
-                 (re-find #"A relation has an associated type of the same name" m#)
-                 (re-find #"Operation expired: Transaction expired" m#))
-           (do (info "Caught" m# "during DDL setup; retrying.")
-               (Thread/sleep (rand-int max-delay-between-retries-ms))
-               (~'retry (dec attempts#)))
-           (throw e#))))))
+                    ~@body
+                    (catch org.postgresql.util.PSQLException e#
+                      (let [m# (.getMessage e#)]
+                        (if (or (re-find #"duplicate key value violates unique constraint" m#)
+                                (re-find #"A relation has an associated type of the same name" m#)
+                                (re-find #"Operation expired: Transaction expired" m#))
+                          (do (info "Caught" m# "during DDL setup; retrying.")
+                              (Thread/sleep (rand-int max-delay-between-retries-ms))
+                              (~'retry (dec attempts#)))
+                          (throw e#))))))
 
 (defn with-idempotent
   "Takes a predicate on operation functions, and an op, presumably resulting
@@ -362,7 +377,7 @@
 (defn assert-involves-index
   "Verifies that executing given query uses index with the given name"
   [c query-str index-name]
-  (let [explanation     (query c (str "EXPLAIN " query-str))
+  (let [explanation (query c (str "EXPLAIN " query-str))
         explanation-str (pr-str explanation)]
     (assert
       (.contains explanation-str index-name)
@@ -414,9 +429,9 @@
   (let [inner-ctor-ns-prefix (if (qualified-symbol? inner-client-record)
                                (str (namespace inner-client-record) "/")
                                "")
-        inner-ctor-sym       (symbol (str inner-ctor-ns-prefix "->" (name inner-client-record)))
-        inner-ctor-meta      (meta (resolve inner-ctor-sym))
-        inner-ctor-args-vec  (first (:arglists inner-ctor-meta))]
+        inner-ctor-sym (symbol (str inner-ctor-ns-prefix "->" (name inner-client-record)))
+        inner-ctor-meta (meta (resolve inner-ctor-sym))
+        inner-ctor-args-vec (first (:arglists inner-ctor-meta))]
 
     ; Now we're getting to the output.
     ; We define a record with a given name extending jepsen.client/Client,
@@ -443,8 +458,8 @@
            (invoke! [~'this ~'test ~'op]
              (let [~'start-dt (yutil/current-pretty-datetime)
                    ~'op2 (with-conn [~'c ~'conn-wrapper]
-                           (with-errors ~'op
-                             (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))
+                                    (with-errors ~'op
+                                                 (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))
                    ~'op3 (assoc ~'op2 :op-timing [~'start-dt (yutil/current-pretty-datetime)])]
                ~'op3))
 
