@@ -29,9 +29,9 @@
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
   [dbname node]
-  {:dbtype         "postgresql"
+  {:dbtype         "yugabytedb"
    :dbname         dbname
-   :classname      "org.postgresql.Driver"
+   :classname      "com.yugabyte.Driver"
    :host           (name node)
    :port           ysql-port
    :user           "postgres"
