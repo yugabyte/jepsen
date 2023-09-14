@@ -180,7 +180,7 @@
           (update op :error (partial vector :batch)))
         {:type :info, :error [:batch-update m]})
 
-      org.postgresql.util.PSQLException
+      com.yugabyte.util.PSQLException
       (condp re-find m
         #"(?i)Conflicts with [- a-z]+ transaction"
         {:type :fail, :error [:conflicting-transaction m]}
@@ -301,16 +301,16 @@
   few times, to raise our chances of running a test successfully."
   [& body]
   `(util/with-retry [attempts# max-retry-attempts]
-                    ~@body
-                    (catch org.postgresql.util.PSQLException e#
-                      (let [m# (.getMessage e#)]
-                        (if (or (re-find #"duplicate key value violates unique constraint" m#)
-                                (re-find #"A relation has an associated type of the same name" m#)
-                                (re-find #"Operation expired: Transaction expired" m#))
-                          (do (info "Caught" m# "during DDL setup; retrying.")
-                              (Thread/sleep (rand-int max-delay-between-retries-ms))
-                              (~'retry (dec attempts#)))
-                          (throw e#))))))
+     ~@body
+     (catch com.yugabyte.util.PSQLException e#
+       (let [m# (.getMessage e#)]
+         (if (or (re-find #"duplicate key value violates unique constraint" m#)
+                 (re-find #"A relation has an associated type of the same name" m#)
+                 (re-find #"Operation expired: Transaction expired" m#))
+           (do (info "Caught" m# "during DDL setup; retrying.")
+               (Thread/sleep (rand-int max-delay-between-retries-ms))
+               (~'retry (dec attempts#)))
+           (throw e#))))))
 
 (defn with-idempotent
   "Takes a predicate on operation functions, and an op, presumably resulting
