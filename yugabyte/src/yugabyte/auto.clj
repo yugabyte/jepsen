@@ -100,12 +100,6 @@
          :--master_addresses (master-addresses test)
          args))
 
-(defn ysqlsh
-  "Runs a ysqlsh command on a node. Args are passed to ysqlsh."
-  [args]
-  (apply c/exec (str dir "/bin/ysqlsh")
-         args))
-
 (defn list-all-masters
   "Asks a node to list all the masters it knows about."
   [test]
