@@ -28,7 +28,7 @@
   "Assemble a JDBC connection specification for a given Jepsen node."
   [node]
   {:dbtype         "yugabytedb"
-   :dbname         "jepsen"
+   :dbname         "postgres"
    :classname      "com.yugabyte.Driver"
    :host           (name node)
    :port           ysql-port
