@@ -522,7 +522,7 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    (ysqlsh :-c "CREATE DATABASE jepsen WITH colocated = true;")
+    (ysqlsh :-c "\"CREATE DATABASE jepsen WITH colocated = true;\"")
     )
 
   db/LogFiles
