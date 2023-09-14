@@ -100,6 +100,13 @@
          :--master_addresses (master-addresses test)
          args))
 
+(defn ysqlsh
+  "Runs a ysqlsh command on a node. Args are passed to ysqlsh."
+  [test & args]
+  (apply c/exec (str dir "/bin/ysqlsh")
+         args))
+
+
 (defn list-all-masters
   "Asks a node to list all the masters it knows about."
   [test]
@@ -371,8 +378,8 @@
           geo-node-map (zipmap nodes geo-ids)
           node-id-int (get geo-node-map node)]
       (info node [:--placement_cloud :ybc
-             :--placement_region (str "jepsen-" node-id-int)
-             :--placement_zone (str "jepsen-" node-id-int "a")])
+                  :--placement_region (str "jepsen-" node-id-int)
+                  :--placement_zone (str "jepsen-" node-id-int "a")])
       [:--placement_cloud :ybc
        :--placement_region (str "jepsen-" node-id-int)
        :--placement_zone (str "jepsen-" node-id-int "a")])
@@ -515,7 +522,7 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    ; NOOP placeholder, can be used to initialize cluster for different APIs
+    (ysqlsh :-c "CREATE DATABASE jepsen WITH colocated = true;")
     )
 
   db/LogFiles
