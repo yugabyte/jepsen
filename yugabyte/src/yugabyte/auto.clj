@@ -526,7 +526,7 @@
     (let [colocated-clause (if (utils/is-test-geo-partitioned? test)
                              ""
                              " WITH colocated = true")]
-      (ysqlsh test :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))))
+      (ysqlsh test :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";")))
     )
 
   db/LogFiles
