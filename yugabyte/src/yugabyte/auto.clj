@@ -6,12 +6,13 @@
             [dom-top.core :as dt]
             [jepsen.control :as c]
             [jepsen.db :as db]
-            [jepsen.util :as util :refer [meh timeout]]
+            [jepsen.util :as util :refer [meh]]
             [jepsen.control.net :as cn]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
             [yugabyte.ycql.client :as ycql.client]
             [yugabyte.ysql.client :as ysql.client]
+            [yugabyte.utils :as utils]
             [slingshot.slingshot :refer [try+ throw+]])
   (:import jepsen.os.debian.Debian
            jepsen.os.centos.CentOS))
@@ -332,7 +333,7 @@
 (defn tserver-read-committed-flags
   "Read committed specific flags"
   [test]
-  (if (clojure.string/includes? (name (:workload test)) "rc.")
+  (if (utils/is-test-read-committed? test)
     [:--yb_enable_read_committed_isolation]
     []))
 
@@ -363,7 +364,7 @@
 (defn master-tserver-wait-on-conflict-flags
   "Pessimistic specific flags"
   [test]
-  (if (clojure.string/includes? (name (:workload test)) "pl.")
+  (if (utils/is-test-has-pessimistic-locs? test)
     [:--enable_wait_queues
      :--enable_deadlock_detection]
     []))
@@ -372,7 +373,7 @@
   "Geo partitioning specific mapping flags
   Each node will be mapped to id in [1 2] and then used in each node."
   [test node nodes]
-  (if (clojure.string/includes? (name (:workload test)) "geo.")
+  (if (utils/is-test-geo-partitioned? test)
     (let [geo-ids (map #(+ 1 (mod % 2)) (range (count nodes)))
           geo-node-map (zipmap nodes geo-ids)
           node-id-int (get geo-node-map node)]
@@ -521,9 +522,14 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    (do
-      (Thread/sleep 1000)
-      (ysqlsh :-h :n1 :-c "CREATE DATABASE jepsen WITH colocated = true;"))
+    (if (utils/is-test-geo-partitioned? test)
+      (do (info "Creating common JEPSEN database")
+          (Thread/sleep 1000)
+          (ysqlsh test :-h (cn/ip node) :-c "CREATE DATABASE jepsen;"))
+      (do (info "Creating colocated JEPSEN database")
+          (Thread/sleep 1000)
+          (ysqlsh test :-h (cn/ip node) :-c "CREATE DATABASE jepsen WITH colocated = true;"))
+      )
     )
 
   db/LogFiles
