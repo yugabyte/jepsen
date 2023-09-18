@@ -522,10 +522,11 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    (info "Creating JEPSEN database")
-    (let [colocated-clause (if (utils/is-test-geo-partitioned? test)
+    (let [colocated (and (utils/is-test-geo-partitioned? test) (> (rand) 0.5))
+          colocated-clause (if colocated
                              ""
                              " WITH colocated = true")]
+      (info "Creating JEPSEN" (if colocated "colocated" "") "database")
       (ysqlsh test :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";")))
     )
 
