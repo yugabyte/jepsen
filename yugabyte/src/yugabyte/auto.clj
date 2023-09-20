@@ -522,7 +522,7 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    (let [colocated (and (utils/is-test-geo-partitioned? test) (> (rand) 0.5))
+    (let [colocated (and (not (utils/is-test-geo-partitioned? test)) (> (rand) 0.5))
           colocated-clause (if colocated
                              ""
                              " WITH colocated = true")]
