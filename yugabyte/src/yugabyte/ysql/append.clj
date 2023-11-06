@@ -87,6 +87,7 @@
   [locking geo-partitioning conn table row col v]
   (let [_ (if (= :pessimistic locking)
             (do
+              ; Randomly evaluate SELECT FOR UPDATE in case of pessimistic locking
               (c/query conn [(select-with-optional-lock locking col table) row])
               (Thread/sleep (rand-int 2000)))
             nil)
