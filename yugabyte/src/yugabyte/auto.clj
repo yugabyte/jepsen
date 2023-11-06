@@ -389,8 +389,8 @@
           geo-node-map (zipmap nodes geo-ids)
           node-id-int (get geo-node-map node)]
       (info node [:--placement_cloud :ybc
-             :--placement_region (str "jepsen-" node-id-int)
-             :--placement_zone (str "jepsen-" node-id-int "a")])
+                  :--placement_region (str "jepsen-" node-id-int)
+                  :--placement_zone (str "jepsen-" node-id-int "a")])
       [:--placement_cloud :ybc
        :--placement_region (str "jepsen-" node-id-int)
        :--placement_zone (str "jepsen-" node-id-int "a")])
