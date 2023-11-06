@@ -320,7 +320,7 @@
    ])
 
 (defn master-tserver-packed-columns
-  [packed-columns-enabled node]
+  [packed-columns-enabled]
   (if packed-columns-enabled
     [:--ysql_enable_packed_row]
     [])
