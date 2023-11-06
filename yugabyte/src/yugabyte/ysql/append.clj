@@ -75,7 +75,10 @@
   [locking conn table row col]
   (some-> conn
           (c/query [(select-with-optional-lock locking col table) row])
-          first
+          (if (= :pessimistic locking)
+              (do (Thread/sleep (rand-int 2000)
+                                first))
+              first)
           (get (keyword col))
           (str/split #",")
           (->>                                              ; Append might generate a leading , if the row already exists
