@@ -319,7 +319,8 @@
   "API-specific options for master"
   [api node]
   (if (= api :ysql)
-    [:--use_initial_sys_catalog_snapshot]
+    [:--use_initial_sys_catalog_snapshot
+     :--ysql_enable_packed_row]
     []))
 
 (defn tserver-api-opts
@@ -327,7 +328,8 @@
   [api node]
   (if (= api :ysql)
     [:--start_pgsql_proxy
-     :--pgsql_proxy_bind_address (cn/ip node)]
+     :--pgsql_proxy_bind_address (cn/ip node)
+     :--ysql_enable_packed_row]
     []))
 
 (defn tserver-read-committed-flags
