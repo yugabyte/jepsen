@@ -192,21 +192,25 @@
   "Start both master and tserver. Only starts master if this node is a master
   node. Waits for masters and tservers."
   (info "Starting master and tserver for" (name (:api test)) "API")
-  (when (master-node? test node)
-    (start-master! db test node)
-    (await-masters test))
+  (let [packed-columns-enabled (> (rand) 0.5)]
+    (assoc test :packed-columns-enabled packed-columns-enabled)
+    (info "Configuring " (if packed-columns-enabled "with" "without") " packed columns")
 
-  (start-tserver! db test node)
-  (await-tservers test)
+    (when (master-node? test node)
+      (start-master! db test node)
+      (await-masters test))
 
-  (case (:api test)
-    :ycql
-    (ycql.client/await-setup node)
+    (start-tserver! db test node)
+    (await-tservers test)
 
-    :ysql
-    (ysql.client/check-setup-successful node))
+    (case (:api test)
+      :ycql
+      (ycql.client/await-setup node)
 
-  :started)
+      :ysql
+      (ysql.client/check-setup-successful node))
+
+    :started))
 
 (defn stop! [db test node]
   "Stop both master and tserver. Only stops master if this node needs to."
@@ -315,12 +319,18 @@
    :--callhome_enabled=false
    ])
 
+(defn master-tserver-packed-columns
+  [packed-columns-enabled node]
+  (if packed-columns-enabled
+    [:--ysql_enable_packed_row]
+    [])
+  )
+
 (defn master-api-opts
   "API-specific options for master"
   [api node]
   (if (= api :ysql)
-    [:--use_initial_sys_catalog_snapshot
-     :--ysql_enable_packed_row]
+    [:--use_initial_sys_catalog_snapshot]
     []))
 
 (defn tserver-api-opts
@@ -328,8 +338,7 @@
   [api node]
   (if (= api :ysql)
     [:--start_pgsql_proxy
-     :--pgsql_proxy_bind_address (cn/ip node)
-     :--ysql_enable_packed_row]
+     :--pgsql_proxy_bind_address (cn/ip node)]
     []))
 
 (defn tserver-read-committed-flags
@@ -472,6 +481,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
+            (master-tserver-packed-columns (:packed-columns-enabled test))
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (master-api-opts (:api test) node)
             )))
@@ -492,6 +502,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
+            (master-tserver-packed-columns (:packed-columns-enabled test))
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
