@@ -188,29 +188,33 @@
         #"Not the leader" (retry (dec tries))
         (throw e)))))
 
+(defn define-global-random-flags
+  [test]
+  (let [packed-columns-enabled (> (rand) 0.5)]
+    (info "Configuring " (if packed-columns-enabled "with" "without") " packed columns")
+    (assoc test :packed-columns-enabled packed-columns-enabled)))
+
 (defn start! [db test node]
   "Start both master and tserver. Only starts master if this node is a master
   node. Waits for masters and tservers."
   (info "Starting master and tserver for" (name (:api test)) "API")
-  (let [packed-columns-enabled (> (rand) 0.5)]
-    (assoc test :packed-columns-enabled packed-columns-enabled)
-    (info "Configuring " (if packed-columns-enabled "with" "without") " packed columns")
+  (define-global-random-flags test)
 
-    (when (master-node? test node)
-      (start-master! db test node)
-      (await-masters test))
+  (when (master-node? test node)
+    (start-master! db test node)
+    (await-masters test))
 
-    (start-tserver! db test node)
-    (await-tservers test)
+  (start-tserver! db test node)
+  (await-tservers test)
 
-    (case (:api test)
-      :ycql
-      (ycql.client/await-setup node)
+  (case (:api test)
+    :ycql
+    (ycql.client/await-setup node)
 
-      :ysql
-      (ysql.client/check-setup-successful node))
+    :ysql
+    (ysql.client/check-setup-successful node))
 
-    :started))
+  :started)
 
 (defn stop! [db test node]
   "Stop both master and tserver. Only stops master if this node needs to."
