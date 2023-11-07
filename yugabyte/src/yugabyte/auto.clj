@@ -188,17 +188,10 @@
         #"Not the leader" (retry (dec tries))
         (throw e)))))
 
-(defn define-global-random-flags
-  [test]
-  (let [packed-columns-enabled (> (rand) 0.5)]
-    (info "Configuring " (if packed-columns-enabled "with" "without") " packed columns")
-    (assoc test :packed-columns-enabled packed-columns-enabled)))
-
 (defn start! [db test node]
   "Start both master and tserver. Only starts master if this node is a master
   node. Waits for masters and tservers."
   (info "Starting master and tserver for" (name (:api test)) "API")
-  (define-global-random-flags test)
 
   (when (master-node? test node)
     (start-master! db test node)
@@ -485,7 +478,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns (:packed-columns-enabled test))
+            (master-tserver-packed-columns (:yb-packed-columns-enabled test))
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (master-api-opts (:api test) node)
             )))
@@ -506,7 +499,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns (:packed-columns-enabled test))
+            (master-tserver-packed-columns (:yb-packed-columns-enabled test))
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
@@ -539,11 +532,9 @@
   db/Primary
   (setup-primary! [this test node]
     "Executed once on a first node in list (i.e. n1 by default) after per-node setup is done"
-    (let [colocated (and (not (utils/is-test-geo-partitioned? test)) (> (rand) 0.5))
-          colocated-clause (if colocated
+    (let [colocated-clause (if (:yb-colocated test)
                              " WITH colocated = true"
                              "")]
-      (info "Creating JEPSEN" (if colocated "colocated" "") "database")
       (ysqlsh test :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";")))
     )
 
