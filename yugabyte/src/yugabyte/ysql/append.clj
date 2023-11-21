@@ -96,10 +96,13 @@
                                  " set " col " = CONCAT(" col ", ',', ?)" (geo-row-update geo-partitioning v) " "
                                  "where k = ?") v row])]
     (when (= [0] r)
-      (if (= geo-partitioning :geo)
-        ;(insert-primary-geo conn table geo-partitioning col row v (str (mod v 2) "a"))
-        (insert-primary-geo conn table geo-partitioning col row v (str (+' 1 (mod v 2)) "a"))
-        (insert-primary conn table col row v))) v))
+      (do
+        (if (= [2] r)
+          (info "ERROR 2 UPDATES" table row col v))
+        (if (= geo-partitioning :geo)
+          ;(insert-primary-geo conn table geo-partitioning col row v (str (mod v 2) "a"))
+          (insert-primary-geo conn table geo-partitioning col row v (str (+' 1 (mod v 2)) "a"))
+          (insert-primary conn table col row v)))) v))
 
 (defn read-secondary
   "Reads a key based on a predicate over a secondary key, k2"
