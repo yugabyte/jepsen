@@ -56,6 +56,12 @@
    [nil "--heartbeat-flags" "Enable heartbeat tserver tracing flags on YB"
     :default false]
 
+   [nil "--additional-features" "Enable additional features like packed columns, colocated, etc."
+    :default true]
+
+   [nil "--trace-sql-tx" "Enable additional features like packed columns, colocated, etc."
+    :default true]
+
    [nil "--clock-skew-flags" "Enable soft clock skew flags on YB"
     :default true]
 
