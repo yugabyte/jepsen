@@ -59,9 +59,6 @@
    [nil "--additional-features" "Enable additional features like packed columns, colocated, etc."
     :default true]
 
-   [nil "--trace-sql-tx" "Enable additional features like packed columns, colocated, etc."
-    :default true]
-
    [nil "--clock-skew-flags" "Enable soft clock skew flags on YB"
     :default true]
 
@@ -117,6 +114,9 @@
 
    [nil "--url URL" "URL to Yugabyte tarball to install, has precedence over --version"
     :default nil]
+
+   [nil "--trace-sql-tx" "If provided, logs SQL queries and transactions"
+    :default false]
 
    [nil "--trace-cql" "If provided, logs CQL queries"
     :default false]])
