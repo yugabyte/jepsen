@@ -96,7 +96,7 @@
                                  " set " col " = CONCAT(" col ", ',', ?)" (geo-row-update geo-partitioning v) " "
                                  "where k = ?") v row])]
     (when (= [0] r)
-      ; No rows updated
+      (info "UPDATING" row col v )
       (if (= geo-partitioning :geo)
         ;(insert-primary-geo conn table geo-partitioning col row v (str (mod v 2) "a"))
         (insert-primary-geo conn table geo-partitioning col row v (str (+' 1 (mod v 2)) "a"))
