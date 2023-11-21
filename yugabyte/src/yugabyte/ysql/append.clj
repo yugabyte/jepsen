@@ -67,7 +67,8 @@
 (defn geo-row-update
   [geo-partitioning v]
   (if (= geo-partitioning :geo)
-    (str ", geo_partition = '" (mod v 2) "a'")
+    ;(str ", geo_partition = '" (mod v 2) "a'")
+    (str ", geo_partition = '" (+' 1 (mod v 2)) "a'")
     ""))
 
 (defn read-primary
@@ -97,7 +98,8 @@
     (when (= [0] r)
       ; No rows updated
       (if (= geo-partitioning :geo)
-        (insert-primary-geo conn table geo-partitioning col row v (str (mod v 2) "a"))
+        ;(insert-primary-geo conn table geo-partitioning col row v (str (mod v 2) "a"))
+        (insert-primary-geo conn table geo-partitioning col row v (str (+' 1 (mod v 2)) "a"))
         (insert-primary conn table col row v))) v))
 
 (defn read-secondary
