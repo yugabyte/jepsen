@@ -315,16 +315,8 @@
   [opts]
   (let [packed-columns-enabled (> (rand) 0.5)
         colocated (and (not (utils/is-test-geo-partitioned? opts)) (> (rand) 0.5))]
-    (assoc opts :yb-packed-columns-enabled packed-columns-enabled :yb-colocated colocated)))
-
-(defn test-3
-  "Final phase where we define global cluster configuration parameters"
-  [opts]
-  (let [packed-columns-enabled (> (rand) 0.5)
-        colocated (and (not (utils/is-test-geo-partitioned? opts)) (> (rand) 0.5))]
-    (if (:additional-features test)
-      (assoc opts :yb-packed-columns-enabled packed-columns-enabled
-                  :yb-colocated colocated))))
+    (assoc opts :yb-packed-columns-enabled packed-columns-enabled
+                :yb-colocated colocated)))
 
 (defn yb-test
   "Constructs a yugabyte test from CLI options."
