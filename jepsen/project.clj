@@ -1,4 +1,4 @@
-(defproject jepsen "0.3.5"
+(defproject jepsen "0.2.7-SNAPSHOT"
   :description "Distributed systems testing framework."
   :url         "https://jepsen.io"
   :license {:name "Eclipse Public License"
@@ -8,15 +8,15 @@
                  [org.clojure/tools.logging "1.2.4"]
                  [org.clojure/tools.cli "1.0.206"]
                  [spootnik/unilog "0.7.30"]
-                 [elle "0.2.1-SNAPSHOT"]
+                 [elle "0.1.5-SNAPSHOT"]
                  [clj-time "0.15.2"]
                  [jepsen.txn "0.1.2"]
                  [knossos "0.3.8"]
                  [clj-ssh "0.5.14"]
                  [gnuplot "0.1.3"]
                  [http-kit "2.5.3"]
-                 [ring "1.11.0"]
-                 [com.hierynomus/sshj "0.38.0"]
+                 [ring "1.9.5"]
+                 [com.hierynomus/sshj "0.33.0"]
                  [com.jcraft/jsch.agentproxy.connector-factory "0.0.9"]
                  [com.jcraft/jsch.agentproxy.sshj "0.0.9"
                   :exclusions [net.schmizz/sshj]]
