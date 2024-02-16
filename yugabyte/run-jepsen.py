@@ -251,13 +251,12 @@ def send_report_to_reportportal(
                             headers={"accept": "*/*", "Content-Type": "application/json",
                                      "Authorization": f"bearer {reportportal_api_token}"})
 
-    if response.status_code == 200:
-        logging.info(f"Successfully updated attributes for launch {launch_id}")
-    else:
+    if response.status_code != 200:
         logging.error(f"Could not update attributes for launch {launch_id}")
         logging.error(f"Code: {response.status_code} Text: {response.text}")
         return False
 
+    logging.info(f"Successfully updated attributes for launch {launch_id}")
     return True
 
 
@@ -436,7 +435,7 @@ def main():
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
-                         f"--ssh-private-key ~/.ssh/id_rsa", # tmp workaround for jepsen 0.2.7+ versions
+                         f"--ssh-private-key ~/.ssh/id_rsa",  # tmp workaround for jepsen 0.2.7+ versions
                          f"--concurrency {args.concurrency}"])
 
     if args.iterations:
