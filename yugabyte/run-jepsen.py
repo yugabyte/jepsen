@@ -106,7 +106,6 @@ TEST_PER_VERSION = [
     {
         "start_version": "2.17.2.0-b1",
         "tests": [
-            "ysql/sz.pl.append",
             "ysql/si.pl.append",
         ]
     },
@@ -119,6 +118,12 @@ TEST_PER_VERSION = [
             "ysql/rc.ol.geo.append",
             "ysql/si.ol.geo.append",
             "ysql/sz.ol.geo.append",
+        ]
+    },
+    {
+        "start_version": "2.20.0.0-b1",
+        "tests": [
+            "ysql/sz.pl.append",
         ]
     }
 ]
