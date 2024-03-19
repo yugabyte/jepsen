@@ -426,7 +426,8 @@
   these actually make the cluster slower to, or unable to, recover."
   [test]
   (if (:trace-sql-tx test)
-    [:--vmodule "transaction=2,transaction_coordinator=4,conflict_resolution=4"]
+    [:--vmodule "transaction=2,transaction_coordinator=4,conflict_resolution=4"
+     :--ysql-log-statement "all"]
     []))
 
 (def limits-conf
