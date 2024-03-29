@@ -474,6 +474,9 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--ysql_yb_ddl_rollback_enabled
+            :--allowed_preview_flags_csv "ysql_yb_ddl_rollback_enabled"
+            :--ysql_transaction_bg_task_wait_ms 200
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -495,6 +498,14 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
+            :--yb_enable_read_committed_isolation
+            :--ysql_enable_read_request_caching
+            :--ysql_pg_conf_csv "yb_enable_base_scans_cost_model=true,yb_enable_optimizer_statistics=true,yb_bnl_batch_size=1024,yb_fetch_row_limit=0,yb_fetch_size_limit='1MB',yb_use_hash_splitting_by_default=false",
+            :--ysql_yb_ddl_rollback_enabled
+            :--allowed_preview_flags_csv  "ysql_yb_ddl_rollback_enabled,ysql_yb_enable_base_scans_cost_model,ysql_yb_parallel_range_rows"
+            :--report_ysql_ddl_txn_status_to_master
+            :--ysql_yb_parallel_range_rows  10000
+            :--pg_client_use_shared_memory
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
