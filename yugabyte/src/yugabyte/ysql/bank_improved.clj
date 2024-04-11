@@ -2,7 +2,6 @@
   (:require [version-clj.core :as v]
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
-            [clojure.tools.logging :refer [debug info warn]]
             [yugabyte.ysql.client :as c]))
 
 (def table-name "accounts")
