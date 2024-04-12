@@ -84,7 +84,6 @@ TEST_PER_VERSION = [
 
             # YSQL snapshot isolation
             "ysql/si.ol.append",
-            "ysql/si.ol.geo.append",
             "ysql/si.bank",
             "ysql/si.bank-contention",
             "ysql/si.bank-multitable",

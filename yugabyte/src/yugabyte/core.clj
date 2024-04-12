@@ -20,6 +20,7 @@
             [yugabyte.set :as set]
             [yugabyte.utils :as utils]
             [yugabyte.utils :refer :all]
+            [version-clj.core :as v] 
             [yugabyte.ycql.bank]
             [yugabyte.ycql.bank-improved]
             [yugabyte.ycql.counter]
@@ -40,6 +41,7 @@
   (:import (jepsen.client Client)))
 
 (def version-regex #"(?<=yugabyte\-)(\d+\.\d+(\.\d+){0,2}(-b\d+)?)")
+(def minimal-packed-version "2.16.4.0-b1")
 
 (defn noop-test
   "NOOP test, exists to validate setup/teardown phases"
@@ -313,9 +315,10 @@
 (defn test-3
   "Final phase where we define global cluster configuration parameters"
   [opts]
-  (let [packed-columns-enabled (> (rand) 0.5)
-        colocated (and (not (utils/is-test-geo-partitioned? opts)) (> (rand) 0.5))]
-    (assoc opts :yb-packed-columns-enabled packed-columns-enabled :yb-colocated colocated)))
+  (let [packed-columns-enabled (and (v/newer-or-equal? (:version test) minimal-packed-version) (> (rand) 0.5)) 
+        colocated (and (not (utils/is-test-geo-partitioned? opts)) (> (rand) 0.5))] 
+    (assoc opts :yb-packed-columns-enabled packed-columns-enabled :yb-colocated colocated))
+    ())
 
 (defn yb-test
   "Constructs a yugabyte test from CLI options."
