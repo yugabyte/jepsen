@@ -20,7 +20,6 @@
             [yugabyte.set :as set]
             [yugabyte.utils :as utils]
             [yugabyte.utils :refer :all]
-            [version-clj.core :as v]
             [yugabyte.ycql.bank]
             [yugabyte.ycql.bank-improved]
             [yugabyte.ycql.counter]
@@ -41,7 +40,6 @@
   (:import (jepsen.client Client)))
 
 (def version-regex #"(?<=yugabyte\-)(\d+\.\d+(\.\d+){0,2}(-b\d+)?)")
-(def minimal-packed-version "2.16.4.0-b1")
 
 (defn noop-test
   "NOOP test, exists to validate setup/teardown phases"

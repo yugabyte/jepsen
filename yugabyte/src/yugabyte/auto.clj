@@ -10,6 +10,7 @@
             [jepsen.control.net :as cn]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
+            [version-clj.core :as v]
             [yugabyte.ycql.client :as ycql.client]
             [yugabyte.ysql.client :as ysql.client]
             [yugabyte.utils :as utils]
@@ -24,6 +25,7 @@
 (def master-log-dir (str dir "/master/logs"))
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
+(def minimal-packed-version "2.16.4.0-b1")
 
 (def max-bump-time-ops-per-test
   "Upper bound on number of bump time ops per test, needed to estimate max
