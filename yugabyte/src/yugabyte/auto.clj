@@ -319,8 +319,8 @@
    ])
 
 (defn master-tserver-packed-columns
-  [packed-columns-enabled]
-  (if (and (v/newer-or-equal? (:version test) minimal-packed-version) packed-columns-enabled)
+  [test]
+  (if (and (v/newer-or-equal? (:version test) minimal-packed-version) (:yb-packed-columns-enabled test))
     [:--ysql_enable_packed_row]
     [])
   )
@@ -480,7 +480,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns (:yb-packed-columns-enabled test))
+            (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (master-api-opts (:api test) node)
             )))
@@ -501,7 +501,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns (:yb-packed-columns-enabled test))
+            (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
