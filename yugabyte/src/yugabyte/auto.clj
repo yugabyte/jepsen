@@ -10,6 +10,7 @@
             [jepsen.control.net :as cn]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
+            [version-clj.core :as v]
             [yugabyte.ycql.client :as ycql.client]
             [yugabyte.ysql.client :as ysql.client]
             [yugabyte.utils :as utils]
@@ -24,6 +25,7 @@
 (def master-log-dir (str dir "/master/logs"))
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
+(def minimal-packed-version "2.16.4.0-b1")
 
 (def max-bump-time-ops-per-test
   "Upper bound on number of bump time ops per test, needed to estimate max
@@ -317,8 +319,8 @@
    ])
 
 (defn master-tserver-packed-columns
-  [packed-columns-enabled]
-  (if packed-columns-enabled
+  [test]
+  (if (and (v/newer-or-equal? (:version test) minimal-packed-version) (:yb-packed-columns-enabled test))
     [:--ysql_enable_packed_row]
     [])
   )
@@ -478,7 +480,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns (:yb-packed-columns-enabled test))
+            (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (master-api-opts (:api test) node)
             )))
@@ -499,7 +501,7 @@
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns (:yb-packed-columns-enabled test))
+            (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
