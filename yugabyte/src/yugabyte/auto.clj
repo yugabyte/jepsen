@@ -318,7 +318,7 @@
 
 (defn master-tserver-packed-columns
   [packed-columns-enabled]
-  (if packed-columns-enabled
+  (if (and (v/newer-or-equal? (:version test) minimal-packed-version) packed-columns-enabled)
     [:--ysql_enable_packed_row]
     [])
   )
