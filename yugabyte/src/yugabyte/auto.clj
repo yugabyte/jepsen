@@ -476,6 +476,8 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+            :--enable_ysql_conn_mgr
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -497,6 +499,8 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
+            :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+            :--enable_ysql_conn_mgr
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
