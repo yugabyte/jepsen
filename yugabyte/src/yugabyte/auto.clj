@@ -497,6 +497,8 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
+            :--ysql_pg_conf_csv "enable_seqscan=false,enable_indexscan=false,yb_enable_bitmapscan=true"
+            :--allowed_preview_flags_csv "yb_enable_bitmapscan"
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
