@@ -336,9 +336,11 @@
   "API-specific options for tserver"
   [api node]
   (if (= api :ysql)
-    []
-    ;[:--start_pgsql_proxy
-    ; :--pgsql_proxy_bind_address (cn/ip node)]
+    ;[]
+    [:--start_pgsql_proxy
+     :--pgsql_proxy_bind_address (str (cn/ip node))
+     :--ysql_conn_mgr_port 5431
+     ]
     []))
 
 (defn tserver-read-committed-flags
