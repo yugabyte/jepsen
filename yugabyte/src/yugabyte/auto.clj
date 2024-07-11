@@ -503,7 +503,7 @@
             ; Tracing
             :--enable_tracing
             :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
-            :--enable_ysql_conn_mgr
+            ;:--enable_ysql_conn_mgr
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
