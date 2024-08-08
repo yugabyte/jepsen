@@ -476,6 +476,7 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--ysql_pg_conf_csv "yb_update_num_cols_to_compare=50"
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -498,6 +499,7 @@
             ; Tracing
             :--enable_tracing
             :--rpc_slow_query_threshold_ms 1000
+            :--ysql_pg_conf_csv "yb_update_num_cols_to_compare=50"
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
