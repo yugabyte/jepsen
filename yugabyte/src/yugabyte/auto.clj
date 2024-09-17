@@ -481,6 +481,8 @@
             :--replication_factor (:replication-factor test)
             :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
             :--enable_ysql_conn_mgr
+            :--vmodule "transaction=2,transaction_coordinator=4,conflict_resolution=4"
+             :--ysql-log-statement "all"
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -505,6 +507,8 @@
             :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
             :--enable_ysql_conn_mgr
             :--rpc_slow_query_threshold_ms 1000
+            :--vmodule "transaction=2,transaction_coordinator=4,conflict_resolution=4"
+             :--ysql-log-statement "all"
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
             (master-tserver-wait-on-conflict-flags test)
