@@ -37,6 +37,7 @@ from itertools import zip_longest, chain
 
 import requests
 from junit_xml import TestCase, TestSuite, to_xml_report_string
+from setuptools.py312compat import shutil_rmtree
 
 CmdResult = namedtuple('CmdResult',
                        ['output',
@@ -534,6 +535,12 @@ def main():
                 num_not_everything_looks_good += 1
                 not_good_tests.append(test_description_str)
 
+                if result.returncode == 1 and not result.everything_looks_good:
+                    exit(0)
+                else:
+                    shutil_rmtree(STORE_DIR)
+                    shutil_rmtree(LOGS_DIR)
+
                 if result.timed_out:
                     message = "Timed out"
 
@@ -584,23 +591,6 @@ def main():
         break
 
     logging.warning(f"Skipped workloads because of version incompatibility {workloads_to_skip}")
-
-    logging.info("Sending JUnit XML report")
-    ts = TestSuite(f"Jepsen {nemeses.replace(',', '-')} {version}", test_cases.values())
-    if args.reportportal_base_url and args.reportportal_project_name and args.reportportal_api_token:
-        send_report_to_reportportal(f"jepsen-junit-{nemeses.replace(',', '-')}.xml",
-                                    to_xml_report_string([ts]),
-                                    args.reportportal_base_url,
-                                    args.reportportal_project_name,
-                                    args.reportportal_api_token,
-                                    version,
-                                    args.build_url)
-    else:
-        logging.warning("Skipped ReportPortal reporting due to missing args")
-
-    logging.info("Storing JUnit XML reports locally")
-    with open(f"jepsen-junit-{nemeses.replace(',', '-')}.xml", "w") as xml_report:
-        xml_report.write(to_xml_report_string([ts]))
 
     if not_good_tests:
         exit(1)
