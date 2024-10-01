@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 from collections import namedtuple
 
@@ -36,8 +37,7 @@ import time
 from itertools import zip_longest, chain
 
 import requests
-from junit_xml import TestCase, TestSuite, to_xml_report_string
-from setuptools.py312compat import shutil_rmtree
+from junit_xml import TestCase
 
 CmdResult = namedtuple('CmdResult',
                        ['output',
@@ -538,8 +538,9 @@ def main():
                 if result.returncode == 1 and not result.everything_looks_good:
                     exit(0)
                 else:
-                    shutil_rmtree(STORE_DIR)
-                    shutil_rmtree(LOGS_DIR)
+                    print("Clearing directories")
+                    shutil.rmtree(STORE_DIR)
+                    shutil.rmtree(LOGS_DIR)
 
                 if result.timed_out:
                     message = "Timed out"
