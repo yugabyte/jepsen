@@ -530,6 +530,12 @@ def main():
 
                 if test_name not in test_cases:
                     test_cases[test_name] = tc
+
+                logging.info("Clearing and recreating directories")
+                shutil.rmtree(STORE_DIR)
+                os.makedirs(STORE_DIR)
+                shutil.rmtree(LOGS_DIR)
+                os.makedirs(LOGS_DIR)
             else:
                 tc.add_error_info(test_description_str)
                 num_not_everything_looks_good += 1
