@@ -538,9 +538,11 @@ def main():
                 if result.returncode == 1 and not result.everything_looks_good:
                     exit(0)
                 else:
-                    print("Clearing directories")
+                    logging.info("Clearing and recreating directories")
                     shutil.rmtree(STORE_DIR)
+                    os.makedirs(STORE_DIR)
                     shutil.rmtree(LOGS_DIR)
+                    os.makedirs(LOGS_DIR)
 
                 if result.timed_out:
                     message = "Timed out"
