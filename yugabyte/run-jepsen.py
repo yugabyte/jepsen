@@ -525,6 +525,7 @@ def main():
                 test_index, test_elapsed_time_sec, result.returncode,
                 result.everything_looks_good)
 
+            exit_now = False
             if result.everything_looks_good:
                 num_everything_looks_good += 1
 
@@ -541,8 +542,9 @@ def main():
                 num_not_everything_looks_good += 1
                 not_good_tests.append(test_description_str)
 
+
                 if result.returncode == 1 and not result.everything_looks_good:
-                    exit(0)
+                    exit_now = True
                 else:
                     logging.info("Clearing and recreating directories")
                     shutil.rmtree(STORE_DIR)
@@ -593,6 +595,9 @@ def main():
             if not_good_tests:
                 logging.info("Tests where something does not look good:\n    %s",
                              "\n    ".join(not_good_tests))
+
+            if exit_now:
+                exit(0)
         else:
             # Next workload
             continue
