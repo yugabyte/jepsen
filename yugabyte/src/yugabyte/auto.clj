@@ -476,6 +476,7 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--ysql_pg_conf_csv "shared_preload_libraries=auto_explain,auto_explain.log_min_duration=0,auto_explain.log_analyze=true,auto_explain.log_dist=true,parallel_setup_cost=0,parallel_tuple_cost=0,yb_parallel_range_rows=1"
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -497,6 +498,7 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
+            :--ysql_pg_conf_csv "shared_preload_libraries=auto_explain,auto_explain.log_min_duration=0,auto_explain.log_analyze=true,auto_explain.log_dist=true,parallel_setup_cost=0,parallel_tuple_cost=0,yb_parallel_range_rows=1"
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
