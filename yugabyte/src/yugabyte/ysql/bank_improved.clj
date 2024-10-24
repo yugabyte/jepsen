@@ -19,7 +19,7 @@
    (if (and enable-follower-reads (v/newer-or-equal? (:version test) minimal-follower-read-version))
      (c/execute! c ["SET yb_read_from_followers = true"]))
    (->>
-     (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance FROM " table-name)
+     (str "/*+ IndexOnlyScan(" table-name " " table-index ") */ SELECT id, balance::bigint FROM " table-name)
      (c/query op c)
      (map (juxt :id :balance))
      (into (sorted-map)))))

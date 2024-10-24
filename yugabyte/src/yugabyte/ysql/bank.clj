@@ -12,7 +12,7 @@
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table"
   [op c]
-  (->> (str "SELECT id, balance FROM " table-name)
+  (->> (str "SELECT id, balance::bigint FROM " table-name)
        (c/query op c)
        (map (juxt :id :balance))
        (into (sorted-map))))
