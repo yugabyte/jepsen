@@ -540,6 +540,11 @@
                                "")]
         (ysqlsh test :-h (cn/ip node) :-c (str "DROP DATABASE IF EXISTS jepsen;"))
         (ysqlsh test :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))))
+        (ysqlsh test :-h (cn/ip node) :-c (str "DROP USER IF EXISTS jepsen;"))
+        (ysqlsh test :-h (cn/ip node) :-c (str "CREATE USER jepsen;"))
+        (ysqlsh test :-h (cn/ip node) :-c (str "ALTER ROLE jepsen WITH PASSWORD 'jepsen';"))
+        (ysqlsh test :-h (cn/ip node) :-c (str "GRANT CREATE, ALTER ON DATABASE jepsen TO jepsen;"))
+        (ysqlsh test :-h (cn/ip node) :-c (str "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA jepsen TO jepsen;"))
     )
 
   db/LogFiles

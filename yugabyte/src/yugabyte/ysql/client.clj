@@ -34,8 +34,8 @@
    :classname      "com.yugabyte.Driver"
    :host           (name node)
    :port           ysql-port
-   :user           "postgres"
-   :password       ""
+   :user           "jepsen"
+   :password       "jepsen"
    :loginTimeout   (/ default-timeout 1000)
    :connectTimeout (/ default-timeout 1000)
    :socketTimeout  (/ default-timeout 1000)})
