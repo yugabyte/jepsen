@@ -591,6 +591,7 @@
                                                 GRANT ALL ON ALL TABLES IN SCHEMA public TO jepsen;
                                                 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO jepsen;
                                                 GRANT ALL ON SCHEMA public TO jepsen;"))
+        (info "Setup optional geo partitioning")
         (setup-geo-partition node (str/includes? (:name test) ".geo.") tablespace-name)
     )))
 
