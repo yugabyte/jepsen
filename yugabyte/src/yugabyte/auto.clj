@@ -543,7 +543,10 @@
         (ysqlsh test :-h (cn/ip node) :-c (str "DROP USER IF EXISTS jepsen;
                                                 CREATE USER jepsen;
                                                 ALTER USER jepsen WITH PASSWORD 'jepsen';
-                                                GRANT CREATE ON DATABASE jepsen TO jepsen;"))
+                                                GRANT ALL ON DATABASE jepsen TO jepsen;
+                                                GRANT ALL ON ALL TABLES IN SCHEMA public TO jepsen;
+                                                GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO jepsen;
+                                                GRANT ALL ON SCHEMA public TO jepsen;"))
     )))
 
   db/LogFiles
