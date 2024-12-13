@@ -108,6 +108,7 @@
 (defn ysqlsh
   "Runs a ysqlsh command on a node. Args are passed to ysqlsh."
   [test & args]
+  (info "/bin/ysqlsh" args)
   (apply c/exec (str dir "/bin/ysqlsh")
          args))
 
