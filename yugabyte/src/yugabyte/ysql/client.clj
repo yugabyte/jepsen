@@ -28,14 +28,14 @@
 
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
-  [dbname node]
+  [dbname user password node]
   {:dbtype         "yugabytedb"
    :dbname         dbname
    :classname      "com.yugabyte.Driver"
    :host           (name node)
    :port           ysql-port
-   :user           "jepsen"
-   :password       "jepsen"
+   :user           user
+   :password       password
    :loginTimeout   (/ default-timeout 1000)
    :connectTimeout (/ default-timeout 1000)
    :socketTimeout  (/ default-timeout 1000)})
@@ -109,13 +109,13 @@
 
 (defn open-conn
   "Opens a connection to the given node."
-  [dbname node]
+  [dbname user password node]
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
                 (info "Connection" dbname)
                 (util/retry 0.1
-                            (let [spec (db-spec dbname node)
+                            (let [spec (db-spec dbname user password node)
                                   conn (j/get-connection spec)
                                   spec' (j/add-connection spec conn)]
                               (.setTransactionIsolation conn conn-isolation-level)
@@ -137,7 +137,7 @@
   process if the cluster looks broken. Hack hack hack."
   [node]
   (try+
-    (let [conn (open-conn "jepsen" node)]
+    (let [conn (open-conn "postgres" "postgres" "" node)]
       (close-conn conn))
     (catch [:type :connection-timed-out] e
       (throw+ {:type :jepsen.db/setup-failed}))))
@@ -148,7 +148,7 @@
   (rc/open!
     (rc/wrapper
       {:name  node
-       :open  (partial open-conn "jepsen" node)
+       :open  (partial open-conn "jepsen" "jepsen" "jepsen" node)
        :close close-conn
        ; Do not log intermediate reconnection errors (if the reconnect fails, we'll still get it)
        :log?  false})))
