@@ -2,6 +2,7 @@
   "Shared automation functions for configuring, starting and stopping nodes."
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
+            [clojure.data.json :as json]
             [clj-http.client :as http]
             [dom-top.core :as dt]
             [jepsen.control :as c]
@@ -26,6 +27,7 @@
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
 (def minimal-packed-version "2.16.4.0-b1")
+(def tablespace-name "geo_tablespace")
 
 (def max-bump-time-ops-per-test
   "Upper bound on number of bump time ops per test, needed to estimate max
@@ -132,6 +134,47 @@
                    (re-find #"(\w+)\s+([^\s]+)")
                    next
                    (zipmap [:uuid :address]))))))
+
+(defn create-geo-tablespace
+  [node tablespace-name replica-placement]
+  (info "Creating tablespace" tablespace-name)
+  (ysqlsh test :-h (cn/ip node) :-c (str "CREATE TABLESPACE " tablespace-name " "
+                    "WITH (replica_placement='" (json/write-str replica-placement) "');")))
+
+(defn setup-geo-partition
+  [node geo-partitioning tablespace-name]
+  (if (= geo-partitioning :geo)
+    (do
+      (create-geo-tablespace
+        node
+        (str tablespace-name "_1a")
+        {
+         :num_replicas     2
+         :placement_blocks [
+                            {
+                             :cloud             :ybc
+                             :region            :jepsen-1
+                             :zone              :jepsen-1a
+                             :min_num_replicas  1
+                             :leader_preference 1
+                             }
+                            ]
+         })
+      (create-geo-tablespace
+        node
+        (str tablespace-name "_2a")
+        {
+         :num_replicas     2
+         :placement_blocks [
+                            {
+                             :cloud             :ybc
+                             :region            :jepsen-2
+                             :zone              :jepsen-2a
+                             :min_num_replicas  1
+                             :leader_preference 1
+                             }
+                            ]
+         }))))
 
 (defn await-masters
   "Waits until all masters for a test are online, according to this node."
@@ -547,6 +590,7 @@
                                                 GRANT ALL ON ALL TABLES IN SCHEMA public TO jepsen;
                                                 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO jepsen;
                                                 GRANT ALL ON SCHEMA public TO jepsen;"))
+        (setup-geo-partition node (str/includes? (:name test) ".geo.") tablespace-name)
     )))
 
   db/LogFiles

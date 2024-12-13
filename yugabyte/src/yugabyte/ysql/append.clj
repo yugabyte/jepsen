@@ -7,7 +7,7 @@
   (:require [clojure.string :as str]
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
-            [clojure.data.json :as json]
+            [yugabyte.auto :as a]
             [yugabyte.ysql.client :as c]))
 
 (defn table-count
@@ -140,49 +140,6 @@
            :append
            (append-primary! locking geo-partitioning conn table row col v))]))
 
-(defn create-geo-tablespace
-  [conn tablespace-name replica-placement]
-  (info "Creating tablespace" tablespace-name)
-  (j/execute! conn
-              [(str "CREATE TABLESPACE " tablespace-name " "
-                    "WITH (replica_placement='" (json/write-str replica-placement) "');")]
-              {:transaction? false}))
-
-(defn setup-geo-partition
-  [conn geo-partitioning tablespace-name]
-  (if (= geo-partitioning :geo)
-    (do
-      (create-geo-tablespace
-        conn
-        (str tablespace-name "_1a")
-        {
-         :num_replicas     2
-         :placement_blocks [
-                            {
-                             :cloud             :ybc
-                             :region            :jepsen-1
-                             :zone              :jepsen-1a
-                             :min_num_replicas  1
-                             :leader_preference 1
-                             }
-                            ]
-         })
-      (create-geo-tablespace
-        conn
-        (str tablespace-name "_2a")
-        {
-         :num_replicas     2
-         :placement_blocks [
-                            {
-                             :cloud             :ybc
-                             :region            :jepsen-2
-                             :zone              :jepsen-2a
-                             :min_num_replicas  1
-                             :leader_preference 1
-                             }
-                            ]
-         }))))
-
 (defn get-create-table-columns-clause
   [geo-partitioning]
   (if (= geo-partitioning :geo)
@@ -211,9 +168,7 @@
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
-    (let [tablespace-name "geo_tablespace"]
-      (info "Create tablespace " tablespace-name)
-      (setup-geo-partition c geo-partitioning tablespace-name)
+    (let [tablespace-name a/tablespace-name]
       (->> (range (table-count test))
            (map table-name)
            (map (fn [table]
