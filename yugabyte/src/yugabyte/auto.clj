@@ -144,7 +144,7 @@
 
 (defn setup-geo-partition
   [node geo-partitioning tablespace-name]
-  (if (= geo-partitioning :geo)
+  (if geo-partitioning
     (do
       (create-geo-tablespace
         node
