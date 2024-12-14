@@ -140,42 +140,41 @@
   [node tablespace-name replica-placement]
   (info "Creating tablespace" tablespace-name)
   (ysqlsh test :-h (cn/ip node) :-c (str "CREATE TABLESPACE " tablespace-name " "
-                    "WITH (replica_placement='" (json/write-str replica-placement) "');")))
+                                         "WITH (replica_placement='" (json/write-str replica-placement) "');")))
 
 (defn setup-geo-partition
   [node geo-partitioning tablespace-name]
-  (if geo-partitioning
-    (do
-      (create-geo-tablespace
-        node
-        (str tablespace-name "_1a")
-        {
-         :num_replicas     2
-         :placement_blocks [
-                            {
-                             :cloud             :ybc
-                             :region            :jepsen-1
-                             :zone              :jepsen-1a
-                             :min_num_replicas  1
-                             :leader_preference 1
-                             }
-                            ]
-         })
-      (create-geo-tablespace
-        node
-        (str tablespace-name "_2a")
-        {
-         :num_replicas     2
-         :placement_blocks [
-                            {
-                             :cloud             :ybc
-                             :region            :jepsen-2
-                             :zone              :jepsen-2a
-                             :min_num_replicas  1
-                             :leader_preference 1
-                             }
-                            ]
-         }))))
+  (do
+    (create-geo-tablespace
+      node
+      (str tablespace-name "_1a")
+      {
+       :num_replicas     2
+       :placement_blocks [
+                          {
+                           :cloud             :ybc
+                           :region            :jepsen-1
+                           :zone              :jepsen-1a
+                           :min_num_replicas  1
+                           :leader_preference 1
+                           }
+                          ]
+       })
+    (create-geo-tablespace
+      node
+      (str tablespace-name "_2a")
+      {
+       :num_replicas     2
+       :placement_blocks [
+                          {
+                           :cloud             :ybc
+                           :region            :jepsen-2
+                           :zone              :jepsen-2a
+                           :min_num_replicas  1
+                           :leader_preference 1
+                           }
+                          ]
+       })))
 
 (defn await-masters
   "Waits until all masters for a test are online, according to this node."
@@ -591,9 +590,11 @@
                                                 GRANT ALL ON ALL TABLES IN SCHEMA public TO jepsen;
                                                 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO jepsen;
                                                 GRANT ALL ON SCHEMA public TO jepsen;"))
-        (info "Setup optional geo partitioning")
-        (setup-geo-partition node (str/includes? (:name test) ".geo.") tablespace-name)
-    )))
+        (if (str/includes? (:name test) ".geo.")
+          (do
+            (info "Setup optional geo partitioning")
+            (setup-geo-partition node tablespace-name)
+            (ysqlsh test :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name " TO jepsen;")))))))
 
   db/LogFiles
   (log-files [_ _ _]
