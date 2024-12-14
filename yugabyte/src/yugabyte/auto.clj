@@ -453,6 +453,14 @@
      :--client_read_write_timeout_ms 6000]
     []))
 
+(defn connection-manager-flags
+  "Heartbeat tracing flags"
+  [test]
+  (if (:connection-manager test)
+    [:--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+     :--enable_ysql_conn_mgr]
+    []))
+
 
 (defn master-tserver-experimental-tuning-flags
   "Speed up recovery from partitions and crashes. Right now it looks like
@@ -549,6 +557,7 @@
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
+            (connection-manager-flags test)
             )))
 
   (stop-master! [db]
