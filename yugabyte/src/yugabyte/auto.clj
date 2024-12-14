@@ -143,7 +143,7 @@
                                          "WITH (replica_placement='" (json/write-str replica-placement) "');")))
 
 (defn setup-geo-partition
-  [node geo-partitioning tablespace-name]
+  [node tablespace-name]
   (do
     (create-geo-tablespace
       node
