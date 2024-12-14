@@ -594,7 +594,8 @@
           (do
             (info "Setup optional geo partitioning")
             (setup-geo-partition node tablespace-name)
-            (ysqlsh test :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name " TO jepsen;")))))))
+            (ysqlsh test :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_1a TO jepsen;"))
+            (ysqlsh test :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_2a TO jepsen;")))))))
 
   db/LogFiles
   (log-files [_ _ _]
