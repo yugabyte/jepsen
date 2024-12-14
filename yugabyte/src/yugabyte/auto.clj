@@ -380,7 +380,8 @@
   [api node]
   (if (= api :ysql)
     [:--start_pgsql_proxy
-     :--pgsql_proxy_bind_address (cn/ip node)]
+     :--pgsql_proxy_bind_address (cn/ip node)
+     :--ysql_conn_mgr_port 5431]
     []))
 
 (defn tserver-read-committed-flags

@@ -19,7 +19,7 @@
 (def conn-isolation-level "Default isolation level for connections"
   Connection/TRANSACTION_SERIALIZABLE)
 
-(def ysql-port 5433)
+(def ysql-port 5431)
 
 (def max-retry-attempts "Maximum number of attempts to be performed by with-retry" 30)
 (def max-delay-between-retries-ms "Maximum delay between retries for with-retry" 200)
