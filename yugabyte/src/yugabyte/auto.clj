@@ -139,7 +139,7 @@
 (defn create-geo-tablespace
   [node tablespace-name replica-placement]
   (info "Creating tablespace" tablespace-name)
-  (ysqlsh test :-h (cn/ip node) :-c (str "CREATE TABLESPACE " tablespace-name " "
+  (ysqlsh test :-p 5431 :-h (cn/ip node) :-c (str "CREATE TABLESPACE " tablespace-name " "
                                          "WITH (replica_placement='" (json/write-str replica-placement) "');")))
 
 (defn setup-geo-partition
@@ -380,8 +380,9 @@
   [api node]
   (if (= api :ysql)
     [:--start_pgsql_proxy
-     :--pgsql_proxy_bind_address (cn/ip node)
-     :--ysql_conn_mgr_port 5431]
+     :--pgsql_proxy_bind_address (str (cn/ip node))
+     :--ysql_conn_mgr_port 5431
+     ]
     []))
 
 (defn tserver-read-committed-flags
@@ -454,14 +455,6 @@
      :--client_read_write_timeout_ms 6000]
     []))
 
-(defn connection-manager-flags
-  "Heartbeat tracing flags"
-  [test]
-  (if (:connection-manager test)
-    [:--allowed_preview_flags_csv "enable_ysql_conn_mgr"
-     :--enable_ysql_conn_mgr]
-    []))
-
 
 (defn master-tserver-experimental-tuning-flags
   "Speed up recovery from partitions and crashes. Right now it looks like
@@ -528,6 +521,8 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+            :--enable_ysql_conn_mgr
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -549,6 +544,8 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
+            :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+            :--enable_ysql_conn_mgr
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -558,7 +555,6 @@
             (tserver-api-opts (:api test) node)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
-            (connection-manager-flags test)
             )))
 
   (stop-master! [db]
@@ -591,9 +587,9 @@
       (let [colocated-clause (if (:yb-colocated test)
                                " WITH colocated = true"
                                "")]
-        (ysqlsh test :-h (cn/ip node) :-c (str "DROP DATABASE IF EXISTS jepsen;"))
-        (ysqlsh test :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))
-        (ysqlsh test :-h (cn/ip node) :-c (str "DROP USER IF EXISTS jepsen;
+        (ysqlsh test :-p 5431 :-h (cn/ip node) :-c (str "DROP DATABASE IF EXISTS jepsen;"))
+        (ysqlsh test :-p 5431 :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))
+        (ysqlsh test :-p 5431 :-h (cn/ip node) :-c (str "DROP USER IF EXISTS jepsen;
                                                 CREATE USER jepsen;
                                                 ALTER USER jepsen WITH PASSWORD 'jepsen';
                                                 GRANT ALL ON DATABASE jepsen TO jepsen;
@@ -604,8 +600,8 @@
           (do
             (info "Setup optional geo partitioning")
             (setup-geo-partition node tablespace-name)
-            (ysqlsh test :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_1a TO jepsen;"))
-            (ysqlsh test :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_2a TO jepsen;")))))))
+            (ysqlsh test :-p 5431 :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_1a TO jepsen;"))
+            (ysqlsh test :-p 5431 :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_2a TO jepsen;")))))))
 
   db/LogFiles
   (log-files [_ _ _]
