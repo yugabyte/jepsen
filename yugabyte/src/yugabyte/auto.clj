@@ -141,7 +141,7 @@
   (info "Creating tablespace" tablespace-name)
   (let [port (if (:connection-manager test)
                5431
-               5432)]
+               5433)]
     (ysqlsh test :-p port :-h (cn/ip node) :-c (str "CREATE TABLESPACE " tablespace-name " "
                                                     "WITH (replica_placement='" (json/write-str replica-placement) "');"))))
 
@@ -604,7 +604,7 @@
                                "")
             port (if (:connection-manager test)
                    5431
-                   5432)]
+                   5433)]
         (ysqlsh test :-p port :-h (cn/ip node) :-c (str "DROP DATABASE IF EXISTS jepsen;"))
         (ysqlsh test :-p port :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))
         (ysqlsh test :-p port :-h (cn/ip node) :-c (str "DROP USER IF EXISTS jepsen;
