@@ -253,7 +253,7 @@
     (ycql.client/await-setup node)
 
     :ysql
-    (ysql.client/check-setup-successful node))
+    (ysql.client/check-setup-successful node test))
 
   :started)
 
