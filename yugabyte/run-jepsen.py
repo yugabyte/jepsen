@@ -469,7 +469,7 @@ def main():
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
-                         f"--nodes {get_ip_from_dns()}"
+                         f"--nodes {get_ip_from_dns()}",
                          f"--concurrency {args.concurrency}"])
 
     if args.iterations:
