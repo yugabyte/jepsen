@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import socket
 import subprocess
 from collections import namedtuple
 
@@ -350,6 +351,29 @@ def run_cmd(cmd,
                     logging.error("Error deleting stderr log %s, ignoring: %s", stderr_path, ex)
 
 
+def get_ip_from_dns():
+    """
+    Resolves a list of DNS names to IP addresses.
+
+    Args:
+        dns_names: A list of DNS names (e.g., ['n1', 'n2', 'n3']).
+
+    Returns:
+        A comma-separated string of IP addresses or None if an error occurs.
+    """
+    dns_names = ['n1', 'n2', 'n3', 'n4', 'n5']
+    ip_addresses = []
+    for dns_name in dns_names:
+        try:
+            ip = socket.gethostbyname(dns_name)
+            ip_addresses.append(ip)
+        except socket.gaierror:
+            print(f"Could not resolve DNS name: {dns_name}")
+            return None  # Or handle the error differently if some names might not resolve
+
+    return ",".join(ip_addresses)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -445,6 +469,7 @@ def main():
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
+                         f"--nodes {get_ip_from_dns()}"
                          f"--ssh-private-key ~/.ssh/id_rsa",  # tmp workaround for jepsen 0.2.7+ versions
                          f"--concurrency {args.concurrency}"])
 
