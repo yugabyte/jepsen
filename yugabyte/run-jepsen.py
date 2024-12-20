@@ -470,7 +470,6 @@ def main():
                          f"--url {url}",
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}"
-                         f"--ssh-private-key ~/.ssh/id_rsa",  # tmp workaround for jepsen 0.2.7+ versions
                          f"--concurrency {args.concurrency}"])
 
     if args.iterations:
