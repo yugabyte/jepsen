@@ -13,14 +13,27 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Check that project is compiled
-      run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1 | grep 'Must be one of')"
-      id: lein_run_test_output
-    - uses: nick-fields/assert-action@v1
-      name: Check output for workload missing arg
-      with:
-        # we do expect to see workload arg missing error here
-        expected: "workload Must be one of"
-        actual: ${{ steps.lein_run_test_output.outputs.result }}
-        comparison: contains
+    - name: Debug Environment
+      run: |
+        echo "Current Directory: $(pwd)"
+        echo "List of Files:"
+        ls -la
+        echo "Environment Variables:"
+        env
+    - name: Install Leiningen
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y leiningen
+    - name: Run command and check for specific output
+      run: |
+        cd yugabyte
+        OUTPUT=$(lein run test 2>&1 | grep 'Must be one of' || true)
         
+        if [[ -n "$OUTPUT" ]]; then
+          echo "The output contains the expected string:"
+          echo "$OUTPUT"
+        else
+          echo "The output does not contain the expected string."
+          echo "$OUTPUT"
+          exit 1
+        fi
