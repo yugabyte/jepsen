@@ -465,11 +465,14 @@ def main():
         raise AttributeError(f"Failed to parse version from URL {url}")
 
     not_good_tests = []
+    # need to disable connection manager forcefully for older versions
+    connection_manager_flag = "--connection-manager false" if not is_version_at_least("2024.1.0.0-b1", version) else ""
     lein_cmd = " ".join(["lein run test",
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}",
+                         connection_manager_flag,
                          f"--concurrency {args.concurrency}"])
 
     if args.iterations:
