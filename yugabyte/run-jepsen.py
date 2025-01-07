@@ -433,7 +433,7 @@ def main():
     atexit.register(cleanup)
 
     # Sort old results in the beginning if it did not happen at the end of the last run.
-    run_cmd(SORT_RESULTS_SH)
+    # run_cmd(SORT_RESULTS_SH)
 
     start_time = time.time()
     nemeses = args.nemeses
@@ -466,7 +466,9 @@ def main():
 
     not_good_tests = []
     # need to disable connection manager forcefully for older versions
-    connection_manager_flag = "--connection-manager false" if not is_version_at_least("2024.1.0.0-b1", version) else ""
+    connection_manager_flag = "--connection-manager false" \
+        if not (is_version_at_least("2024.1.0.0-b1", version) or
+                is_version_at_least("2.25.1.0-b1", version)) else ""
     lein_cmd = " ".join(["lein run test",
                          "--os debian",
                          f"--url {url}",
