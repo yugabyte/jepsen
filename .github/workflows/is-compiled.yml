@@ -13,15 +13,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Precheck
-      run: cd yugabyte && lein run test 2>&1 | grep 'Must be one of'
-    - name: Check that project is compiled
-      run: echo "lein_run_test_output=$(cd yugabyte && lein run test 2>&1 | grep 'Must be one of')" >> $GITHUB_OUTPUT
-      id: lein_run_test_output
-    - uses: nick-fields/assert-action@v1
-      name: Check output for workload missing arg
-      with:
-        # we do expect to see workload arg missing error here
-        expected: "workload Must be one of"
-        actual: ${{ steps.lein_run_test_output.outputs.result }}
-        comparison: contains
+    - name: Run command and check for specific output
+      run: |
+        cd yugabyte
+        OUTPUT=$(lein run test 2>&1 | grep 'Must be one of' || true)
+        
+        if [[ -n "$OUTPUT" ]]; then
+          echo "The output contains the expected string:"
+          echo "$OUTPUT"
+        else
+          echo "The output does not contain the expected string."
+          exit 1
+        fi
