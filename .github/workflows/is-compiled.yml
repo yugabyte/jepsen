@@ -23,5 +23,6 @@ jobs:
           echo "$OUTPUT"
         else
           echo "The output does not contain the expected string."
+          echo "$OUTPUT"
           exit 1
         fi
