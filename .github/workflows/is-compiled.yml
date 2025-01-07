@@ -14,8 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Precheck
-      run: echo "$(cd yugabyte && lein run test 2>&1 | grep 'Must be one of')"
-      id: test
+      run: cd yugabyte && lein run test 2>&1 | grep 'Must be one of'
     - name: Check that project is compiled
       run: echo "lein_run_test_output=$(cd yugabyte && lein run test 2>&1 | grep 'Must be one of')" >> $GITHUB_OUTPUT
       id: lein_run_test_output
