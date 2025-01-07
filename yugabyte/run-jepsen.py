@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import socket
 import subprocess
 from collections import namedtuple
 
@@ -350,6 +351,29 @@ def run_cmd(cmd,
                     logging.error("Error deleting stderr log %s, ignoring: %s", stderr_path, ex)
 
 
+def get_ip_from_dns():
+    """
+    Resolves a list of DNS names to IP addresses.
+
+    Args:
+        dns_names: A list of DNS names (e.g., ['n1', 'n2', 'n3']).
+
+    Returns:
+        A comma-separated string of IP addresses or None if an error occurs.
+    """
+    dns_names = ['n1', 'n2', 'n3', 'n4', 'n5']
+    ip_addresses = []
+    for dns_name in dns_names:
+        try:
+            ip = socket.gethostbyname(dns_name)
+            ip_addresses.append(ip)
+        except socket.gaierror:
+            print(f"Could not resolve DNS name: {dns_name}")
+            return None  # Or handle the error differently if some names might not resolve
+
+    return ",".join(ip_addresses)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -409,7 +433,7 @@ def main():
     atexit.register(cleanup)
 
     # Sort old results in the beginning if it did not happen at the end of the last run.
-    run_cmd(SORT_RESULTS_SH)
+    # run_cmd(SORT_RESULTS_SH)
 
     start_time = time.time()
     nemeses = args.nemeses
@@ -441,11 +465,16 @@ def main():
         raise AttributeError(f"Failed to parse version from URL {url}")
 
     not_good_tests = []
+    # need to disable connection manager forcefully for older versions
+    connection_manager_flag = "--connection-manager false" \
+        if not (is_version_at_least("2024.1.0.0-b1", version) or
+                is_version_at_least("2.25.1.0-b1", version)) else ""
     lein_cmd = " ".join(["lein run test",
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
-                         f"--ssh-private-key ~/.ssh/id_rsa",  # tmp workaround for jepsen 0.2.7+ versions
+                         f"--nodes {get_ip_from_dns()}",
+                         connection_manager_flag,
                          f"--concurrency {args.concurrency}"])
 
     if args.iterations:

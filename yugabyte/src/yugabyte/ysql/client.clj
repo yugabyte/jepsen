@@ -19,7 +19,11 @@
 (def conn-isolation-level "Default isolation level for connections"
   Connection/TRANSACTION_SERIALIZABLE)
 
-(def ysql-port 5433)
+(defn ysql-port
+  [test]
+  (if (:connection-manager test)
+    5431
+    5433))
 
 (def max-retry-attempts "Maximum number of attempts to be performed by with-retry" 30)
 (def max-delay-between-retries-ms "Maximum delay between retries for with-retry" 200)
@@ -28,14 +32,14 @@
 
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
-  [dbname node]
+  [dbname user password node port]
   {:dbtype         "yugabytedb"
    :dbname         dbname
    :classname      "com.yugabyte.Driver"
    :host           (name node)
-   :port           ysql-port
-   :user           "postgres"
-   :password       ""
+   :port           port
+   :user           user
+   :password       password
    :loginTimeout   (/ default-timeout 1000)
    :connectTimeout (/ default-timeout 1000)
    :socketTimeout  (/ default-timeout 1000)})
@@ -75,8 +79,10 @@
 (defn execute!
   "Like jdbc execute!, but includes a default timeout and (optionally) :op-index comment."
   ([op conn sql-params]
+   (info sql-params)
    (execute! conn (append-op-index op sql-params)))
   ([conn sql-params]
+   (info sql-params)
    (j/execute! conn sql-params {:timeout default-timeout})))
 
 (defn select-first-row
@@ -109,13 +115,13 @@
 
 (defn open-conn
   "Opens a connection to the given node."
-  [dbname node]
+  [dbname user password node port]
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
                 (info "Connection" dbname)
                 (util/retry 0.1
-                            (let [spec (db-spec dbname node)
+                            (let [spec (db-spec dbname user password node port)
                                   conn (j/get-connection spec)
                                   spec' (j/add-connection spec conn)]
                               (.setTransactionIsolation conn conn-isolation-level)
@@ -135,20 +141,20 @@
   "Connects to the YSQL interface and immediately disconnects. YB just...
   doesn't accept connections sometimes, so we use this to give up on the setup
   process if the cluster looks broken. Hack hack hack."
-  [node]
+  [node test]
   (try+
-    (let [conn (open-conn "postgres" node)]
+    (let [conn (open-conn "postgres" "postgres" "" node (ysql-port test))]
       (close-conn conn))
     (catch [:type :connection-timed-out] e
       (throw+ {:type :jepsen.db/setup-failed}))))
 
 (defn conn-wrapper
   "Constructs a network client for a node, and opens it"
-  [node]
+  [node test]
   (rc/open!
     (rc/wrapper
       {:name  node
-       :open  (partial open-conn "jepsen" node)
+       :open  (partial open-conn "jepsen" "jepsen" "jepsen" node (ysql-port test))
        :close close-conn
        ; Do not log intermediate reconnection errors (if the reconnect fails, we'll still get it)
        :log?  false})))
@@ -430,7 +436,7 @@
            client/Client
 
            (open! [~'this ~'test ~'node]
-             (assoc ~'this :conn-wrapper (conn-wrapper ~'node)))
+             (assoc ~'this :conn-wrapper (conn-wrapper ~'node ~'test)))
 
            (setup! [~'this ~'test]
              (once-per-cluster

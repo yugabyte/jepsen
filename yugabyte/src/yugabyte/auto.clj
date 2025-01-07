@@ -2,6 +2,7 @@
   "Shared automation functions for configuring, starting and stopping nodes."
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
+            [clojure.data.json :as json]
             [clj-http.client :as http]
             [dom-top.core :as dt]
             [jepsen.control :as c]
@@ -26,6 +27,7 @@
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
 (def minimal-packed-version "2.16.4.0-b1")
+(def tablespace-name "geo_tablespace")
 
 (def max-bump-time-ops-per-test
   "Upper bound on number of bump time ops per test, needed to estimate max
@@ -106,6 +108,7 @@
 (defn ysqlsh
   "Runs a ysqlsh command on a node. Args are passed to ysqlsh."
   [test & args]
+  (info "/bin/ysqlsh" args)
   (apply c/exec (str dir "/bin/ysqlsh")
          args))
 
@@ -132,6 +135,49 @@
                    (re-find #"(\w+)\s+([^\s]+)")
                    next
                    (zipmap [:uuid :address]))))))
+
+(defn create-geo-tablespace
+  [node tablespace-name replica-placement]
+  (info "Creating tablespace" tablespace-name)
+  (let [port (if (:connection-manager test)
+               5431
+               5433)]
+    (ysqlsh test :-p port :-h (cn/ip node) :-c (str "CREATE TABLESPACE " tablespace-name " "
+                                                    "WITH (replica_placement='" (json/write-str replica-placement) "');"))))
+
+(defn setup-geo-partition
+  [node tablespace-name]
+  (do
+    (create-geo-tablespace
+      node
+      (str tablespace-name "_1a")
+      {
+       :num_replicas     2
+       :placement_blocks [
+                          {
+                           :cloud             :ybc
+                           :region            :jepsen-1
+                           :zone              :jepsen-1a
+                           :min_num_replicas  1
+                           :leader_preference 1
+                           }
+                          ]
+       })
+    (create-geo-tablespace
+      node
+      (str tablespace-name "_2a")
+      {
+       :num_replicas     2
+       :placement_blocks [
+                          {
+                           :cloud             :ybc
+                           :region            :jepsen-2
+                           :zone              :jepsen-2a
+                           :min_num_replicas  1
+                           :leader_preference 1
+                           }
+                          ]
+       })))
 
 (defn await-masters
   "Waits until all masters for a test are online, according to this node."
@@ -207,7 +253,7 @@
     (ycql.client/await-setup node)
 
     :ysql
-    (ysql.client/check-setup-successful node))
+    (ysql.client/check-setup-successful node test))
 
   :started)
 
@@ -334,10 +380,16 @@
 
 (defn tserver-api-opts
   "API-specific options for tserver"
-  [api node]
-  (if (= api :ysql)
-    [:--start_pgsql_proxy
-     :--pgsql_proxy_bind_address (cn/ip node)]
+  [test node]
+  (if (= (:api test) :ysql)
+    (if (:connection-manager test)
+      [:--start_pgsql_proxy
+       :--pgsql_proxy_bind_address (str (cn/ip node))
+       :--ysql_conn_mgr_port 5431
+       ]
+      [:--start_pgsql_proxy
+       :--pgsql_proxy_bind_address (cn/ip node)
+       ])
     []))
 
 (defn tserver-read-committed-flags
@@ -377,6 +429,15 @@
   (if (utils/is-test-has-pessimistic-locs? test)
     [:--enable_wait_queues
      :--enable_deadlock_detection]
+    []))
+
+
+(defn tserver-connection-manager-preview
+  "Preview flags for connection manager feature"
+  [test]
+  (if (:connection-manager test)
+    [:--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+     :--enable_ysql_conn_mgr]
     []))
 
 (defn master-tserver-geo-partitioning-flags
@@ -476,6 +537,8 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+            :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+            :--enable_ysql_conn_mgr
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -503,7 +566,8 @@
             (master-tserver-wait-on-conflict-flags test)
             (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
-            (tserver-api-opts (:api test) node)
+            (tserver-api-opts test node)
+            (tserver-connection-manager-preview test)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
             )))
@@ -537,10 +601,25 @@
     (if (= (:api test) :ysql)
       (let [colocated-clause (if (:yb-colocated test)
                                " WITH colocated = true"
-                               "")]
-        (ysqlsh test :-h (cn/ip node) :-c (str "DROP DATABASE IF EXISTS jepsen;"))
-        (ysqlsh test :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))))
-    )
+                               "")
+            port (if (:connection-manager test)
+                   5431
+                   5433)]
+        (ysqlsh test :-p port :-h (cn/ip node) :-c (str "DROP DATABASE IF EXISTS jepsen;"))
+        (ysqlsh test :-p port :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))
+        (ysqlsh test :-p port :-h (cn/ip node) :-c (str "DROP USER IF EXISTS jepsen;
+                                                CREATE USER jepsen;
+                                                ALTER USER jepsen WITH PASSWORD 'jepsen';
+                                                GRANT ALL ON DATABASE jepsen TO jepsen;
+                                                GRANT ALL ON ALL TABLES IN SCHEMA public TO jepsen;
+                                                GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO jepsen;
+                                                GRANT ALL ON SCHEMA public TO jepsen;"))
+        (if (str/includes? (:name test) ".geo.")
+          (do
+            (info "Setup optional geo partitioning")
+            (setup-geo-partition node tablespace-name)
+            (ysqlsh test :-p port :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_1a TO jepsen;"))
+            (ysqlsh test :-p port :-h (cn/ip node) :-c (str "GRANT CREATE ON TABLESPACE " tablespace-name "_2a TO jepsen;")))))))
 
   db/LogFiles
   (log-files [_ _ _]
