@@ -13,6 +13,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Debug Environment
+      run: |
+        echo "Current Directory: $(pwd)"
+        echo "List of Files:"
+        ls -la
+        echo "Environment Variables:"
+        env
+    - name: Install Leiningen
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y leiningen
     - name: Run command and check for specific output
       run: |
         cd yugabyte
