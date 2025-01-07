@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Check that project is compiled
-      run: echo "::set-output name=result::$(cd yugabyte && lein run test 2>&1 | grep 'Must be one of')"
+      run: echo "cd yugabyte && lein run test 2>&1 | grep 'Must be one of'" >> $GITHUB_OUTPUT
       id: lein_run_test_output
     - uses: nick-fields/assert-action@v1
       name: Check output for workload missing arg
@@ -23,4 +23,3 @@ jobs:
         expected: "workload Must be one of"
         actual: ${{ steps.lein_run_test_output.outputs.result }}
         comparison: contains
-        
