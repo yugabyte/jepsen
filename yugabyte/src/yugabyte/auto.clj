@@ -381,16 +381,14 @@
 (defn tserver-api-opts
   "API-specific options for tserver"
   [test node]
-  (if (= (:api test) :ysql)
-    (if (:connection-manager test)
+  (if (:connection-manager test)
       [:--start_pgsql_proxy
        :--pgsql_proxy_bind_address (str (cn/ip node))
        :--ysql_conn_mgr_port 5431
        ]
       [:--start_pgsql_proxy
        :--pgsql_proxy_bind_address (cn/ip node)
-       ])
-    []))
+       ]))
 
 (defn tserver-read-committed-flags
   "Read committed specific flags"
@@ -608,11 +606,12 @@
         (ysqlsh test :-p port :-h (cn/ip node) :-c (str "DROP DATABASE IF EXISTS jepsen;"))
         (ysqlsh test :-p port :-h (cn/ip node) :-c (str "CREATE DATABASE jepsen" colocated-clause ";"))
         (ysqlsh test :-p port :-h (cn/ip node) :-c (str "DROP USER IF EXISTS jepsen;
-                                                CREATE USER jepsen;
+                                                CREATE USER jepsen createdb;
                                                 ALTER USER jepsen WITH PASSWORD 'jepsen';
                                                 GRANT ALL ON DATABASE jepsen TO jepsen;
                                                 GRANT ALL ON ALL TABLES IN SCHEMA public TO jepsen;
                                                 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO jepsen;
+                                                GRANT CREATE ON SCHEMA public TO public;
                                                 GRANT ALL ON SCHEMA public TO jepsen;"))
         (if (str/includes? (:name test) ".geo.")
           (do
