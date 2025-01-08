@@ -207,70 +207,6 @@ def show_last_lines(file_path, n_lines):
     )
 
 
-def send_report_to_reportportal(
-        xml_report_name,
-        xml_report_content,
-        reportportal_base_url,
-        reportportal_project_name,
-        reportportal_api_token,
-        version,
-        jenkins_url,
-):
-    full_version = version.split("-b")[0]
-    major_version = ".".join(re.findall(REGEX_MAJOR_VERSION, version)[0])
-    build_version = version.split("-b")[1]
-
-    url = f"{reportportal_base_url}/api/v1/{reportportal_project_name}/launch/import"
-
-    response = requests.post(
-        url,
-        files={
-            'file': (f"{major_version}-{xml_report_name}", xml_report_content),
-            'type': 'text/xml'},
-        headers={"accept": "*/*",
-                 "Authorization": f"bearer {reportportal_api_token}"}
-    )
-
-    if response.status_code == 200:
-        launch_uuid = re.search('(?<=id = )[^ ]+', json.loads(response.text)["message"])[0]
-        logging.info(f"Successfully posted launch {launch_uuid}")
-    else:
-        logging.error(
-            f"Can't send data to the ReportPortal {reportportal_base_url} due to {response.text} "
-            f"(code {response.status_code})")
-        return False
-
-    # Need to translate UUID to launch-specific ID
-    url = f"{reportportal_base_url}/api/v1/{reportportal_project_name}/launch/uuid/{launch_uuid}"
-
-    response = requests.get(url, headers={"accept": "*/*",
-                                          "Authorization": f"bearer {reportportal_api_token}"})
-
-    if response.status_code == 200:
-        launch_id = json.loads(response.text)["id"]
-        logging.info(f"Successfully found launch ID {launch_id}")
-    else:
-        logging.error(f"Can't find launch ID for uuid {launch_uuid}")
-        logging.error(f"Code: {response.status_code} Text: {response.text}")
-        return False
-
-    url = f"{reportportal_base_url}/api/v1/{reportportal_project_name}/launch/{launch_id}/update"
-
-    response = requests.put(url, json={"attributes": [{"key": "version", "value": full_version},
-                                                      {"key": "build", "value": build_version},
-                                                      {"key": "jenkins", "value": jenkins_url}]},
-                            headers={"accept": "*/*", "Content-Type": "application/json",
-                                     "Authorization": f"bearer {reportportal_api_token}"})
-
-    if response.status_code != 200:
-        logging.error(f"Could not update attributes for launch {launch_id}")
-        logging.error(f"Code: {response.status_code} Text: {response.text}")
-        return False
-
-    logging.info(f"Successfully updated attributes for launch {launch_id}")
-    return True
-
-
 def run_cmd(cmd,
             timeout=None,
             exit_on_error=True,
@@ -354,12 +290,6 @@ def run_cmd(cmd,
 def get_ip_from_dns():
     """
     Resolves a list of DNS names to IP addresses.
-
-    Args:
-        dns_names: A list of DNS names (e.g., ['n1', 'n2', 'n3']).
-
-    Returns:
-        A comma-separated string of IP addresses or None if an error occurs.
     """
     dns_names = ['n1', 'n2', 'n3', 'n4', 'n5']
     ip_addresses = []
@@ -381,18 +311,6 @@ def parse_args():
         default="",
         help='Jenkins build URL')
     parser.add_argument(
-        '--reportportal_base_url',
-        default="",
-        help='ReportPortal base URL')
-    parser.add_argument(
-        '--reportportal_project_name',
-        default="",
-        help='ReportPortal project name')
-    parser.add_argument(
-        '--reportportal_api_token',
-        default="",
-        help='ReportPortal API token')
-    parser.add_argument(
         '--url',
         default=DEFAULT_TARBALL_URL,
         help='YugaByte DB tarball URL to use')
@@ -401,6 +319,11 @@ def parse_args():
         type=int,
         help='Maximum time to run for. The actual run time could be a few minutes longer than '
              'this.')
+    parser.add_argument(
+        '--test-time-sec',
+        type=int,
+        default=0,
+        help='Test execution time.')
     parser.add_argument(
         '--enable-clock-skew',
         action='store_true',
@@ -516,9 +439,9 @@ def main():
                 "=" * 80)
             test_start_time_sec = time.time()
             if '/set' in test:
-                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST
+                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
-                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME
+                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
             full_cmd = lein_cmd + \
                        " --time-limit " + str(test_run_time_limit_no_analysis_sec) + \
                        " --workload " + test
@@ -616,16 +539,6 @@ def main():
 
     logging.info("Sending JUnit XML report")
     ts = TestSuite(f"Jepsen {nemeses.replace(',', '-')} {version}", test_cases.values())
-    if args.reportportal_base_url and args.reportportal_project_name and args.reportportal_api_token:
-        send_report_to_reportportal(f"jepsen-junit-{nemeses.replace(',', '-')}.xml",
-                                    to_xml_report_string([ts]),
-                                    args.reportportal_base_url,
-                                    args.reportportal_project_name,
-                                    args.reportportal_api_token,
-                                    version,
-                                    args.build_url)
-    else:
-        logging.warning("Skipped ReportPortal reporting due to missing args")
 
     logging.info("Storing JUnit XML reports locally")
     with open(f"jepsen-junit-{nemeses.replace(',', '-')}.xml", "w") as xml_report:
