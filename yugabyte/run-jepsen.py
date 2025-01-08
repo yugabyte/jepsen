@@ -325,6 +325,18 @@ def parse_args():
         default=0,
         help='Test execution time.')
     parser.add_argument(
+        '--reportportal_base_url',
+        default="",
+        help='ReportPortal base URL')
+    parser.add_argument(
+        '--reportportal_project_name',
+        default="",
+        help='ReportPortal project name')
+    parser.add_argument(
+        '--reportportal_api_token',
+        default="",
+        help='ReportPortal API token')
+    parser.add_argument(
         '--enable-clock-skew',
         action='store_true',
         help='Enable clock skew nemesis. This will not work on LXC.')
