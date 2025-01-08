@@ -381,16 +381,14 @@
 (defn tserver-api-opts
   "API-specific options for tserver"
   [test node]
-  (if (= (:api test) :ysql)
-    (if (:connection-manager test)
+  (if (:connection-manager test)
       [:--start_pgsql_proxy
        :--pgsql_proxy_bind_address (str (cn/ip node))
        :--ysql_conn_mgr_port 5431
        ]
       [:--start_pgsql_proxy
        :--pgsql_proxy_bind_address (cn/ip node)
-       ])
-    []))
+       ]))
 
 (defn tserver-read-committed-flags
   "Read committed specific flags"
