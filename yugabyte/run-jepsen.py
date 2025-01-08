@@ -327,15 +327,15 @@ def parse_args():
     parser.add_argument(
         '--reportportal_base_url',
         default="",
-        help='ReportPortal base URL')
+        help='Deprecated')
     parser.add_argument(
         '--reportportal_project_name',
         default="",
-        help='ReportPortal project name')
+        help='Deprecated')
     parser.add_argument(
         '--reportportal_api_token',
         default="",
-        help='ReportPortal API token')
+        help='Deprecated')
     parser.add_argument(
         '--enable-clock-skew',
         action='store_true',
