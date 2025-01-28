@@ -113,7 +113,8 @@
     :default 5]
 
    [nil "--env ENV" "Environment test is evaluated against - YB or YBA."
-    :default :yb]
+    :default :yb
+    :parse-fn keyword]
 
    [nil "--url URL" "URL to Yugabyte tarball to install, has precedence over --version"
     :default nil]
