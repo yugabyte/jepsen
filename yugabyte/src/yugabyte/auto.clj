@@ -17,8 +17,7 @@
             [yugabyte.utils :as utils]
             [slingshot.slingshot :refer [try+ throw+]])
   (:import jepsen.os.debian.Debian
-           jepsen.os.centos.CentOS
-           (com.yugabyte.ysql YBManagedHostnameVerifier)))
+           jepsen.os.centos.CentOS))
 
 (def dir
   "Where we unpack the Yugabyte package"
