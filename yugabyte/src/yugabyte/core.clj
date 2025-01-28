@@ -226,9 +226,9 @@
   name, OS, DB."
   [opts]
   (let [api (keyword (namespace (:workload opts)))
-        url-version (first (re-find version-regex (get opts :url "none")))]
+        url-version (first (re-find version-regex (get opts :url "")))]
     (assoc opts
-      :version (or url-version (:version opts))
+      :version (or (:version opts) url-version)
       :api api
       :name (str "yb_" (-> (or (:url opts) (:version opts))
                            (str/split #"/")
