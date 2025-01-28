@@ -659,7 +659,7 @@
     (concat [ce-master-logfile
              ce-tserver-logfile]
             (log-files-without-symlinks ce-master-log-dir)
-            (log-files-without-symlinks ce-tserver-log-dir)))) )
+            (log-files-without-symlinks ce-tserver-log-dir))))
 
 (defn running-masters
   "Returns a list of nodes where master process is running."
