@@ -228,7 +228,7 @@
   (let [api (keyword (namespace (:workload opts)))
         url-version (first (re-find version-regex (get opts :url "")))]
     (assoc opts
-      :version (or (:version opts) url-version)
+      :version (or url-version (:version opts))
       :api api
       :name (str "yb_" (-> (or (:url opts) (:version opts))
                            (str/split #"/")
@@ -245,9 +245,9 @@
       :os (case (:os opts)
             :centos centos/os
             :debian debian/os)
-      :db (if (nil? (:url opts))
-            (auto/->YBA)
-            (auto/->YugaByteDB)))))
+      :db (case (:env opts)
+            :yba (auto/->YBA)
+            :yb (auto/->YugaByteDB)))))
 
 (defn test-2
   "Second phase of test construction. Builds the workload and nemesis, and
