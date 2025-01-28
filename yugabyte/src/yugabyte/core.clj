@@ -245,7 +245,9 @@
       :os (case (:os opts)
             :centos centos/os
             :debian debian/os)
-      :db (auto/->YugaByteDB))))
+      :db (if (nil? (:url opts))
+            (auto/->YBA)
+            (auto/->YugaByteDB)))))
 
 (defn test-2
   "Second phase of test construction. Builds the workload and nemesis, and

@@ -17,7 +17,8 @@
             [yugabyte.utils :as utils]
             [slingshot.slingshot :refer [try+ throw+]])
   (:import jepsen.os.debian.Debian
-           jepsen.os.centos.CentOS))
+           jepsen.os.centos.CentOS
+           (com.yugabyte.ysql YBManagedHostnameVerifier)))
 
 (def dir
   "Where we unpack the Yugabyte package"
@@ -488,6 +489,45 @@
 * hard nofile 1048576
 * soft nofile 1048576")
 
+(defrecord YBA
+  []
+  Auto
+  (install! [db test]
+    (do))
+
+  (configure! [db test node]
+    (do))
+
+  (start-master! [db test node]
+    (do))
+
+  (start-tserver! [db test node]
+    (do))
+
+  (stop-master! [db]
+    (do))
+
+  (stop-tserver! [db]
+    (do))
+
+  (wipe! [db]
+    (do))
+
+  db/DB
+  (setup! [db test node]
+    (do))
+
+  (teardown! [db test node]
+    (do))
+
+  db/Primary
+  (setup-primary! [this test node]
+    (do))
+
+  db/LogFiles
+  (log-files [_ _ _]
+    (do)))
+
 (defrecord YugaByteDB
   []
   Auto
@@ -619,7 +659,7 @@
     (concat [ce-master-logfile
              ce-tserver-logfile]
             (log-files-without-symlinks ce-master-log-dir)
-            (log-files-without-symlinks ce-tserver-log-dir))))
+            (log-files-without-symlinks ce-tserver-log-dir)))) )
 
 (defn running-masters
   "Returns a list of nodes where master process is running."
