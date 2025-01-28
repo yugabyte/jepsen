@@ -116,6 +116,7 @@
 (defn open-conn
   "Opens a connection to the given node."
   [dbname user password node port]
+  (info "Trying to connect " node ":" port "@" user "/" dbname)
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
