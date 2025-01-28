@@ -57,7 +57,8 @@
     :default false]
 
    [nil "--connection-manager" "Enable connection manager flags on YB since 2024.2 version"
-    :default (rand-nth [true false])]
+    :default (rand-nth [true false])
+    :parse-fn #(Boolean/parseBoolean %)]
 
    [nil "--clock-skew-flags" "Enable soft clock skew flags on YB"
     :default true]
