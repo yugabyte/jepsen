@@ -57,10 +57,10 @@
     :default false]
 
    [nil "--connection-manager" "Enable connection manager flags on YB since 2024.2 version"
-    :default (rand-nth [true false])]
+    :default false]
 
    [nil "--clock-skew-flags" "Enable soft clock skew flags on YB"
-    :default true]
+    :default false]
 
    [nil "--extreme-skew" "Enable extreme clock skew flags: master and tserver process can have different skew on one node"
     :default false]
