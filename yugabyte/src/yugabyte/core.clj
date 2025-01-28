@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [jepsen.checker :as checker]
             [jepsen.generator :as gen]
+            [jepsen.os :as os]
             [jepsen.tests :as tests]
             [jepsen.os.debian :as debian]
             [jepsen.os.centos :as centos]
@@ -243,6 +244,7 @@
                                          (str/join ",")))))
       :pure-generators true
       :os (case (:os opts)
+            :noop os/noop
             :centos centos/os
             :debian debian/os)
       :db (case (:env opts)

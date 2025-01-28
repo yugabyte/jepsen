@@ -48,7 +48,7 @@
   [["-o" "--os NAME" "Operating system: either centos or debian."
     :default :centos
     :parse-fn keyword
-    :validate [#{:centos :debian} "One of `centos` or `debian`"]]
+    :validate [#{:centos :debian :noop} "One of `centos` or `debian`"]]
 
    [nil "--experimental-tuning-flags" "Enable some experimental tuning flags which are supposed to help YB recover faster"
     :default false]
