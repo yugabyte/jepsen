@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [jepsen.checker :as checker]
             [jepsen.generator :as gen]
+            [jepsen.net :as net]
             [jepsen.os :as os]
             [jepsen.tests :as tests]
             [jepsen.os.debian :as debian]
@@ -311,6 +312,7 @@
            {:client          (:client workload)
             :nemesis         (:nemesis nemesis)
             :generator       gen
+            :net             net/noop
             :pure-generators true
             :checker         checker})))
 
