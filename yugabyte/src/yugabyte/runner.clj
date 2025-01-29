@@ -83,7 +83,7 @@
 
    [nil "--nemesis-interval SECONDS"
     "Roughly how long to wait between nemesis operations. Default: 10s."
-    :default {:interval 10}
+    :default 10
     :parse-fn parse-long
     :assoc-fn (fn [m k v] (update m :nemesis assoc :interval v))
     :validate [(complement neg?) "should be a non-negative number"]]
