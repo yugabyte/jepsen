@@ -450,14 +450,12 @@
                (info "Setup successful")))
 
            (invoke! [~'this ~'test ~'op]
-             (info "Running invoke")
              (let [~'start-dt (yutil/current-pretty-datetime)
                    ~'op2 (with-conn [~'c ~'conn-wrapper]
                                     (with-errors ~'op
                                                  (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))
                    ~'op3 (assoc ~'op2 :op-timing [~'start-dt (yutil/current-pretty-datetime)])]
-               ~'op3)
-             (info "Invoke successful"))
+               ~'op3))
 
            (teardown! [~'this ~'test]
              (once-per-cluster
