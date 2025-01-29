@@ -71,7 +71,7 @@
     :validate [(complement neg?) "Must be a non-negative number"]]
 
    [nil "--nemesis SPEC" "A comma-separated list of nemesis types"
-    :default "none"
+    :default {:interval 10}
     :parse-fn parse-nemesis-spec
     :assoc-fn (fn [m k v] (update m :nemesis merge v))
     :validate [(fn [parsed]
@@ -83,7 +83,6 @@
 
    [nil "--nemesis-interval SECONDS"
     "Roughly how long to wait between nemesis operations. Default: 10s."
-    :default 10
     :parse-fn parse-long
     :assoc-fn (fn [m k v] (update m :nemesis assoc :interval v))
     :validate [(complement neg?) "should be a non-negative number"]]
