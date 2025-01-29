@@ -312,7 +312,7 @@
            (when (:no-ssh opts)
              {:net net/noop}
              {})
-           (when (= (:nemesis) :none)
+           (when (= (:nemesis opts) :none)
              {:nemesis jepsen.nemesis/noop}
              {})
            {:client          (:client workload)
