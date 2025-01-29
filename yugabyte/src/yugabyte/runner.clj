@@ -71,7 +71,7 @@
     :validate [(complement neg?) "Must be a non-negative number"]]
 
    [nil "--nemesis SPEC" "A comma-separated list of nemesis types"
-    :default :none
+    :default "none"
     :parse-fn parse-nemesis-spec
     :assoc-fn (fn [m k v] (update m :nemesis merge v))
     :validate [(fn [parsed]
