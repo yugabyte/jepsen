@@ -201,6 +201,14 @@
                          ;"com.datastax.driver.core.CodecRegistry"  :info
                          }}})
 
+(def disable-nemesis
+  "Disables all nemesis code."
+  {:nemesis jepsen.nemesis/noop})
+
+(def disable-net
+  "Disables any network interation."
+  {:net net/noop})
+
 (defn all-combos
   "Takes a map of options to collections of values for that option. Computes a
   collection of maps with the combinatorial expansion of every possible option
@@ -309,8 +317,8 @@
                    :checker)
            (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
            (when (:trace-cql opts) (trace-logging))
-           (when (:no-ssh opts) {:net net/noop})
-           (when (= (:nemesis opts) :none) {:nemesis jepsen.nemesis/noop})
+           (when (:no-ssh opts) (disable-net))
+           (when (= (:nemesis opts) :none) (disable-nemesis))
            {:client          (:client workload)
             :generator       gen
             :pure-generators true
