@@ -266,6 +266,7 @@
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
         _ (info (:nemesis opts))
+        _ (info (:no-ssh opts))
         nemesis (if (= (:nemesis opts) {})
                   jepsen.nemesis/noop
                   (nemesis/nemesis opts))
