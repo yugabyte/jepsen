@@ -265,7 +265,9 @@
   finalizes the test."
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
-        nemesis (nemesis/nemesis opts)
+        nemesis (if (= (:nemesis opts) :none)
+                  {:nemesis jepsen.nemesis/noop}
+                  (nemesis/nemesis opts))
         gen (->> (:generator workload)
                  (gen/nemesis (:generator nemesis))
                  (gen/time-limit (:time-limit opts)))
@@ -320,6 +322,7 @@
            (when (:no-ssh opts) (disable-net))
            {:client          (:client workload)
             :generator       gen
+            :nemesis         (:nemesis nemesis)
             :pure-generators true
             :checker         checker})))
 
