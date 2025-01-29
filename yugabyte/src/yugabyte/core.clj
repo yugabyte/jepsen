@@ -201,10 +201,6 @@
                          ;"com.datastax.driver.core.CodecRegistry"  :info
                          }}})
 
-(def disable-nemesis
-  "Disables all nemesis code."
-  {:nemesis jepsen.nemesis/noop})
-
 (def disable-net
   "Disables any network interation."
   {:net net/noop})
@@ -267,7 +263,8 @@
   (let [workload ((get workloads (:workload opts)) opts)
         _ (info (:nemesis opts))
         _ (info (:no-ssh opts))
-        nemesis (if (= (:nemesis opts) {})
+        _ (info (:argv opts))
+        nemesis (if (= (:nemesis opts) {:interval 10})
                   jepsen.nemesis/noop
                   (nemesis/nemesis opts))
         gen (->> (:generator workload)
