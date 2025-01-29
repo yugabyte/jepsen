@@ -265,8 +265,9 @@
   finalizes the test."
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
-        nemesis (if (= (:nemesis opts) :none)
-                  {:nemesis jepsen.nemesis/noop}
+        _ (info (:nemesis opts))
+        nemesis (if (= (:nemesis opts) {})
+                  jepsen.nemesis/noop
                   (nemesis/nemesis opts))
         gen (->> (:generator workload)
                  (gen/nemesis (:generator nemesis))
