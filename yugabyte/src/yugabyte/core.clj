@@ -262,7 +262,7 @@
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
         nemesis (if (= (:env opts) :yba)
-                  jepsen.nemesis/noop
+                  {:nemesis jepsen.nemesis/noop}
                   (nemesis/nemesis opts))
         net (if (= (:env opts) :yba)
                   net/noop
