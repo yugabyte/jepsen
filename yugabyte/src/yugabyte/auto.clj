@@ -492,40 +492,40 @@
   []
   Auto
   (install! [db test]
-    (do))
+    (info "Done auto.install!"))
 
   (configure! [db test node]
-    (do))
+    (info "Done auto.configure!"))
 
   (start-master! [db test node]
-    (do))
+    (info "Done auto.start-master!"))
 
   (start-tserver! [db test node]
-    (do))
+    (info "Done auto.start-tserver!"))
 
   (stop-master! [db]
-    (do))
+    (info "Done auto.stop-master!"))
 
   (stop-tserver! [db]
-    (do))
+    (info "Done auto.stop-tserver!"))
 
   (wipe! [db]
-    (do))
+    (info "Done auto.wipe!"))
 
   db/DB
   (setup! [db test node]
-    (do))
+    (info "Done DB.setup!"))
 
   (teardown! [db test node]
-    (do))
+    (info "Done DB.teardown!"))
 
   db/Primary
   (setup-primary! [this test node]
-    (do))
+    (info "Done Primary.setup-primary!"))
 
   db/LogFiles
   (log-files [_ _ _]
-    (do)))
+    (info "Done LogFiles.log-files")))
 
 (defrecord YugaByteDB
   []
