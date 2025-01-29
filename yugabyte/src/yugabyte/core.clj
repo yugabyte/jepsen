@@ -310,7 +310,7 @@
            (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
            (when (:trace-cql opts) (trace-logging))
            {:client          (:client workload)
-            :nemesis         (:nemesis nemesis)
+            :nemesis         jepsen.nemesis/noop
             :generator       gen
             :net             net/noop
             :pure-generators true
