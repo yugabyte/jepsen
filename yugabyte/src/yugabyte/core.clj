@@ -265,7 +265,9 @@
   finalizes the test."
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
-        nemesis (nemesis/nemesis opts)
+        nemesis (if (= (:nemesis opts) :none)
+                  {:nemesis jepsen.nemesis/noop}
+                  (nemesis/nemesis opts))
         gen (->> (:generator workload)
                  (gen/nemesis (:generator nemesis))
                  (gen/time-limit (:time-limit opts)))
@@ -318,7 +320,6 @@
            (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
            (when (:trace-cql opts) (trace-logging))
            (when (:no-ssh opts) (disable-net))
-           (when (= (:nemesis opts) :none) (disable-nemesis))
            {:client          (:client workload)
             :generator       gen
             :pure-generators true
