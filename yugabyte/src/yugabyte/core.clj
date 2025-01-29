@@ -309,12 +309,8 @@
                    :checker)
            (when (:yugabyte-ssh opts) (yugabyte-ssh-defaults))
            (when (:trace-cql opts) (trace-logging))
-           (when (:no-ssh opts)
-             {:net net/noop}
-             {})
-           (when (= (:nemesis opts) :none)
-             {:nemesis jepsen.nemesis/noop}
-             {})
+           (when (:no-ssh opts) {:net net/noop})
+           (when (= (:nemesis opts) :none) {:nemesis jepsen.nemesis/noop})
            {:client          (:client workload)
             :generator       gen
             :pure-generators true
