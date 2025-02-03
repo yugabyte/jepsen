@@ -119,7 +119,6 @@
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
-                (info "Connection" dbname)
                 (util/retry 0.1
                             (let [spec (db-spec dbname user password node port)
                                   conn (j/get-connection spec)
