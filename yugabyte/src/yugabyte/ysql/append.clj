@@ -121,7 +121,7 @@
                                   ; Columns for n values packed in this row
                                   (map (fn [i] [(col-for test i) :text])
                                        (range keys-per-row)))
-                                {:conditional? true}))))
+                                {:conditional? true :table-spec "WITH (parallel=10)"}))))
          dorun))
 
   (invoke-op! [this test op c conn-wrapper]

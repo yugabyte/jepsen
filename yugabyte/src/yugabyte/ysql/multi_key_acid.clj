@@ -18,7 +18,7 @@
     (c/execute! c (j/create-table-ddl table-name [[:k1 :int]
                                                   [:k2 :int]
                                                   [:val :int]
-                                                  ["PRIMARY KEY" "(k1, k2)"]])))
+                                                  ["PRIMARY KEY" "(k1, k2)"]]  {:table-spec "WITH (parallel=10)"})))
 
   (invoke-op! [this test op c conn-wrapper]
     (let [[k2 ops] (:value op)]

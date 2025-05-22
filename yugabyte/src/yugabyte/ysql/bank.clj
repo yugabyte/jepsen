@@ -25,7 +25,7 @@
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
-                                                  [:balance :bigint]]))
+                                                  [:balance :bigint]] {:table-spec "WITH (parallel=10)"}))
     (c/with-retry
       (info "Creating accounts")
       (c/insert! c table-name {:id      (first (:accounts test))
@@ -79,7 +79,7 @@
                              0)]
         (info "Creating table" a)
         (c/execute! c (j/create-table-ddl acc-table-name [[:id :int "PRIMARY KEY"]
-                                                          [:balance :bigint]]))
+                                                          [:balance :bigint]] {:table-spec "WITH (parallel=10)"}))
 
         (info "Populating account" a " (balance =" balance ")")
         (c/with-retry

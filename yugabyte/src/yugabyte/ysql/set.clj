@@ -16,7 +16,7 @@
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
-    (c/execute! c (j/create-table-ddl table-name [[:val :int "PRIMARY KEY"]])))
+    (c/execute! c (j/create-table-ddl table-name [[:val :int "PRIMARY KEY"]]  {:table-spec "WITH (parallel=10)"})))
 
 
   (invoke-op! [this test op c conn-wrapper]
@@ -59,7 +59,7 @@
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:val :int]
-                                                  [:grp :int]]))
+                                                  [:grp :int]]  {:table-spec "WITH (parallel=10)"}))
     (c/execute! c (str "CREATE INDEX " index-name " ON " table-name " (grp) INCLUDE (val)"))
     (c/assert-involves-index c set-index-query index-name))
 

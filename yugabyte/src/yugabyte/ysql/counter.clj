@@ -14,7 +14,7 @@
 
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
-                                                  [:count :int]]))
+                                                  [:count :int]] {:table-spec "WITH (parallel=10)"}))
     (c/insert! c table-name {:id 0 :count 0}))
 
   (invoke-op! [this test op c conn-wrapper]

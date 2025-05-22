@@ -46,7 +46,7 @@
     (c/execute! conn (j/create-table-ddl table
                                          [[:dummy :int]
                                           [:v :int :default "0"]]
-                                         {:conditional? true}))
+                                         {:conditional? true :table-spec "WITH (parallel=10)"} ))
     (catch org.postgresql.util.PSQLException e
       (when-not (re-find #"already exists" (.getMessage e))
         (throw e)))))
