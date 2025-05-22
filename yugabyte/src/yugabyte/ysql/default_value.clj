@@ -9,15 +9,8 @@
   value of `0` to an existing table, and execute concurrent inserts into the
   table, and concurrent reads, looking for cases where the column exists, but
   its value is `null` instead."
-  (:require [clojure.string :as str]
-            [clojure.java.jdbc :as j]
+  (:require [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
-            [jepsen [client :as client]
-                    [checker :as checker]
-                    [generator :as gen]
-                    [util :as util]]
-            [jepsen.tests.cycle :as cycle]
-            [jepsen.tests.cycle.append :as append]
             [yugabyte.ysql.client :as c]))
 
 (def table "foo")
@@ -46,8 +39,8 @@
     (c/execute! conn (j/create-table-ddl table
                                          [[:dummy :int]
                                           [:v :int :default "0"]]
-                                         {:conditional? true :table-spec "WITH (parallel=10)"} ))
-    (catch org.postgresql.util.PSQLException e
+                                         {:conditional? true}))
+    (catch com.yugabyte.util.PSQLException e
       (when-not (re-find #"already exists" (.getMessage e))
         (throw e)))))
 
@@ -88,7 +81,7 @@
                   `(info "Creating table" ~table-sym "and retrying")
                   `(create-table! ~conn ~table-sym)
                   body)
-          ~(apply catch-dne 'org.postgresql.util.PSQLException table-sym
+          ~(apply catch-dne 'com.yugabyte.util.PSQLException table-sym
                   `(info "Creating table" ~table-sym "and retrying")
                   `(create-table! ~conn ~table-sym)
                   body)
@@ -115,7 +108,7 @@
                         (assoc op :type :ok))
         :drop-column (do (drop-column! c table (:value op))
                          (assoc op :type :ok)))
-      (catch org.postgresql.util.PSQLException e
+      (catch com.yugabyte.util.PSQLException e
         (if (re-find #"column .+ does not exist" (.getMessage e))
           (assoc op :type :fail, :error :column-does-not-exist)
           (throw e))))))

@@ -1,14 +1,13 @@
 (ns yugabyte.counter
-  (:require [clojure.tools.logging :refer [debug info warn]]
-            [jepsen.checker :as checker]
+  (:require [jepsen.checker :as checker]
             [jepsen.generator :as gen]
             [jepsen.checker.timeline :as timeline]
             [yugabyte.generator :as ygen]))
 
 
-(def add {:type :invoke :f :add :value 1})
-(def sub {:type :invoke :f :add :value -1})
-(def r   {:type :invoke :f :read})
+(defn add []  {:type :invoke :f :add :value 1})
+(defn sub []  {:type :invoke :f :add :value -1})
+(defn r   []  {:type :invoke :f :read})
 
 (defn workload
   [opts]

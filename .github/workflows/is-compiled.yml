@@ -1,0 +1,39 @@
+name: Clojure CI
+
+on:
+  push:
+    branches: [ "master-yb" ]
+  pull_request:
+    branches: [ "master-yb" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Debug Environment
+      run: |
+        echo "Current Directory: $(pwd)"
+        echo "List of Files:"
+        ls -la
+        echo "Environment Variables:"
+        env
+    - name: Install Leiningen
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y leiningen
+    - name: Run command and check for specific output
+      run: |
+        cd yugabyte
+        OUTPUT=$(lein run test 2>&1 | grep 'Must be one of' || true)
+        
+        if [[ -n "$OUTPUT" ]]; then
+          echo "The output contains the expected string:"
+          echo "$OUTPUT"
+        else
+          echo "The output does not contain the expected string."
+          echo "$OUTPUT"
+          exit 1
+        fi

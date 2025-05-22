@@ -1,12 +1,10 @@
 (ns yugabyte.nemesis
   (:require [clojure.tools.logging :refer :all]
-            [clojure.pprint :refer [pprint]]
             [jepsen.control :as c]
             [jepsen.generator :as gen]
             [jepsen.nemesis :as nemesis]
             [jepsen.util :as util :refer [meh timeout]]
             [jepsen.nemesis.time :as nt]
-            [slingshot.slingshot :refer [try+]]
             [yugabyte.auto :as auto]))
 
 (defn process-nemesis
@@ -136,7 +134,7 @@
 (defn flip-flop
   "Switches between ops from two generators: a, b, a, b, ..."
   [a b]
-  (gen/seq (cycle [a b])))
+  (map gen/once (cycle [a b])))
 
 (defn opt-mix
   "Given a nemesis map n, and a map of options to generators to use if that
@@ -187,8 +185,8 @@
          ; Introduce either random or fixed delays between ops
          ((case (:schedule n)
             (nil :random)    gen/stagger
-            :fixed           gen/delay-til)
-          (:interval n)))))
+            :fixed           gen/delay) ; todo think about missing delay-til
+           (:interval n)))))
 
 (defn final-generator
   "Takes a nemesis options map `n`, and constructs a generator to stop all
@@ -205,21 +203,19 @@
          (some n [:partition-one :partition-half :partition-ring])
          (conj :stop-partition))
        (map op)
-       gen/seq))
+       (map gen/once)))
 
 (defn full-generator
-  "Takes a nemesis options map `n`. If `n` has a :long-recovery option, builds
-  a generator which alternates between faults (mixed-generator) and long
-  recovery windows (final-generator). Otherwise, just emits faults from
-  mixed-generator."
+  "Takes a nemesis options map `n`. If `n` has a :no-recovery option, just emits faults from
+  mixed-generator. Otherwise, builds a generator which alternates between faults (mixed-generator)
+  and long recovery windows (final-generator)."
   [n]
-  (if (:long-recovery n)
+  (if (:no-recovery n)
+    (mixed-generator n)
     (let [mix     #(gen/time-limit 120 (mixed-generator n))
-          recover #(gen/phases (final-generator n)
-                               (gen/sleep 60))]
-      (gen/seq-all (interleave (repeatedly mix)
-                               (repeatedly recover))))
-    (mixed-generator n)))
+          recover #(gen/phases (final-generator n) (gen/sleep 60))]
+      (interleave (repeatedly mix)
+                  (repeatedly recover)))))
 
 (defn expand-options
   "We support shorthand options in nemesis maps, like :kill, which expands to

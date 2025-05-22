@@ -7,8 +7,7 @@
             [jepsen.core :as jepsen]
             [jepsen.cli :as cli]
             [jepsen.store :as store]
-            [yugabyte.core :as core]
-            [yugabyte.nemesis :as nemesis]))
+            [yugabyte.core :as core]))
 
 (defn parse-long [x] (Long/parseLong x))
 
@@ -54,6 +53,18 @@
    [nil "--experimental-tuning-flags" "Enable some experimental tuning flags which are supposed to help YB recover faster"
     :default false]
 
+   [nil "--heartbeat-flags" "Enable heartbeat tserver tracing flags on YB"
+    :default false]
+
+   [nil "--connection-manager" "Enable connection manager flags on YB since 2024.2 version"
+    :default (rand-nth [true false])]
+
+   [nil "--clock-skew-flags" "Enable soft clock skew flags on YB"
+    :default true]
+
+   [nil "--extreme-skew" "Enable extreme clock skew flags: master and tserver process can have different skew on one node"
+    :default false]
+
    [nil "--final-recovery-time SECONDS" "How long to wait for the cluster to stabilize at the end of a test"
     :default 30
     :parse-fn parse-long
@@ -76,9 +87,11 @@
     :assoc-fn (fn [m k v] (update m :nemesis assoc :interval v))
     :validate [(complement neg?) "should be a non-negative number"]]
 
-   [nil "--nemesis-long-recovery" "Every so often, have a long period of no faults, to see whether the cluster recovers."
+   [nil "--nemesis-no-recovery" "Disable guaranteed time period for cluster recovery."
+    ; for some reason :default true will not trigger fn below
+    ; original logic was reverted because of this issue
     :default false
-    :assoc-fn (fn [m k v] (update m :nemesis assoc :long-recovery v))]
+    :assoc-fn (fn [m k v] (update m :nemesis assoc :no-recovery v))]
 
    [nil "--nemesis-schedule SCHEDULE" "Whether to have randomized delays between nemesis actions, or fixed ones."
     :parse-fn keyword

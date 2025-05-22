@@ -1,7 +1,7 @@
 (ns yugabyte.utils
   "General helper utility functions"
-  (:import (java.text SimpleDateFormat))
-  (:import (java.util Date)))
+  (:import (java.util Date)
+           (java.text SimpleDateFormat)))
 
 (defn map-values
   "Returns a map with values transformed by function f"
@@ -19,3 +19,15 @@
 (defn current-pretty-datetime
   []
   (pretty-datetime (Date.)))
+
+(defn is-test-geo-partitioned?
+  [test]
+  (clojure.string/includes? (name (:workload test)) "geo."))
+
+(defn is-test-read-committed?
+  [test]
+  (clojure.string/includes? (name (:workload test)) "rc."))
+
+(defn is-test-has-pessimistic-locs?
+  [test]
+  (clojure.string/includes? (name (:workload test)) "pl."))

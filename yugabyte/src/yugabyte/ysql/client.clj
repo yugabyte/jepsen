@@ -11,28 +11,35 @@
             [dom-top.core :as dt]
             [wall.hack :as wh]
             [slingshot.slingshot :refer [try+ throw+]]
-            [yugabyte.utils :as yutil]))
+            [yugabyte.utils :as yutil])
+  (:import (java.sql Connection)))
 
 (def default-timeout "Default timeout for operations in ms" 30000)
 
 (def conn-isolation-level "Default isolation level for connections"
-  java.sql.Connection/TRANSACTION_SERIALIZABLE)
+  Connection/TRANSACTION_SERIALIZABLE)
 
-(def ysql-port 5433)
+(defn ysql-port
+  [test]
+  (if (:connection-manager test)
+    5431
+    5433))
 
 (def max-retry-attempts "Maximum number of attempts to be performed by with-retry" 30)
 (def max-delay-between-retries-ms "Maximum delay between retries for with-retry" 200)
 
+
+
 (defn db-spec
   "Assemble a JDBC connection specification for a given Jepsen node."
-  [node]
-  {:dbtype         "postgresql"
-   :dbname         "postgres"
-   :classname      "org.postgresql.Driver"
+  [dbname user password node port]
+  {:dbtype         "yugabytedb"
+   :dbname         dbname
+   :classname      "com.yugabyte.Driver"
    :host           (name node)
-   :port           ysql-port
-   :user           "postgres"
-   :password       ""
+   :port           port
+   :user           user
+   :password       password
    :loginTimeout   (/ default-timeout 1000)
    :connectTimeout (/ default-timeout 1000)
    :socketTimeout  (/ default-timeout 1000)})
@@ -72,8 +79,10 @@
 (defn execute!
   "Like jdbc execute!, but includes a default timeout and (optionally) :op-index comment."
   ([op conn sql-params]
+   ;(info sql-params)
    (execute! conn (append-op-index op sql-params)))
   ([conn sql-params]
+   ;(info sql-params)
    (j/execute! conn sql-params {:timeout default-timeout})))
 
 (defn select-first-row
@@ -83,8 +92,8 @@
    (select-first-row nil conn table-name where-clause))
   ([op conn table-name where-clause]
    (let [query-string (str "SELECT * FROM " table-name " WHERE " where-clause " LIMIT 1")
-         query-res    (query op conn query-string)
-         res          (first query-res)]
+         query-res (query op conn query-string)
+         res (first query-res)]
      res)))
 
 (defn select-single-value
@@ -94,8 +103,8 @@
    (select-single-value nil conn table-name column-kw where-clause))
   ([op conn table-name column-kw where-clause]
    (let [query-string (str "SELECT " (name column-kw) " FROM " table-name " WHERE " where-clause " LIMIT 1")
-         query-res    (query op conn query-string)
-         res          (get (first query-res) column-kw)]
+         query-res (query op conn query-string)
+         res (get (first query-res) column-kw)]
      res)))
 
 (defn in
@@ -106,13 +115,14 @@
 
 (defn open-conn
   "Opens a connection to the given node."
-  [node]
+  [dbname user password node port]
   (util/timeout default-timeout
                 (throw+ {:type :connection-timed-out
                          :node node})
+                (info "Connection" dbname)
                 (util/retry 0.1
-                            (let [spec  (db-spec node)
-                                  conn  (j/get-connection spec)
+                            (let [spec (db-spec dbname user password node port)
+                                  conn (j/get-connection spec)
                                   spec' (j/add-connection spec conn)]
                               (.setTransactionIsolation conn conn-isolation-level)
                               (assert spec')
@@ -127,15 +137,27 @@
     (.close c))
   (dissoc conn :connection))
 
+(defn check-setup-successful
+  "Connects to the YSQL interface and immediately disconnects. YB just...
+  doesn't accept connections sometimes, so we use this to give up on the setup
+  process if the cluster looks broken. Hack hack hack."
+  [node test]
+  (try+
+    (let [conn (open-conn "postgres" "postgres" "" node (ysql-port test))]
+      (close-conn conn))
+    (catch [:type :connection-timed-out] e
+      (throw+ {:type :jepsen.db/setup-failed}))))
+
 (defn conn-wrapper
   "Constructs a network client for a node, and opens it"
-  [node]
+  [node test]
   (rc/open!
     (rc/wrapper
       {:name  node
-       :open  (partial open-conn node)
+       :open  (partial open-conn "jepsen" "jepsen" "jepsen" node (ysql-port test))
        :close close-conn
-       :log?  true})))
+       ; Do not log intermediate reconnection errors (if the reconnect fails, we'll still get it)
+       :log?  false})))
 
 (defprotocol YSQLYbClient
   "Used by defclient macro in conjunction with jepsen.client/Client specifying actual logic"
@@ -164,7 +186,7 @@
           (update op :error (partial vector :batch)))
         {:type :info, :error [:batch-update m]})
 
-      org.postgresql.util.PSQLException
+      com.yugabyte.util.PSQLException
       (condp re-find m
         #"(?i)Conflicts with [- a-z]+ transaction"
         {:type :fail, :error [:conflicting-transaction m]}
@@ -174,14 +196,8 @@
 
         ; This type of error can, on occasion, be indeterminate: the
         ; transaction may have actually committed.
-        #"Error during commit: Operation expired: Transaction expired"
-        {:type :info, :error [:commit-transaction-expired]}
-
-        ; Happens upon concurrent updates even without explicit transactions.
-        ; I'm not sure if there are other types of "Operation Expired" errors
-        ; so I've left this here.
         #"(?i)Operation expired"
-        {:type :fail, :error [:operation-expired m]}
+        {:type :info, :error [:operation-expired m]}
 
         ; Happens upon network partition,
         ; usually invoked upon RPC request timeout
@@ -292,7 +308,7 @@
   [& body]
   `(util/with-retry [attempts# max-retry-attempts]
      ~@body
-     (catch org.postgresql.util.PSQLException e#
+     (catch com.yugabyte.util.PSQLException e#
        (let [m# (.getMessage e#)]
          (if (or (re-find #"duplicate key value violates unique constraint" m#)
                  (re-find #"A relation has an associated type of the same name" m#)
@@ -354,7 +370,7 @@
 (defn assert-involves-index
   "Verifies that executing given query uses index with the given name"
   [c query-str index-name]
-  (let [explanation     (query c (str "EXPLAIN " query-str))
+  (let [explanation (query c (str "EXPLAIN " query-str))
         explanation-str (pr-str explanation)]
     (assert
       (.contains explanation-str index-name)
@@ -406,9 +422,9 @@
   (let [inner-ctor-ns-prefix (if (qualified-symbol? inner-client-record)
                                (str (namespace inner-client-record) "/")
                                "")
-        inner-ctor-sym       (symbol (str inner-ctor-ns-prefix "->" (name inner-client-record)))
-        inner-ctor-meta      (meta (resolve inner-ctor-sym))
-        inner-ctor-args-vec  (first (:arglists inner-ctor-meta))]
+        inner-ctor-sym (symbol (str inner-ctor-ns-prefix "->" (name inner-client-record)))
+        inner-ctor-meta (meta (resolve inner-ctor-sym))
+        inner-ctor-args-vec (first (:arglists inner-ctor-meta))]
 
     ; Now we're getting to the output.
     ; We define a record with a given name extending jepsen.client/Client,
@@ -420,7 +436,7 @@
            client/Client
 
            (open! [~'this ~'test ~'node]
-             (assoc ~'this :conn-wrapper (conn-wrapper ~'node)))
+             (assoc ~'this :conn-wrapper (conn-wrapper ~'node ~'test)))
 
            (setup! [~'this ~'test]
              (once-per-cluster
@@ -435,8 +451,8 @@
            (invoke! [~'this ~'test ~'op]
              (let [~'start-dt (yutil/current-pretty-datetime)
                    ~'op2 (with-conn [~'c ~'conn-wrapper]
-                           (with-errors ~'op
-                             (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))
+                                    (with-errors ~'op
+                                                 (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))
                    ~'op3 (assoc ~'op2 :op-timing [~'start-dt (yutil/current-pretty-datetime)])]
                ~'op3))
 
