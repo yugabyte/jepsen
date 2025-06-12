@@ -106,7 +106,7 @@
          :sz.pl.geo.append   (with-client append/workload-serializable (ysql.append/->Client :serializable :pessimistic :geo))
          :sz.ol.append       (with-client append/workload-serializable (ysql.append/->Client :serializable :optimistic :no-geo))
          :sz.pl.append       (with-client append/workload-serializable (ysql.append/->Client :serializable :pessimistic :no-geo))
-         :sz.append-table    (with-client append/workload-serializable (ysql.append-table/->Client :serializable))
+         :sz.append-table    (with-client append/workload-serializable (ysql.append-table/->Client))
          :sz.default-value   (with-client default-value/workload (ysql.default-value/->Client))
          :rc.ol.geo.append   (with-client append/workload-rc (ysql.append/->Client :read-committed :optimistic :geo))
          :rc.pl.geo.append   (with-client append/workload-rc (ysql.append/->Client :read-committed :pessimistic :geo))
