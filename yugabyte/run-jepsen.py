@@ -125,6 +125,12 @@ TEST_PER_VERSION = [
         "tests": [
             "ysql/sz.pl.append",
         ]
+    },
+    {
+        "start_version": "2.27.0.0-b1",
+        "tests": [
+            "ysql/sz.append-table",
+        ]
     }
 ]
 NEMESES = [
