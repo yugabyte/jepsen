@@ -534,7 +534,6 @@
             ce-master-bin
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
-            :--yb_insert_on_conflict_read_batch_size 0
             :--replication_factor (:replication-factor test)
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
@@ -557,7 +556,7 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
-            :--yb_insert_on_conflict_read_batch_size 0
+            :--ysql_pg_conf_csv "yb_insert_on_conflict_read_batch_size=0"
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
