@@ -556,7 +556,7 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
-            :--ysql_pg_conf_csv "yb_insert_on_conflict_read_batch_size=0"
+            :--ysql_log_statement "all";
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
