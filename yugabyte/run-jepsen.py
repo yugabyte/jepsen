@@ -399,6 +399,46 @@ def main():
     if version is None:
         raise AttributeError(f"Failed to parse version from URL {url}")
 
+    for name in ['n1', 'n2', 'n3', 'n4', 'n5']:
+        command = ['lxc', 'exec', name, '--', 'apt', 'update']
+
+        try:
+            # Execute the command
+            # capture_output=True saves stdout/stderr to the result object
+            # text=True decodes stdout/stderr as text
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False  # Do not raise an exception on non-zero exit codes
+            )
+
+            # Print the output from the command
+            if result.stdout:
+                print("STDOUT:")
+                print(result.stdout)
+            if result.stderr:
+                # LXC prints status messages to stderr, so we show it regardless
+                print("STDERR:")
+                print(result.stderr)
+
+            # Check if the command was successful
+            if result.returncode == 0:
+                print(f"Successfully updated apt cache in '{name}'.\n")
+            else:
+                # A common error is the container not existing.
+                if "Error: Not found" in result.stderr:
+                    print(f"Container '{name}' not found.\n")
+                else:
+                    print(f"Command failed in '{name}' with exit code: {result.returncode}.\n")
+
+        except FileNotFoundError:
+            # This would catch if 'lxc' isn't installed, though we check above.
+            print("Error: 'lxc' command not found. Please install LXD.")
+            break
+        except Exception as e:
+            print(f"An unexpected error occurred with container '{name}': {e}\n")
+
     not_good_tests = []
     # need to disable connection manager forcefully for older versions
     connection_manager_flag = "--connection-manager false" \
