@@ -415,29 +415,29 @@ def main():
 
             # Print the output from the command
             if result.stdout:
-                print("STDOUT:")
-                print(result.stdout)
+                logging.info("STDOUT:")
+                logging.info(result.stdout)
             if result.stderr:
                 # LXC prints status messages to stderr, so we show it regardless
-                print("STDERR:")
-                print(result.stderr)
+                logging.info("STDERR:")
+                logging.info(result.stderr)
 
             # Check if the command was successful
             if result.returncode == 0:
-                print(f"Successfully updated apt cache in '{name}'.\n")
+                logging.info(f"Successfully updated apt cache in '{name}'.\n")
             else:
                 # A common error is the container not existing.
                 if "Error: Not found" in result.stderr:
-                    print(f"Container '{name}' not found.\n")
+                    logging.error(f"Container '{name}' not found.\n")
                 else:
-                    print(f"Command failed in '{name}' with exit code: {result.returncode}.\n")
+                    logging.info(f"Command failed in '{name}' with exit code: {result.returncode}.\n")
 
         except FileNotFoundError:
             # This would catch if 'lxc' isn't installed, though we check above.
-            print("Error: 'lxc' command not found. Please install LXD.")
+            logging.error("Error: 'lxc' command not found. Please install LXD.")
             break
         except Exception as e:
-            print(f"An unexpected error occurred with container '{name}': {e}\n")
+            logging.error(f"An unexpected error occurred with container '{name}': {e}\n")
 
     not_good_tests = []
     # need to disable connection manager forcefully for older versions
