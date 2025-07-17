@@ -400,7 +400,7 @@ def main():
         raise AttributeError(f"Failed to parse version from URL {url}")
 
     for name in ['n1', 'n2', 'n3', 'n4', 'n5']:
-        command = ['lxc-attach', '-n', name, '--', 'apt', 'update']
+        command = ['sudo', 'lxc-attach', '-n', name, '--', 'apt', 'update']
 
         try:
             # Execute the command
