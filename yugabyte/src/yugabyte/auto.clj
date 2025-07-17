@@ -499,6 +499,8 @@
             (let [url (or (:url test) (get-download-url (:version test)))
                   installed-url (get-installed-url)]
               (when-not (= url installed-url)
+                (info "Updating apt")
+                (c/su :apt :update)
                 (info "Replacing version" installed-url "with" url)
                 (install-python! (:os test))
                 (assert (re-find #"Python 2\.7"
