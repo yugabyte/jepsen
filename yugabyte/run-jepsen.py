@@ -36,7 +36,6 @@ import sys
 import time
 from itertools import zip_longest, chain
 
-import requests
 from junit_xml import TestCase, TestSuite, to_xml_report_string
 
 CmdResult = namedtuple('CmdResult',
@@ -145,6 +144,14 @@ SORT_RESULTS_SH = os.path.join(SCRIPT_DIR, "sort-results.sh")
 REGEX_MAJOR_VERSION = r"^(\d+)\.(\d+)"
 
 child_processes = []
+
+CONTAINER_NAMES = ['n1', 'n2', 'n3', 'n4', 'n5']
+
+# The content for the new sources.list file
+NEW_SOURCES_CONTENT = """
+deb http://archive.debian.org/debian/ buster main
+deb http://archive.debian.org/debian-security buster/updates main
+"""
 
 
 def get_workload_version(workload):
@@ -359,6 +366,79 @@ def parse_args():
     return parser.parse_args()
 
 
+def run_command_in_container(name: str, command: list, command_input: str = None):
+    """
+    A helper function to run a command inside an LXC container.
+
+    Args:
+        name: The name of the LXC container.
+        command: The command to run as a list of strings.
+        command_input: Optional string to pass to the command's stdin.
+
+    Returns:
+        A subprocess.CompletedProcess object.
+    """
+    full_command = ['sudo', 'lxc-attach', '-n', name, '--'] + command
+    return subprocess.run(
+        full_command,
+        capture_output=True,
+        text=True,
+        input=command_input,
+        check=False
+    )
+
+def fix_and_update_container(name: str):
+    """
+    Backs up and replaces the sources.list file, then runs apt update.
+
+    Args:
+        name: The name of the LXC container.
+    """
+    logging.info(f"--- Processing container: '{name}' ---")
+
+    try:
+        # Step 1: Back up the original sources.list file
+        logging.info(f"Backing up sources.list in '{name}'...")
+        backup_command = ['cp', '/etc/apt/sources.list', '/etc/apt/sources.list.bak']
+        result = run_command_in_container(name, backup_command)
+
+        if "No such file or directory" in result.stderr:
+            logging.warning(f"'/etc/apt/sources.list' not found in '{name}'. Skipping backup.")
+        elif result.returncode != 0:
+            logging.error(f"Failed to back up sources.list in '{name}'. STDERR:\n{result.stderr.strip()}")
+            return # Stop processing this container if backup fails
+
+        # Step 2: Replace the sources.list content
+        logging.info(f"Writing new archive sources.list to '{name}'...")
+        # Use 'tee' to write the content to the file as root inside the container
+        write_command = ['sudo', 'tee', '/etc/apt/sources.list']
+        result = run_command_in_container(name, write_command, command_input=NEW_SOURCES_CONTENT)
+
+        if result.returncode != 0:
+            logging.error(f"Failed to write new sources.list in '{name}'. STDERR:\n{result.stderr.strip()}")
+            return
+
+        # Step 3: Run apt update
+        logging.info(f"Running 'apt update' in '{name}'...")
+        update_command = ['apt', 'update']
+        result = run_command_in_container(name, update_command)
+
+        if result.stdout:
+            logging.info(f"STDOUT from '{name}' apt update:\n{result.stdout.strip()}")
+        if result.stderr:
+            logging.info(f"STDERR from '{name}' apt update:\n{result.stderr.strip()}")
+
+        if result.returncode == 0:
+            logging.info(f"Successfully fixed and updated apt cache in '{name}'.\n")
+        else:
+            logging.error(f"apt update failed in '{name}' with exit code: {result.returncode}.\n")
+
+    except FileNotFoundError:
+        logging.error(f"Error: A required command was not found. Ensure 'sudo' and 'lxc' are in your PATH.")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"An unexpected error occurred with container '{name}': {e}\n")
+
 def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -399,45 +479,8 @@ def main():
     if version is None:
         raise AttributeError(f"Failed to parse version from URL {url}")
 
-    for name in ['n1', 'n2', 'n3', 'n4', 'n5']:
-        command = ['sudo', 'lxc-attach', '-n', name, '--', 'apt', 'update']
-
-        try:
-            # Execute the command
-            # capture_output=True saves stdout/stderr to the result object
-            # text=True decodes stdout/stderr as text
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                check=False  # Do not raise an exception on non-zero exit codes
-            )
-
-            # Print the output from the command
-            if result.stdout:
-                logging.info("STDOUT:")
-                logging.info(result.stdout)
-            if result.stderr:
-                # LXC prints status messages to stderr, so we show it regardless
-                logging.info("STDERR:")
-                logging.info(result.stderr)
-
-            # Check if the command was successful
-            if result.returncode == 0:
-                logging.info(f"Successfully updated apt cache in '{name}'.\n")
-            else:
-                # A common error is the container not existing.
-                if "Error: Not found" in result.stderr:
-                    logging.error(f"Container '{name}' not found.\n")
-                else:
-                    logging.info(f"Command failed in '{name}' with exit code: {result.returncode}.\n")
-
-        except FileNotFoundError:
-            # This would catch if 'lxc' isn't installed, though we check above.
-            logging.error("Error: 'lxc' command not found. Please install LXD.")
-            break
-        except Exception as e:
-            logging.error(f"An unexpected error occurred with container '{name}': {e}\n")
+    for name in CONTAINER_NAMES:
+        fix_and_update_container(name)
 
     not_good_tests = []
     # need to disable connection manager forcefully for older versions
