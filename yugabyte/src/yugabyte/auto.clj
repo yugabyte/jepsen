@@ -502,7 +502,7 @@
                 (info "Replacing version" installed-url "with" url)
                 (install-python! (:os test))
                 (assert (re-find #"Python 3"
-                                 (c/exec :python :--version (c/lit "2>&1"))))
+                                 (c/exec :python3 :--version (c/lit "2>&1"))))
 
                 (info "Installing tarball into" dir)
                 (cu/install-archive! url dir)
