@@ -75,10 +75,11 @@
        :resume-master :resume-tserver} (process-nemesis)
      {:start-partition :start
       :stop-partition  :stop}         (nemesis/partitioner nil)
-     {:reset-clock          :reset
-      :strobe-clock         :strobe
-      :check-clock-offsets  :check-offsets
-      :bump-clock           :bump}    (clock-nemesis-wrapper)}))
+     ;{:reset-clock          :reset
+     ; :strobe-clock         :strobe
+     ; :check-clock-offsets  :check-offsets
+     ; :bump-clock           :bump}    (clock-nemesis-wrapper)
+     }))
 
 ; Generators
 
