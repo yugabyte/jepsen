@@ -41,7 +41,7 @@
 (extend-protocol OS
   Debian
   (install-python! [os]
-    (debian/install [:python2.7]))
+    (debian/install [:python3]))
 
   CentOS
   (install-python! [os]
@@ -501,8 +501,8 @@
               (when-not (= url installed-url)
                 (info "Replacing version" installed-url "with" url)
                 (install-python! (:os test))
-                (assert (re-find #"Python 2\.7"
-                                 (c/exec :python :--version (c/lit "2>&1"))))
+                (assert (re-find #"Python 3"
+                                 (c/exec :python3 :--version (c/lit "2>&1"))))
 
                 (info "Installing tarball into" dir)
                 (cu/install-archive! url dir)
