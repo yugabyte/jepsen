@@ -558,6 +558,10 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
+            :--vmodule "transaction=4,conflict_resolution=4"
+            :--ysql_pg_conf_csv "yb_debug_log_docdb_requests=true"
+            :--TEST_docdb_log_write_batches
+            :--ysql_log_statement "all"
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
