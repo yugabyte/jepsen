@@ -558,6 +558,8 @@
             :--tserver_master_addrs (master-addresses test)
             ; Tracing
             :--enable_tracing
+            :--allowed_preview_flags_csv "skip_prefix_locks"
+            :--skip_prefix_locks "true"
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
