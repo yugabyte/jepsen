@@ -560,11 +560,9 @@
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
-            (master-tserver-wait-on-conflict-flags test)
             (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (tserver-api-opts test node)
-;            (tserver-connection-manager-preview test)
             (tserver-read-committed-flags test)
             (tserver-heartbeat-flags test)
             )))
