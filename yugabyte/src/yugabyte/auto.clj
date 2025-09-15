@@ -537,7 +537,6 @@
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
-            (master-tserver-wait-on-conflict-flags test)
             (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
             (master-api-opts (:api test) node)
