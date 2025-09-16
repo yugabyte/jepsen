@@ -534,6 +534,8 @@
             (ce-shared-opts node)
             :--master_addresses (master-addresses test)
             :--replication_factor (:replication-factor test)
+           :--allowed_preview_flags_csv "skip_prefix_locks"
+           :--skip_prefix_locks
             ;:--auto_create_local_transaction_tables=false
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
@@ -555,7 +557,7 @@
             ; Tracing
             :--enable_tracing
             :--allowed_preview_flags_csv "skip_prefix_locks"
-            :--skip_prefix_locks "true"
+            :--skip_prefix_locks
             :--rpc_slow_query_threshold_ms 1000
             (master-tserver-experimental-tuning-flags test)
             (master-tserver-random-clock-skew test node)
