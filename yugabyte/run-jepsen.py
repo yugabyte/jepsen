@@ -450,7 +450,7 @@ def main():
                 test_description_str,
                 "=" * 80)
             test_start_time_sec = time.time()
-            if '/set' in test:
+            if '/set' in test or '/rc.ol' in test:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
