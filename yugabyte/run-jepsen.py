@@ -51,7 +51,7 @@ SINGLE_TEST_RUN_TIME = 600
 # The set test might time out if you let it run for 10 minutes and leave 10 more
 # minutes for analysis, so cut its running time in half.
 SINGLE_TEST_RUN_TIME_FOR_SET_TEST = 300
-SINGLE_TEST_RUN_TIME_FOR_RC_OL_TEST = 120
+SINGLE_TEST_RUN_TIME_FOR_RC_OL_TEST = 60
 
 TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar.gz"
