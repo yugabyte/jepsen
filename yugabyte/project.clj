@@ -13,6 +13,6 @@
                  [version-clj "2.0.2"]
                  [clj-wallhack "1.0.1"]]
   :main yugabyte.runner
-  :jvm-opts ["-Djava.awt.headless=true" "-Xms2g" "-Xmx4g"])
+  :jvm-opts ["-Djava.awt.headless=true" "-Xms4g" "-Xmx12g"])
 ;  :aot [yugabyte.runner
 ;        clojure.tools.logging.impl])
