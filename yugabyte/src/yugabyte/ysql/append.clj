@@ -89,7 +89,7 @@
             (do
               ; Randomly evaluate SELECT FOR UPDATE with timeout in case of pessimistic locking
               (c/query conn [(select-with-optional-lock locking col table) row])
-              (Thread/sleep (rand-int 2000)))
+              (Thread/sleep (long (rand-int 2000))))
             nil)
         r (c/execute! conn [(str "update " table
                                  " set " col " = CONCAT(" col ", ',', ?)"

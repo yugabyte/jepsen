@@ -47,13 +47,13 @@
          (if (< deadline# (util/linear-time-nanos))
            (throw e#)
            (do (info "Timed out, retrying")
-               (Thread/sleep (rand-int sleep#))
+               (Thread/sleep (long (rand-int sleep#)))
                (~'retry))))
        (catch OperationTimedOutException e#
          (if (< deadline# (util/linear-time-nanos))
            (throw e#)
            (do (info "Timed out, retrying")
-               (Thread/sleep (rand-int sleep#))
+               (Thread/sleep (long (rand-int sleep#)))
                (~'retry)))))))
 
 (defn epoll-event-loop-group-constructor

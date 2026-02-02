@@ -120,15 +120,20 @@
                 (throw+ {:type :connection-timed-out
                          :node node})
                 (info "Connection" dbname)
-                (util/retry 0.1
-                            (let [spec (db-spec dbname user password node port)
-                                  conn (j/get-connection spec)
-                                  spec' (j/add-connection spec conn)]
-                              (.setTransactionIsolation conn conn-isolation-level)
-                              (assert spec')
-                              (assert (= (.getTransactionIsolation conn)
-                                         conn-isolation-level))
-                              spec'))))
+                (loop []
+                  (or (try
+                        (let [spec (db-spec dbname user password node port)
+                              conn (j/get-connection spec)
+                              spec' (j/add-connection spec conn)]
+                          (.setTransactionIsolation conn conn-isolation-level)
+                          (assert spec')
+                          (assert (= (.getTransactionIsolation conn)
+                                     conn-isolation-level))
+                          spec')
+                        (catch Exception e
+                          (Thread/sleep (long 100))
+                          nil))
+                      (recur)))))
 
 (defn close-conn
   "Given a JDBC connection, closes it and returns the underlying spec."
@@ -314,7 +319,7 @@
                  (re-find #"A relation has an associated type of the same name" m#)
                  (re-find #"Operation expired: Transaction expired" m#))
            (do (info "Caught" m# "during DDL setup; retrying.")
-               (Thread/sleep (rand-int max-delay-between-retries-ms))
+               (Thread/sleep (long (rand-int max-delay-between-retries-ms)))
                (~'retry (dec attempts#)))
            (throw e#))))))
 
@@ -347,7 +352,7 @@
                     (catch java.sql.SQLException e#
                       (if (and (pos? attempts#)
                                (retryable? e#))
-                        (do (Thread/sleep (rand-int max-delay-between-retries-ms))
+                        (do (Thread/sleep (long (rand-int max-delay-between-retries-ms)))
                             (~'retry (dec attempts#)))
                         (throw e#)))))
 

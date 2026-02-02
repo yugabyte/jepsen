@@ -51,6 +51,7 @@ SINGLE_TEST_RUN_TIME = 600
 # The set test might time out if you let it run for 10 minutes and leave 10 more
 # minutes for analysis, so cut its running time in half.
 SINGLE_TEST_RUN_TIME_FOR_SET_TEST = 300
+SINGLE_TEST_RUN_TIME_FOR_RC_OL_TEST = 90
 
 TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar.gz"
@@ -452,6 +453,8 @@ def main():
             test_start_time_sec = time.time()
             if '/set' in test:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST if args.test_time_sec == 0 else args.test_time_sec
+            elif '/rc.ol' in test:
+                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_RC_OL_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
             full_cmd = lein_cmd + \

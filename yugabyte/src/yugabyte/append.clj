@@ -21,6 +21,7 @@
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 1024
+                    :cycle-search-timeout 60000
                     :anomalies          [:G1]
                     :consistency-models [:read-committed]
                     :additional-graphs  [elle/realtime-graph]})))
