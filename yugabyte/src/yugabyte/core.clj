@@ -55,7 +55,7 @@
                     (setup! [this test]
                       (let [wait-sec (:time-limit opts)]
                         (info "Sleeping for" wait-sec "s...")
-                        (Thread/sleep (* wait-sec 1000))))
+                        (Thread/sleep (long (* wait-sec 1000)))))
                     (teardown! [this test])
                     (invoke! [this test op] (assoc op :type :ok))
                     (open! [this test node] this)
