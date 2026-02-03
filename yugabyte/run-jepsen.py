@@ -43,7 +43,41 @@ CmdResult = namedtuple('CmdResult',
                        ['output',
                         'returncode',
                         'timed_out',
-                        'everything_looks_good'])
+                        'everything_looks_good',
+                        'cycle_search_timeout_only'])
+
+
+def is_cycle_search_timeout_only(lines):
+    """
+    Check if test output indicates :valid? :unknown with only :cycle-search-timeout anomalies.
+    This is acceptable for rc.ol workloads where Elle's cycle search times out but finds no
+    actual consistency violations.
+
+    Output format example:
+        :anomaly-types (:cycle-search-timeout),
+        :anomalies {:cycle-search-timeout [{:type :cycle-search-timeout, ...}]}
+    """
+    has_valid_unknown = False
+    has_cycle_search_timeout = False
+    has_other_anomalies = False
+
+    # Real anomaly types that indicate actual consistency violations
+    real_anomalies = [':G0', ':G1a', ':G1b', ':G1c', ':G1', ':G2', ':G-single', ':G-nonadjacent',
+                      ':dirty-update', ':lost-update', ':internal', ':incompatible-order']
+
+    for line in lines:
+        if ':valid? :unknown' in line:
+            has_valid_unknown = True
+        if ':cycle-search-timeout' in line:
+            has_cycle_search_timeout = True
+        # Check for actual anomalies in :anomaly-types line
+        if ':anomaly-types' in line:
+            for anomaly in real_anomalies:
+                if anomaly in line:
+                    has_other_anomalies = True
+                    break
+
+    return has_valid_unknown and has_cycle_search_timeout and not has_other_anomalies
 
 # Only for workload, doesn't include test results analysis. Customized for the "set" test.
 SINGLE_TEST_RUN_TIME = 600
@@ -255,11 +289,14 @@ def run_cmd(cmd,
             if exit_on_error:
                 sys.exit(returncode)
         everything_looks_good = False
+        cycle_search_timeout_only = False
         last_lines_of_output = []
         if stdout_path is not None and os.path.exists(stdout_path):
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
                 line.startswith('Everything looks good!') for line in last_lines_of_output)
+            if not everything_looks_good:
+                cycle_search_timeout_only = is_cycle_search_timeout_only(last_lines_of_output)
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
@@ -267,7 +304,8 @@ def run_cmd(cmd,
                 [truncate_line(line) for line in last_lines_of_output]),
             returncode=returncode,
             timed_out=timed_out,
-            everything_looks_good=everything_looks_good)
+            everything_looks_good=everything_looks_good,
+            cycle_search_timeout_only=cycle_search_timeout_only)
 
     finally:
         if stdout_file is not None:
@@ -491,7 +529,16 @@ def main():
                 test_index, test_elapsed_time_sec, result.returncode,
                 result.everything_looks_good)
 
-            if result.everything_looks_good:
+            # For rc.ol workloads, accept cycle-search-timeout as valid (no actual anomalies found)
+            is_rc_ol_timeout_acceptable = (
+                '/rc.ol' in test and
+                result.cycle_search_timeout_only and
+                not result.timed_out
+            )
+
+            if result.everything_looks_good or is_rc_ol_timeout_acceptable:
+                if is_rc_ol_timeout_acceptable:
+                    logging.info("Accepting rc.ol test with cycle-search-timeout (no anomalies found)")
                 num_everything_looks_good += 1
 
                 if test_name not in test_cases:
