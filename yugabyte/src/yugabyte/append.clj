@@ -18,7 +18,7 @@
 
 (defn workload-rc
   [opts]
-  (-> (append/test {:key-count          32
+  (-> (append/test {:key-count          8
                     :max-txn-length     4
                     :max-writes-per-key 128
                     :cycle-search-timeout 10000
