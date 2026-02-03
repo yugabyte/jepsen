@@ -18,9 +18,9 @@
 
 (defn workload-rc
   [opts]
-  (-> (append/test {:key-count          16
+  (-> (append/test {:key-count          32
                     :max-txn-length     4
-                    :max-writes-per-key 512
+                    :max-writes-per-key 128
                     :cycle-search-timeout 10000
                     :anomalies          [:G1]
                     :linearizable-prefix? false
