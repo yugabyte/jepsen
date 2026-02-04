@@ -21,7 +21,8 @@
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 512
-                    :anomalies          [:G1a :G1b]
+                    :anomalies          [:G0 :G1a :G1b]  ; only dirty writes and dirty reads
+                    :consistency-models nil
                     :additional-graphs  []})))
 
 (defn workload-serializable
