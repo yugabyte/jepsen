@@ -21,9 +21,7 @@
   (-> (append/test {:key-count          32
                     :max-txn-length     4
                     :max-writes-per-key 512
-                    :cycle-search-timeout 10000
                     :anomalies          [:G1a :G1b]
-                    :linearizable-prefix? false
                     :consistency-models [:read-committed]
                     :additional-graphs  []})))
 
