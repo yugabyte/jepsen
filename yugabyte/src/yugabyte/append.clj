@@ -22,7 +22,6 @@
                     :max-txn-length     4
                     :max-writes-per-key 512
                     :anomalies          [:G1a :G1b]
-                    :consistency-models [:read-committed]
                     :additional-graphs  []})))
 
 (defn workload-serializable
