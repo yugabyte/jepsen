@@ -23,7 +23,7 @@
                     :max-writes-per-key 512
                     :anomalies          [:G0 :G1a :G1b]
                     :consistency-models [:read-committed]
-                    :additional-graphs  []})))
+                    :additional-graphs  [elle/realtime-graph]})))
 
 (defn workload-serializable
   [opts]
