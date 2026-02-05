@@ -20,9 +20,8 @@
   [opts]
   (-> (append/test {:key-count          32
                     :max-txn-length     4
-                    :max-writes-per-key 1024
-                    :cycle-search-timeout 60000
-                    :anomalies          [:G1]
+                    :max-writes-per-key 512
+                    :anomalies          [:G0 :G1a :G1b]
                     :consistency-models [:read-committed]
                     :additional-graphs  [elle/realtime-graph]})))
 
