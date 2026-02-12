@@ -1,6 +1,7 @@
 (ns yugabyte.ycql.set
   (:require [clojurewerkz.cassaforte.query :as q]
             [clojurewerkz.cassaforte.cql :as cql]
+            [jepsen.random :as random]
             [yugabyte.ycql.client :as c]))
 
 (def keyspace "jepsen")
@@ -55,7 +56,7 @@
                                        :add (do (cql/insert conn table
                                                             {:key (:value op)
                                                              :val (:value op)
-                                                             :grp (rand-int group-count)})
+                                                             :grp (random/long group-count)})
                                                 (assoc op :type :ok))
 
                                        :read (->> (cql/select conn table

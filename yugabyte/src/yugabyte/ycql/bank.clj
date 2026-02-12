@@ -4,6 +4,7 @@
             [clojurewerkz.cassaforte.client :as cassandra]
             [clojurewerkz.cassaforte.cql :as cql]
             [clojurewerkz.cassaforte.query :as q :refer :all]
+            [jepsen.random :as random]
             [yugabyte.ycql.client :as c]))
 
 (def setup-lock (Object.))
@@ -77,7 +78,7 @@
     (c/with-errors op #{:read}
       (case (:f op)
         :read
-        (let [as (shuffle (:accounts test))]
+        (let [as (random/shuffle (:accounts test))]
           (->> as
                (mapv (fn [x]
                        ;; TODO - should be wrapped in a transaction after we

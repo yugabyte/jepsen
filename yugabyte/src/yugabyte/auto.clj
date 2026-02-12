@@ -8,6 +8,7 @@
             [jepsen.control :as c]
             [jepsen.db :as db]
             [jepsen.util :as util :refer [meh]]
+            [jepsen.random :as random]
             [jepsen.control.net :as cn]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
@@ -399,7 +400,7 @@
 
 (defn get-random-node-skew
   [max_skew node_ip]
-  (rand-int max_skew))
+  (random/long max_skew))
 
 (def get-node-skew
   (memoize get-random-node-skew))

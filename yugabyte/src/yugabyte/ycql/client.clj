@@ -5,7 +5,8 @@
                                      [policies :as policies]
                                      [cql :as cql]]
             [clojure.tools.logging :refer [info]]
-            [jepsen [util :as util]]
+            [jepsen [random :as random]
+                    [util :as util]]
             [jepsen.control.net :as cn]
             [dom-top.core :as dt]
             [wall.hack :as wh])
@@ -47,13 +48,13 @@
          (if (< deadline# (util/linear-time-nanos))
            (throw e#)
            (do (info "Timed out, retrying")
-               (Thread/sleep (long (rand-int sleep#)))
+               (Thread/sleep (long (random/long sleep#)))
                (~'retry))))
        (catch OperationTimedOutException e#
          (if (< deadline# (util/linear-time-nanos))
            (throw e#)
            (do (info "Timed out, retrying")
-               (Thread/sleep (long (rand-int sleep#)))
+               (Thread/sleep (long (random/long sleep#)))
                (~'retry)))))))
 
 (defn epoll-event-loop-group-constructor
