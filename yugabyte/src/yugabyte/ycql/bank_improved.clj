@@ -6,9 +6,6 @@
   (:refer-clojure :exclude
                   [test])
   (:require [clojure.tools.logging :refer [debug info warn]]
-            [clojurewerkz.cassaforte.client :as cassandra]
-            [clojurewerkz.cassaforte.cql :as cql]
-            [clojurewerkz.cassaforte.query :as q :refer :all]
             [yugabyte.ycql.client :as c]))
 
 (def keyspace "jepsen")
@@ -18,33 +15,32 @@
   (setup! [this test]
     (c/create-transactional-table
       conn table-name
-      (q/if-not-exists)
-      (q/column-definitions
-        {:id          :int
-         :balance     :bigint
-         :primary-key [:id]}))
+      {:id          :int
+       :balance     :bigint
+       :primary-key [:id]})
     (info "Creating accounts")
     (c/with-retry
-      (cql/insert-with-ks conn keyspace table-name
-                          {:id      (first (:accounts test))
-                           :balance (:total-amount test)})
+      (c/insert! conn table-name
+                 {:id      (first (:accounts test))
+                  :balance (:total-amount test)}
+                 :keyspace keyspace)
       (doseq [a (rest (:accounts test))]
-        (cql/insert conn table-name
-                    {:id a, :balance 0}))))
+        (c/insert! conn table-name
+                   {:id a, :balance 0}))))
 
   (invoke! [this test op]
     (c/with-errors
       op #{:read}
       (case (:f op)
         :read
-        (->> (cql/select-with-ks conn keyspace table-name)
+        (->> (c/select conn table-name :keyspace keyspace)
              (map (juxt :id :balance))
              (into (sorted-map))
              (assoc op :type :ok, :value))
 
         :update
         (let [{:keys [from to amount]} (:value op)]
-          (cassandra/execute
+          (c/execute!
             conn
             ; TODO: separate reads from updates?
             (str "BEGIN TRANSACTION "
@@ -58,7 +54,7 @@
 
         :insert
         (let [{:keys [from to amount]} (:value op)]
-          (cassandra/execute
+          (c/execute!
             conn
             (str "BEGIN TRANSACTION "
                  "INSERT INTO " keyspace "." table-name

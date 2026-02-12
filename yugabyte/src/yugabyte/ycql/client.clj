@@ -1,9 +1,6 @@
 (ns yugabyte.ycql.client
-  "Helper functions for working with Cassaforte clients."
-  (:require [clojurewerkz.cassaforte [client :as c]
-                                     [query :as q]
-                                     [policies :as policies]
-                                     [cql :as cql]]
+  "Helper functions for working with the DataStax Cassandra Java driver."
+  (:require [clojure.string :as str]
             [clojure.tools.logging :refer [info]]
             [jepsen [random :as random]
                     [util :as util]]
@@ -18,10 +15,16 @@
                                      NettyUtil
                                      PoolingOptions
                                      ProtocolVersion
+                                     ResultSet
+                                     Row
+                                     Session
+                                     SimpleStatement
                                      SocketOptions
                                      ThreadingOptions)
-           (com.datastax.driver.core.policies RoundRobinPolicy
+           (com.datastax.driver.core.policies ConstantReconnectionPolicy
+                                              RoundRobinPolicy
                                               WhiteListPolicy)
+           (com.yugabyte.driver.core.policies NoRetryOnClientTimeoutPolicy)
            (com.datastax.driver.core.exceptions DriverException
                                                 InvalidQueryException
                                                 UnavailableException
@@ -34,6 +37,182 @@
            (java.util.concurrent LinkedBlockingQueue
                                  ThreadPoolExecutor
                                  TimeUnit)))
+
+;; ---- Value & condition formatting ----
+
+(defn format-value
+  "Formats a Clojure value for inclusion in a CQL string."
+  [v]
+  (cond
+    (nil? v)    "null"
+    (number? v) (str v)
+    (string? v) (str "'" (str/replace v "'" "''") "'")
+    (keyword? v) (name v)
+    :else       (str v)))
+
+(defn format-condition
+  "Formats a condition vector like [:= :id 5] into a CQL fragment."
+  [[op col val]]
+  (let [col-name (name col)]
+    (case op
+      :=  (str col-name " = " (format-value val))
+      :in (str col-name " IN (" (str/join ", " (map format-value val)) ")"))))
+
+(defn format-conditions
+  "Joins condition vectors with AND."
+  [conds]
+  (str/join " AND " (map format-condition conds)))
+
+;; ---- ResultSet → Clojure maps ----
+
+(defn resultset->maps
+  "Converts a ResultSet into a vector of Clojure maps with keyword keys."
+  [^ResultSet rs]
+  (let [col-defs (.getColumnDefinitions rs)
+        n        (.size col-defs)
+        col-names (mapv #(keyword (.getName col-defs (int %))) (range n))]
+    (mapv (fn [^Row row]
+            (into {} (map-indexed
+                       (fn [i col-name]
+                         [col-name (.getObject row (int i))])
+                       col-names)))
+          (.all rs))))
+
+;; ---- Core execute ----
+
+(defn execute!
+  "Executes a CQL string on a session, returns a vector of maps."
+  [^Session session ^String cql]
+  (resultset->maps (.execute session (SimpleStatement. cql))))
+
+;; ---- Connection management ----
+
+(defn disconnect!
+  "Closes a session and its associated cluster."
+  [^Session session]
+  (let [cluster (.getCluster session)]
+    (try (.close session)
+         (finally
+           (.close cluster)))))
+
+;; ---- Keyspace management ----
+
+(defn create-keyspace!
+  "Creates a keyspace with SimpleStrategy replication if it doesn't exist."
+  [session ks-name replication-factor]
+  (execute! session
+            (str "CREATE KEYSPACE IF NOT EXISTS " ks-name
+                 " WITH replication = {'class': 'SimpleStrategy',"
+                 " 'replication_factor': " replication-factor "}")))
+
+(defn use-keyspace!
+  "Sets the session to use the given keyspace."
+  [^Session session ks-name]
+  (execute! session (str "USE " ks-name)))
+
+;; ---- Timeout execution ----
+
+(defn execute-with-timeout!
+  "Executes a CQL string with a custom read timeout in milliseconds."
+  [^Session session timeout ^String cql]
+  (let [stmt (doto (SimpleStatement. cql)
+               (.setReadTimeoutMillis (int timeout)))]
+    (resultset->maps (.execute session stmt))))
+
+;; ---- CQL builders: CREATE TABLE ----
+
+(defn build-create-table
+  "Builds a CREATE TABLE IF NOT EXISTS CQL string. col-defs is a map like
+  {:id :int, :balance :bigint, :primary-key [:id]}."
+  [table col-defs]
+  (let [pk       (:primary-key col-defs)
+        cols     (dissoc col-defs :primary-key)
+        col-strs (map (fn [[col-name col-type]]
+                        (str (name col-name) " " (name col-type)))
+                      cols)
+        pk-str   (str "PRIMARY KEY (" (str/join ", " (map name pk)) ")")]
+    (str "CREATE TABLE IF NOT EXISTS " table
+         " (" (str/join ", " (concat col-strs [pk-str])) ")")))
+
+(defn create-table
+  "Creates a table with a 30s timeout. col-defs is a map like
+  {:id :int, :balance :bigint, :primary-key [:id]}."
+  [session table col-defs]
+  (execute-with-timeout! session 30000 (build-create-table table col-defs)))
+
+(defn create-transactional-table
+  "Like create-table, but enables YugaByte transactions."
+  [session table col-defs]
+  (execute-with-timeout! session 30000
+                         (str (build-create-table table col-defs)
+                              " WITH transactions = { 'enabled' : true }")))
+
+(defn create-index
+  "Creates an index with a 30s timeout. Takes a raw CQL string.
+  Swallows 'already exists' errors."
+  [session cql]
+  (try (execute-with-timeout! session 30000 cql)
+       (catch InvalidQueryException e
+         (if (re-find #"already exists" (.getMessage e))
+           :already-exists
+           (throw e)))))
+
+;; ---- CRUD ----
+
+(defn select
+  "Executes a SELECT query. Options:
+    :keyspace  - qualify table with keyspace
+    :columns   - vector of column keywords (default *)
+    :where     - vector of condition vectors"
+  [session table & {:keys [keyspace columns where]}]
+  (let [table-ref (if keyspace (str keyspace "." table) table)
+        cols      (if columns
+                    (str/join ", " (map name columns))
+                    "*")
+        cql       (str "SELECT " cols " FROM " table-ref
+                       (when where
+                         (str " WHERE " (format-conditions where))))]
+    (execute! session cql)))
+
+(defn insert!
+  "Executes an INSERT query. values is a map of column/value pairs."
+  [session table values & {:keys [keyspace]}]
+  (let [table-ref (if keyspace (str keyspace "." table) table)
+        entries   (seq values)
+        cols      (str/join ", " (map (comp name key) entries))
+        vals      (str/join ", " (map (comp format-value val) entries))]
+    (execute! session (str "INSERT INTO " table-ref
+                           " (" cols ") VALUES (" vals ")"))))
+
+(defn update!
+  "Executes an UPDATE query. set-map is a map of column/value pairs to SET.
+  Options:
+    :keyspace  - qualify table with keyspace
+    :where     - vector of condition vectors
+    :only-if   - vector of condition vectors for lightweight transactions"
+  [session table set-map & {:keys [keyspace where only-if]}]
+  (let [table-ref (if keyspace (str keyspace "." table) table)
+        set-str   (str/join ", " (map (fn [[col v]]
+                                        (str (name col) " = " (format-value v)))
+                                      set-map))]
+    (execute! session (str "UPDATE " table-ref
+                           " SET " set-str
+                           (when where
+                             (str " WHERE " (format-conditions where)))
+                           (when only-if
+                             (str " IF " (format-conditions only-if)))))))
+
+(defn update-counter!
+  "Executes an UPDATE for a counter column. Uses col = col + amount syntax."
+  [session table col amount & {:keys [keyspace where]}]
+  (let [table-ref (if keyspace (str keyspace "." table) table)
+        col-name  (name col)]
+    (execute! session (str "UPDATE " table-ref
+                           " SET " col-name " = " col-name " + " amount
+                           (when where
+                             (str " WHERE " (format-conditions where)))))))
+
+;; ---- Retry helper ----
 
 (defmacro with-retry
   "Retries CQL unavailable/timeout errors for up to 120 seconds. Helpful for
@@ -57,6 +236,8 @@
                (Thread/sleep (long (random/long sleep#)))
                (~'retry)))))))
 
+;; ---- Cluster & connect ----
+
 (defn epoll-event-loop-group-constructor
   "Why is this not public?"
   []
@@ -71,9 +252,7 @@
   (boolean (wh/method NettyUtil :isEpollAvailable [] nil)))
 
 (defn ^Cluster cluster
-  "Constructs a Cassandra client Cluster object with appropriate options.
-  Normally we'd let Cassaforte do this, but we need to reach into its guts to
-  pass some options, like ThreadingOptions, Cassaforte doesn't support."
+  "Constructs a Cassandra client Cluster object with appropriate options."
   [node]
   (.. (Cluster/builder)
     (withProtocolVersion (ProtocolVersion/fromInt 3))
@@ -83,8 +262,8 @@
     ; This is sort of a hack; we're allowed to call cn/ip here without an SSH
     ; connection because it memoizes, and we already called it during setup.
     (addContactPoint (cn/ip node))
-    (withRetryPolicy (policies/retry-policy :no-retry-on-client-timeout))
-    (withReconnectionPolicy (policies/constant-reconnection-policy 1000))
+    (withRetryPolicy NoRetryOnClientTimeoutPolicy/INSTANCE)
+    (withReconnectionPolicy (ConstantReconnectionPolicy. 1000))
     (withSocketOptions (.. (SocketOptions.)
                          (setConnectTimeoutMillis 1000)
                          (setReadTimeoutMillis 5000)))
@@ -112,86 +291,24 @@
     (build)))
 
 (defn connect
-  "Opens a new client, with helpful defaults for YugaByte. Options are passed to
-  Cassaforte."
-  ([node]
-   (connect node {}))
-  ([node opts]
-   (with-retry
-     (let [c (cluster node)]
-       (try (.connect c)
-            (catch DriverException e
-              (.close c)
-              (throw e)))))))
-
-(defn execute-with-timeout!
-  "Executes a statement on a session, but applies a custom read timeout, in
-  milliseconds, for it."
-  [session timeout statement]
-  (let [statement (.. (c/build-statement statement)
-                      (setReadTimeoutMillis timeout))]
-    (c/execute session statement)))
-
-(defn statement->str
-  "Converts a statement to a string so we can do string munging on it."
-  [s]
-  (if (string? s)
-    s
-    (-> s
-        ;(.setForceNoValues true)
-        .getQueryString)))
-
-(defn with-transactions
-  "Takes a CQL create-table statement, converts it to a string, and adds \"WITH
-  transctions = { 'enabled' : true }\". Sort of a hack, the Cassandra client
-  doesn't know about this syntax, I think."
-  [s]
-  (str (statement->str s) " WITH transactions = { 'enabled' : true }"))
-
-(defn create-table
-  "Table creation is fairly slow in YB, so we need to run it with a custom
-  timeout. Works just like cql/create-table."
-  [conn & table-args]
-  (execute-with-timeout! conn 30000 (apply q/create-table table-args)))
-
-(defn create-index
-  "Index creation is also slow in YB, so we run it with a custom timeout. Works
-  just like cql/create-index, or you can pass a string if you need to use YB
-  custom syntax.
-
-  Also you, like, literally *can't* tell Cassaforte (or maybe Cassandra's
-  client or CQL or YB?) to create an index if it doesn't exist, so we're
-  swallowing the duplicate table execeptions here.
-  TODO: update YB Cassaforte fork, so we can use `CREATE INDEX IF NOT EXISTS`.
-  "
-  [conn & index-args]
-  (let [statement (if (and (= 1 (count index-args))
-                           (string? (first index-args)))
-                    (first index-args)
-                    (apply q/create-index index-args))]
-    (try (execute-with-timeout! conn 30000 statement)
-         (catch InvalidQueryException e
-           (if (re-find #"already exists" (.getMessage e))
-             :already-exists
+  "Opens a new client, with helpful defaults for YugaByte."
+  [node]
+  (with-retry
+    (let [c (cluster node)]
+      (try (.connect c)
+           (catch DriverException e
+             (.close c)
              (throw e))))))
 
-(defn create-transactional-table
-  "Like create-table, but enables transactions."
-  [conn & table-args]
-  (execute-with-timeout! conn 30000
-                         (with-transactions
-                           (apply q/create-table table-args))))
+;; ---- Keyspace setup ----
 
 (defn ensure-keyspace!
   "Creates a keyspace using the given connection, if it doesn't already exist.
   Replication-factor is derived from the test."
   [conn keyspace-name test]
-  (cql/create-keyspace conn keyspace-name
-                       (q/if-not-exists)
-                       (q/with {:replication
-                                {"class" "SimpleStrategy"
-                                 "replication_factor"
-                                 (:replication-factor test)}})))
+  (create-keyspace! conn keyspace-name (:replication-factor test)))
+
+;; ---- Error handling ----
 
 (defmacro with-errors
   "Takes an op, a set of idempotent operation :fs, and a body. Evalates body,
@@ -241,6 +358,8 @@
          (if (re-find #"RPC to .+ timed out after " (.getMessage e#))
            (assoc ~op :type crash#, :error [:rpc-timed-out (.getMessage e#)])
            (throw e#))))))
+
+;; ---- Client macro ----
 
 (defmacro defclient
   "Helper for defining CQL clients. Takes a class name, a string keyspace, a
@@ -293,18 +412,18 @@
            (open! [~'this ~'test ~'node]
              (let [conn# (connect ~'node)]
                (when (realized? ~'keyspace-created)
-                 (cql/use-keyspace conn# ~keyspace))
+                 (use-keyspace! conn# ~keyspace))
                (assoc ~'this :conn conn#)))
 
            (setup! [~'this ~'test]
              (locking ~'keyspace-created
                (ensure-keyspace! ~'conn ~keyspace ~'test)
                (deliver ~'keyspace-created true)
-               (cql/use-keyspace ~'conn ~keyspace)
+               (use-keyspace! ~'conn ~keyspace)
                ~@setup-code))
 
            (close! [~'this ~'test]
-             (c/disconnect! ~'conn))
+             (disconnect! ~'conn))
 
            ~@exprs)
 
@@ -313,6 +432,8 @@
            ~(vec fields)
            ; Pass user fields, conn, keyspace-created
            (new ~name ~@fields nil (promise))))))
+
+;; ---- Await setup ----
 
 (defn await-setup
   "Used at the start of a test. Takes a node, opens a connection to it, and
@@ -335,12 +456,7 @@
           (locking await-setup
             ; This... doesn't actually seem to guarantee that subsequent
             ; attempts to create keyspaces, tables, and rows will work. Grrr.
-            (cql/create-keyspace conn "jepsen_setup"
-                                 (q/if-not-exists)
-                                 (q/with
-                                   {:replication
-                                    {"class"              "SimpleStrategy"
-                                     "replication_factor" 3}}))
+            (create-keyspace! conn "jepsen_setup" 3)
 
             (execute-with-timeout!
               conn 10000
@@ -348,12 +464,12 @@
                    " (id INT PRIMARY KEY, balance BIGINT)"
                    " WITH transactions = { 'enabled': true }"))
 
-            (cql/insert-with-ks conn "jepsen_setup" "waiting"
-                                {:id 0, :balance 5}))
+            (insert! conn "waiting" {:id 0, :balance 5}
+                     :keyspace "jepsen_setup"))
           (info "Cluster ready")
 
           (finally
-            (c/disconnect! conn))))
+            (disconnect! conn))))
 
       (catch com.datastax.driver.core.exceptions.InvalidQueryException e
         (condp re-find (.getMessage e)
