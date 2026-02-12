@@ -510,7 +510,7 @@
                 (c/su (let [post-install-script-path "./bin/post_install.sh"]
                         (info "Post-install script")
 
-                        (assert (= (count (cu/ls post-install-script-path)) 1)
+                        (assert (cu/exists? post-install-script-path)
                                 "Post-install script does not exist!")
                         (c/exec post-install-script-path)
 
