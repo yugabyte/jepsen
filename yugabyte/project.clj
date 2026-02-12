@@ -6,7 +6,9 @@
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [clj-http "3.12.3" :exclusions [commons-logging]]
                  [jepsen "0.3.10"]
-                 [com.yugabyte/cassaforte "3.0.0-alpha2-yb-1"]
+                 [com.yugabyte/cassaforte "3.0.0-alpha2-yb-1"
+                  :exclusions [org.slf4j/slf4j-api]]
+                 [org.slf4j/slf4j-api "2.0.17"]
                  [org.clojure/java.jdbc "0.7.12"]
                  [org.clojure/data.json "2.4.0"]
                  [com.yugabyte/jdbc-yugabytedb "42.3.5-yb-3"]
