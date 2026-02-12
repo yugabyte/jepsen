@@ -329,7 +329,7 @@
   the symlinks which end in .INFO, .WARNING, etc."
   [dir]
   (remove (partial re-find #"\.(INFO|WARNING|ERROR)$")
-          (try (cu/ls-full dir)
+          (try (cu/ls dir {:full-path? true})
                (catch RuntimeException e nil))))
 
 ; Community-edition-specific files

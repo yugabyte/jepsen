@@ -145,12 +145,13 @@
   "Constructs and runs a Jepsen test. Takes a zero-arg function that builds the
   test map. Wraps both construction and execution with jepsen.random/with-seed
   for deterministic randomness. When seed is nil, defaults to
-  System/currentTimeMillis."
+  System/currentTimeMillis. Stores the seed in the test map as :random-seed
+  so it persists in results.edn."
   [test-fn seed]
   (let [seed (or seed (System/currentTimeMillis))]
     (info "Random seed:" seed)
     (random/with-seed seed
-      (jepsen/run! (test-fn)))))
+      (jepsen/run! (assoc (test-fn) :random-seed seed)))))
 
 ;
 ; Subcommands
