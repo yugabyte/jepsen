@@ -443,7 +443,7 @@ def main():
     connection_manager_flag = "--connection-manager false" \
         if not (is_version_at_least("2024.1.0.0-b1", version) or
                 is_version_at_least("2.25.1.0-b1", version)) else ""
-    os.environ["JAVA_HOME"] = "/usr/lib/jvm/zulu-21.jdk"
+    os.environ["JAVA_HOME"] = "/usr/lib/jvm/zulu-17.jdk"
     java_version = subprocess.check_output(
         [os.path.join(os.environ["JAVA_HOME"], "bin", "java"), "-version"],
         stderr=subprocess.STDOUT).decode().strip()
