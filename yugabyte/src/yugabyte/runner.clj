@@ -6,6 +6,7 @@
             [clojure.tools.logging :refer :all]
             [jepsen.core :as jepsen]
             [jepsen.cli :as cli]
+            [jepsen.random :as random]
             [jepsen.store :as store]
             [yugabyte.core :as core]))
 
@@ -116,7 +117,11 @@
     :default nil]
 
    [nil "--trace-cql" "If provided, logs CQL queries"
-    :default false]])
+    :default false]
+
+   [nil "--random-seed SEED" "Random seed for deterministic test execution. If not provided, a random seed is generated."
+    :default nil
+    :parse-fn parse-long]])
 
 (def test-all-opts
   "CLI options for testing everything."
@@ -135,6 +140,18 @@
     :parse-fn keyword
     :missing (str "--workload " (one-of core/workloads))
     :validate [core/workloads (one-of core/workloads)]]])
+
+(defn run-with-seed!
+  "Constructs and runs a Jepsen test. Takes a zero-arg function that builds the
+  test map. Wraps both construction and execution with jepsen.random/with-seed
+  for deterministic randomness. When seed is nil, defaults to
+  System/currentTimeMillis. Stores the seed in the test map as :random-seed
+  so it persists in results.edn."
+  [test-fn seed]
+  (let [seed (or seed (System/currentTimeMillis))]
+    (info "Random seed:" seed)
+    (random/with-seed seed
+      (jepsen/run! (assoc (test-fn) :random-seed seed)))))
 
 ;
 ; Subcommands
@@ -165,16 +182,16 @@
                       results       (->> tests
                                          (map-indexed
                                            (fn [i test-opts]
-                                             (let [test (core/yb-test test-opts)]
-                                               (try
-                                                 (info "\n\n\nTest "
-                                                       (inc i) "/" (count tests))
-                                                 (let [test' (jepsen/run! test)]
-                                                   [(.getPath (store/path test'))
-                                                    (:valid? (:results test'))])
-                                                 (catch Exception e
-                                                   (warn e "Test crashed")
-                                                   [(:name test) :crashed])))))
+                                             (try
+                                               (info "\n\n\nTest "
+                                                     (inc i) "/" (count tests))
+                                               (let [test' (run-with-seed! #(core/yb-test test-opts)
+                                                                           (:random-seed options))]
+                                                 [(.getPath (store/path test'))
+                                                  (:valid? (:results test'))])
+                                               (catch Exception e
+                                                 (warn e "Test crashed")
+                                                 [(:name test-opts) :crashed]))))
                                          (group-by second))]
 
                   (println "\n")
@@ -201,12 +218,30 @@
                   (println (count (results :crashed)) "crashed")
                   (println (count (results false)) "failures")))}})
 
+(defn single-test-cmd
+  "A command that runs a single test, wrapping execution with a random seed."
+  []
+  (let [opt-spec (cli/merge-opt-specs cli/test-opt-spec
+                                      (concat cli-opts single-test-opts))
+        opt-fn   cli/test-opt-fn]
+    {"test" {:opt-spec opt-spec
+             :opt-fn   opt-fn
+             :usage    "Runs a single test"
+             :run      (fn [{:keys [options]}]
+                         (info "Test options:\n"
+                               (with-out-str (pprint options)))
+                         (doseq [i (range (:test-count options))]
+                           (let [test (run-with-seed! #(core/yb-test options)
+                                                      (:random-seed options))]
+                             (case (:valid? (:results test))
+                               false    (System/exit 1)
+                               :unknown (System/exit 2)
+                               nil))))}}))
+
 (defn -main
   "Handles CLI arguments"
   [& args]
   (cli/run! (merge (cli/serve-cmd)
                    (test-all-cmd)
-                   (cli/single-test-cmd {:test-fn  core/yb-test
-                                         :opt-spec (concat cli-opts
-                                                           single-test-opts)}))
+                   (single-test-cmd))
             args))

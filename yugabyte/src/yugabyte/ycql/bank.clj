@@ -1,9 +1,7 @@
 (ns yugabyte.ycql.bank
   (:refer-clojure :exclude [test])
   (:require [clojure.tools.logging :refer [debug info warn]]
-            [clojurewerkz.cassaforte.client :as cassandra]
-            [clojurewerkz.cassaforte.cql :as cql]
-            [clojurewerkz.cassaforte.query :as q :refer :all]
+            [jepsen.random :as random]
             [yugabyte.ycql.client :as c]))
 
 (def setup-lock (Object.))
@@ -14,31 +12,31 @@
   (setup! [this test]
     (c/create-transactional-table
       conn table-name
-      (q/if-not-exists)
-      (q/column-definitions {:id      :int
-                             :balance :bigint
-                             :primary-key [:id]}))
+      {:id          :int
+       :balance     :bigint
+       :primary-key [:id]})
     (info "Creating accounts")
     (c/with-retry
-      (cql/insert-with-ks conn keyspace table-name
-                          {:id (first (:accounts test))
-                           :balance (:total-amount test)})
+      (c/insert! conn table-name
+                 {:id (first (:accounts test))
+                  :balance (:total-amount test)}
+                 :keyspace keyspace)
       (doseq [a (rest (:accounts test))]
-        (cql/insert conn table-name
-                    {:id a, :balance 0}))))
+        (c/insert! conn table-name
+                   {:id a, :balance 0}))))
 
   (invoke! [this test op]
     (c/with-errors op #{:read}
       (case (:f op)
         :read
-        (->> (cql/select-with-ks conn keyspace table-name)
+        (->> (c/select conn table-name :keyspace keyspace)
              (map (juxt :id :balance))
              (into (sorted-map))
              (assoc op :type :ok, :value))
 
         :transfer
         (let [{:keys [from to amount]} (:value op)]
-          (cassandra/execute
+          (c/execute!
             conn
             ; TODO: separate reads from updates?
             (str "BEGIN TRANSACTION "
@@ -60,31 +58,31 @@
       (info "Creating table" a)
       (c/create-transactional-table
         conn (str table-name a)
-        (q/if-not-exists)
-        (q/column-definitions {:id          :int
-                               :balance     :bigint
-                               :primary-key [:id]}))
+        {:id          :int
+         :balance     :bigint
+         :primary-key [:id]})
 
       (info "Populating account" a)
       (c/with-retry
-        (cql/insert-with-ks conn keyspace (str table-name a)
-                            {:id      a
-                             :balance (if (= a (first (:accounts test)))
-                                        (:total-amount test)
-                                        0)}))))
+        (c/insert! conn (str table-name a)
+                   {:id      a
+                    :balance (if (= a (first (:accounts test)))
+                               (:total-amount test)
+                               0)}
+                   :keyspace keyspace))))
 
   (invoke! [this test op]
     (c/with-errors op #{:read}
       (case (:f op)
         :read
-        (let [as (shuffle (:accounts test))]
+        (let [as (random/shuffle (:accounts test))]
           (->> as
                (mapv (fn [x]
                        ;; TODO - should be wrapped in a transaction after we
                        ;; support transactions with selects.
-                       (->> (cql/select-with-ks conn keyspace
-                                                (str table-name x)
-                                                (where [[= :id x]]))
+                       (->> (c/select conn (str table-name x)
+                                      :keyspace keyspace
+                                      :where [[:= :id x]])
                             first
                             :balance)))
                (zipmap as)
@@ -92,15 +90,15 @@
 
         :transfer
         (let [{:keys [from to amount]} (:value op)]
-          (cassandra/execute conn
-                             (str "BEGIN TRANSACTION "
-                                  (str "UPDATE " keyspace "." table-name from
-                                       " SET balance = balance - " amount
-                                       " WHERE id = " from ";")
-                                  (str "UPDATE " keyspace "." table-name to
-                                       " SET balance = balance + " amount
-                                       " WHERE id = " to ";")
-                                  "END TRANSACTION;"))
+          (c/execute! conn
+                      (str "BEGIN TRANSACTION "
+                           (str "UPDATE " keyspace "." table-name from
+                                " SET balance = balance - " amount
+                                " WHERE id = " from ";")
+                           (str "UPDATE " keyspace "." table-name to
+                                " SET balance = balance + " amount
+                                " WHERE id = " to ";")
+                           "END TRANSACTION;"))
           (assoc op :type :ok)))))
 
   (teardown! [this test]))

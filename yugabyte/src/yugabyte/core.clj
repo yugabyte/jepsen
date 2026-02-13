@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [jepsen.checker :as checker]
             [jepsen.generator :as gen]
+            [jepsen.random :as random]
             [jepsen.tests :as tests]
             [jepsen.os.debian :as debian]
             [jepsen.os.centos :as centos]
@@ -313,8 +314,8 @@
 (defn test-3
   "Final phase where we define global cluster configuration parameters"
   [opts]
-  (let [packed-columns-enabled (> (rand) 0.5)
-        colocated (and (not (utils/is-test-geo-partitioned? opts)) (> (rand) 0.5))]
+  (let [packed-columns-enabled (random/bool)
+        colocated (and (not (utils/is-test-geo-partitioned? opts)) (random/bool))]
     (assoc opts :yb-packed-columns-enabled packed-columns-enabled :yb-colocated colocated)))
 
 (defn yb-test

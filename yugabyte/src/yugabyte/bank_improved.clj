@@ -19,6 +19,7 @@
              [history :as h]
              [generator :as gen]
              [checker :as checker]
+             [random :as random]
              [util :as util]]))
 
 (def start-key 0)
@@ -33,21 +34,21 @@
   Generator of a transfer: a random amount between two randomly selected accounts.
   Added insert operation. Special case for YCQL"
   [test process]
-  (let [dice (rand-nth [:insert :update])]
+  (let [dice (random/nth [:insert :update])]
     (cond
       (= dice :insert)
       {:type  :invoke
        :f     dice
-       :value {:from   (rand-nth (:accounts test))
+       :value {:from   (random/nth (:accounts test))
                :to     (swap! insert-key-ctr inc)
-               :amount (+ 1 (rand-int (:max-transfer test)))}}
+               :amount (+ 1 (random/long (:max-transfer test)))}}
 
       (= dice :update)
       {:type  :invoke
        :f     dice
-       :value {:from   (rand-nth (:accounts test))
-               :to     (rand-nth (:accounts test))
-               :amount (+ 1 (rand-int (:max-transfer test)))}})))
+       :value {:from   (random/nth (:accounts test))
+               :to     (random/nth (:accounts test))
+               :amount (+ 1 (random/long (:max-transfer test)))}})))
 
 (defn transfer-contention-keys
   "Based on from original jepsen.tests.bank.transfer generator.
@@ -57,28 +58,28 @@
   A random amount between two randomly selected accounts with set of contention keys
   that may be inserted, deleted or updated."
   [test process]
-  (let [dice (rand-nth (:operations test))]
+  (let [dice (random/nth (:operations test))]
     (cond
       (= dice :insert)
       {:type  :invoke
        :f     dice
-       :value {:from   (rand-nth (:accounts test))
-               :to     (rand-nth contention-keys)
-               :amount (+ 1 (rand-int (:max-transfer test)))}}
+       :value {:from   (random/nth (:accounts test))
+               :to     (random/nth contention-keys)
+               :amount (+ 1 (random/long (:max-transfer test)))}}
 
       (= dice :update)
       {:type  :invoke
        :f     dice
-       :value {:from   (rand-nth (concat (:accounts test) contention-keys))
-               :to     (rand-nth (concat (:accounts test) contention-keys))
-               :amount (+ 1 (rand-int (:max-transfer test)))}}
+       :value {:from   (random/nth (concat (:accounts test) contention-keys))
+               :to     (random/nth (concat (:accounts test) contention-keys))
+               :amount (+ 1 (random/long (:max-transfer test)))}}
 
       (= dice :delete)
       {:type  :invoke
        :f     dice
-       :value {:from   (rand-nth contention-keys)
-               :to     (rand-nth (:accounts test))
-               :amount (+ 1 (rand-int (:max-transfer test)))}})))
+       :value {:from   (random/nth contention-keys)
+               :to     (random/nth (:accounts test))
+               :amount (+ 1 (random/long (:max-transfer test)))}})))
 
 (def diff-transfer-insert
   "Based on from original jepsen.tests.bank workload

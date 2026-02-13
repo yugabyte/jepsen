@@ -7,6 +7,7 @@
   (:require [clojure.string :as str]
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
+            [jepsen.random :as random]
             [yugabyte.auto :as a]
             [yugabyte.ysql.client :as c]))
 
@@ -40,7 +41,7 @@
 (defn select-with-optional-lock
   [locking col table]
   (let [clause (if (= :pessimistic locking)
-                 (rand-nth ["" " for update" " for no key update" " for share" " for key share"])
+                 (random/nth ["" " for update" " for no key update" " for share" " for key share"])
                  "")]
     (str "select (" col ") from " table " where k = ?" clause)))
 
@@ -89,7 +90,7 @@
             (do
               ; Randomly evaluate SELECT FOR UPDATE with timeout in case of pessimistic locking
               (c/query conn [(select-with-optional-lock locking col table) row])
-              (Thread/sleep (long (rand-int 2000))))
+              (Thread/sleep (long (random/long 2000))))
             nil)
         r (c/execute! conn [(str "update " table
                                  " set " col " = CONCAT(" col ", ',', ?)"

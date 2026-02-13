@@ -16,6 +16,7 @@
             [jepsen.checker :as checker]
             [jepsen.generator :as gen]
             [jepsen.independent :as independent]
+            [jepsen.random :as random]
             [knossos.model :as model]
             [yugabyte.generator :as ygen]
             [jepsen.checker.timeline :as timeline]))
@@ -23,8 +24,8 @@
 (def keys-count 2)
 
 (defn r [_ _] {:type :invoke, :f :read, :value nil})
-(defn w [_ _] {:type :invoke, :f :write, :value (rand-int keys-count)})
-(defn cas [_ _] {:type :invoke, :f :cas, :value [(rand-int keys-count) (rand-int keys-count)]})
+(defn w [_ _] {:type :invoke, :f :write, :value (random/long keys-count)})
+(defn cas [_ _] {:type :invoke, :f :cas, :value [(random/long keys-count) (random/long keys-count)]})
 
 (defn workload
   [opts]

@@ -8,6 +8,7 @@
             [jepsen.control :as c]
             [jepsen.db :as db]
             [jepsen.util :as util :refer [meh]]
+            [jepsen.random :as random]
             [jepsen.control.net :as cn]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
@@ -328,7 +329,7 @@
   the symlinks which end in .INFO, .WARNING, etc."
   [dir]
   (remove (partial re-find #"\.(INFO|WARNING|ERROR)$")
-          (try (cu/ls-full dir)
+          (try (cu/ls dir {:full-path? true})
                (catch RuntimeException e nil))))
 
 ; Community-edition-specific files
@@ -399,7 +400,7 @@
 
 (defn get-random-node-skew
   [max_skew node_ip]
-  (rand-int max_skew))
+  (random/long max_skew))
 
 (def get-node-skew
   (memoize get-random-node-skew))
@@ -509,7 +510,7 @@
                 (c/su (let [post-install-script-path "./bin/post_install.sh"]
                         (info "Post-install script")
 
-                        (assert (= (count (cu/ls post-install-script-path)) 1)
+                        (assert (cu/exists? post-install-script-path)
                                 "Post-install script does not exist!")
                         (c/exec post-install-script-path)
 

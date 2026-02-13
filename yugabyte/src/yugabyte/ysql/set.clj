@@ -1,5 +1,6 @@
 (ns yugabyte.ysql.set
   (:require [clojure.java.jdbc :as j]
+            [jepsen.random :as random]
             [yugabyte.ysql.client :as c]))
 
 (def table-name "elements")
@@ -63,7 +64,7 @@
     (case (:f op)
       :add (do (c/insert! op c table-name {:id  (:value op)
                                            :val (:value op)
-                                           :grp (rand-int group-count)})
+                                           :grp (random/long group-count)})
                (assoc op :type :ok))
 
       :read (let [value (->> set-index-query

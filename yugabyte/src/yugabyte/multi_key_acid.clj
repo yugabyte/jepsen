@@ -4,6 +4,7 @@
   Verify that history remains linearizable."
   (:require [jepsen.checker :as checker]
             [jepsen.generator :as gen]
+            [jepsen.random :as random]
             [jepsen.util :as util]
             [jepsen.independent :as independent]
             [knossos.model :as model]
@@ -37,7 +38,7 @@
 
 ; Three keys, five possible values per key.
 (def key-range (vec (range 3)))
-(defn rand-val [] (rand-int 5))
+(defn rand-val [] (random/long 5))
 
 (defn r
   "Read a random subset of keys."

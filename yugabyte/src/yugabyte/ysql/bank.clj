@@ -1,6 +1,7 @@
 (ns yugabyte.ysql.bank
   (:require [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [debug info warn]]
+            [jepsen.random :as random]
             [yugabyte.ysql.client :as c]))
 
 (def table-name "accounts")
@@ -87,7 +88,7 @@
     (case (:f op)
       :read
       (j/with-db-transaction [c c {:isolation isolation}]
-        (let [accs (shuffle (:accounts test))]
+        (let [accs (random/shuffle (:accounts test))]
           (->> accs
                (mapv (fn [a]
                        (c/select-single-value op c (str table-name a) :balance (str "id = " a))))

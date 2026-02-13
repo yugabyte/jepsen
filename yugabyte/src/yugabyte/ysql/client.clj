@@ -4,6 +4,7 @@
             [clojure.pprint :refer [pprint]]
             [clojure.string :as str]
             [clojure.tools.logging :refer [info warn]]
+            [jepsen.random :as random]
             [jepsen.util :as util]
             [jepsen.control.net :as cn]
             [jepsen.client :as client]
@@ -319,7 +320,7 @@
                  (re-find #"A relation has an associated type of the same name" m#)
                  (re-find #"Operation expired: Transaction expired" m#))
            (do (info "Caught" m# "during DDL setup; retrying.")
-               (Thread/sleep (long (rand-int max-delay-between-retries-ms)))
+               (Thread/sleep (long (random/long max-delay-between-retries-ms)))
                (~'retry (dec attempts#)))
            (throw e#))))))
 
@@ -352,7 +353,7 @@
                     (catch java.sql.SQLException e#
                       (if (and (pos? attempts#)
                                (retryable? e#))
-                        (do (Thread/sleep (long (rand-int max-delay-between-retries-ms)))
+                        (do (Thread/sleep (long (random/long max-delay-between-retries-ms)))
                             (~'retry (dec attempts#)))
                         (throw e#)))))
 
