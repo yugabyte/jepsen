@@ -381,7 +381,7 @@ def parse_args():
         help='Enable clock skew nemesis. This will not work on LXC.')
     parser.add_argument(
         '--concurrency',
-        default='4n',
+        default='6n',
         help='Concurrency to specify, e.g. 2n, 4n, or 5n, where n means the number of nodes.')
     parser.add_argument(
         '--workloads',
