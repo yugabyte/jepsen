@@ -160,6 +160,14 @@ TEST_PER_VERSION = [
         "tests": [
             "ysql/sz.pl.append",
         ]
+    },
+    {
+        "start_version": "2.29.0.0-b500",
+        "tests": [
+            "ysql/sz.append-table",
+            "ysql/si.append-table",
+            "ysql/rc.append-table",
+        ]
     }
 ]
 NEMESES = [

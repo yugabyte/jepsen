@@ -6,17 +6,14 @@
   Jepsen's cycle-detection system.
 
   Lists are encoded as rows in a table; key names are table names, and the set
-  of all rows determines the list contents.
-
-  This test requires a way to order table contents, and as far as I can tell,
-  there's no safe, transactional way to order inserts in YB. SERIAL columns
-  aren't actually ordered; we can't use txn begin times (e.g. NOW()) because
-  they might not reflect commit orders, and there's no way to get (presently)
-  txn commit times. We can use COUNT(*), but that reads the whole table... Not
-  sure what to do here."
+  of all rows determines the list contents. Tables are created lazily via DDL
+  (which is transactional in YugaByteDB). Ordering is derived from COUNT(*) —
+  under serializable isolation this creates a read dependency on the full table,
+  so concurrent inserts conflict and serialize correctly."
   (:require [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
-            [yugabyte.ysql.client :as c]))
+            [yugabyte.ysql.client :as c])
+  (:import (java.sql Connection)))
 
 (defn table-name
   "Takes an integer and constructs a table name."
@@ -33,25 +30,6 @@
     (c/execute! conn [(str "insert into " table " (k, v) values (?, ?)") k v])
     v))
 
-(defn insert-now!
-  "Inserts a value v into a table, returning v. Key is computed using NOW()."
-  [conn table v]
-  (c/execute! conn [(str "insert into " table " (k, v) values (NOW(), ?)") v])
-  v)
-
-(defn insert-txn-timestamp!
-  "Inserts a value v into a table, returning v. Key is derived from
-  TRANSACTION_TIMESTAMP."
-  [conn table v]
-  (c/execute! conn [(str "insert into " table " (k, v) values (TRANSACTION_TIMESTAMP(), ?)") v])
-  v)
-
-(defn insert!
-  "Inserts a row with value v into a table, returning v. Key is assigned
-  automatically."
-  [conn table v]
-  (c/execute! conn [(str "insert into " table " (v) values (?)") v])
-  v)
 
 (defn read-ordered
   "Reads every value in table ordered by k."
@@ -72,10 +50,7 @@
   [conn table-name]
   (try
     (c/execute! conn (j/create-table-ddl table-name
-                                         [
-                                         ;[:k :SERIAL]
-                                         ;[:k :int]
-                                          [:k :timestamp :default "NOW()"]
+                                         [[:k :int]
                                           [:v :int]]
                                          {:conditional? true}))
     (catch com.yugabyte.util.PSQLException e
@@ -119,9 +94,9 @@
   (let [table (table-name k)]
       [f k (case f
              :r      (read-ordered conn table)
-             :append (insert! conn table v))]))
+             :append (insert-using-count! conn table v))]))
 
-(defrecord InternalClient []
+(defrecord InternalClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper])
@@ -130,9 +105,8 @@
     (with-table c
       (let [txn       (:value op)
             use-txn?  (< 1 (count txn))
-            ; use-txn?  false ; Just for making sure the checker actually works
             txn'      (if use-txn?
-                        (c/with-txn c
+                        (j/with-db-transaction [c c {:isolation isolation}]
                           (mapv (partial mop! c test) txn))
                         (mapv (partial mop! c test) txn))]
         (assoc op :type :ok, :value txn')))))

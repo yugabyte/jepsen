@@ -113,12 +113,14 @@
          :rc.pl.geo.append   (with-client append/workload-rc (ysql.append/->Client :read-committed :pessimistic :geo))
          :rc.ol.append       (with-client append/workload-rc (ysql.append/->Client :read-committed :optimistic :no-geo))
          :rc.pl.append       (with-client append/workload-rc (ysql.append/->Client :read-committed :pessimistic :no-geo))
+         :rc.append-table    (with-client append/workload-rc (ysql.append-table/->Client :read-committed))
          ; See https://docs.yugabyte.com/latest/architecture/transactions/isolation-levels/
          ; :snapshot-isolation maps to :repeatable_read SQL
          :si.ol.geo.append   (with-client append/workload-si (ysql.append/->Client :repeatable-read :optimistic :geo))
          :si.pl.geo.append   (with-client append/workload-si (ysql.append/->Client :repeatable-read :pessimistic :geo))
          :si.ol.append       (with-client append/workload-si (ysql.append/->Client :repeatable-read :optimistic :no-geo))
          :si.pl.append       (with-client append/workload-si (ysql.append/->Client :repeatable-read :pessimistic :no-geo))
+         :si.append-table    (with-client append/workload-si (ysql.append-table/->Client :repeatable-read))
          :si.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
          :si.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
          :si.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :repeatable-read))})
