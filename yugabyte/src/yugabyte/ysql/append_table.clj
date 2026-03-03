@@ -50,7 +50,7 @@
   [conn table-name]
   (try
     (c/execute! conn (j/create-table-ddl table-name
-                                         [[:k :int]
+                                         [[:k :int "PRIMARY KEY"]
                                           [:v :int]]
                                          {:conditional? true}))
     (catch com.yugabyte.util.PSQLException e

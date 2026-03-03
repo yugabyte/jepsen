@@ -224,6 +224,9 @@
         #"(?i)restart read required"
         {:type :fail, :error [:restart-read-required m], :retryable? true}
 
+        #"(?i)duplicate key value violates unique constraint"
+        {:type :fail, :error [:duplicate-key m]}
+
         ;
         ; PG driver-level errors
         ; Happens when client connection with yb-tserver has been disrupted
