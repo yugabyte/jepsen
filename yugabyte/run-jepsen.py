@@ -123,6 +123,8 @@ TEST_PER_VERSION = [
             "ysql/si.bank",
             "ysql/si.bank-contention",
             "ysql/si.bank-multitable",
+            "ysql/si.counter",
+            "ysql/si.set",
         ]
     },
     {
@@ -159,6 +161,14 @@ TEST_PER_VERSION = [
         "start_version": "2.20.0.0-b1",
         "tests": [
             "ysql/sz.pl.append",
+        ]
+    },
+    {
+        "start_version": "2.29.0.0-b500",
+        "tests": [
+            "ysql/sz.append-table",
+            "ysql/si.append-table",
+            "ysql/rc.append-table",
         ]
     }
 ]
@@ -453,8 +463,7 @@ def main():
                          f"--url {url}",
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}",
-                         connection_manager_flag,
-                         f"--concurrency {args.concurrency}"])
+                         connection_manager_flag])
 
     if args.iterations:
         lein_cmd += " --test-count 1"
@@ -500,7 +509,9 @@ def main():
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_RC_OL_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
+            concurrency = '3n' if 'append-table' in test else args.concurrency
             full_cmd = lein_cmd + \
+                       f" --concurrency {concurrency}" + \
                        " --time-limit " + str(test_run_time_limit_no_analysis_sec) + \
                        " --workload " + test
             result = run_cmd(

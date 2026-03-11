@@ -92,8 +92,8 @@
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ysql{:none               noop-test
          :sleep              sleep-test
-         :sz.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
-         :sz.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient))
+         :sz.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient :serializable))
+         :sz.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient :serializable))
          ; This one doesn't work because of https://github.com/YugaByte/yugabyte-db/issues/1554
          ; :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
@@ -121,7 +121,11 @@
          :si.pl.append       (with-client append/workload-si (ysql.append/->Client :repeatable-read :pessimistic :no-geo))
          :si.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
          :si.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
-         :si.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :repeatable-read))})
+         :si.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :repeatable-read))
+         :si.append-table    (with-client append/workload-si (ysql.append-table/->Client :repeatable-read))
+         :si.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient :repeatable-read))
+         :si.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient :repeatable-read))
+         :rc.append-table    (with-client append/workload-rc (ysql.append-table/->Client :read-committed))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))

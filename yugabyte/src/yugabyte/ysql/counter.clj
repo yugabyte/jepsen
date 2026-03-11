@@ -9,7 +9,7 @@
 
 (def table-name "counter")
 
-(defrecord YSQLCounterYbClient []
+(defrecord YSQLCounterYbClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
@@ -18,13 +18,14 @@
     (c/insert! c table-name {:id 0 :count 0}))
 
   (invoke-op! [this test op c conn-wrapper]
-    (case (:f op)
-      ; update! can't handle column references
-      :add (do (c/execute! op c [(str "UPDATE " table-name " SET count = count + ? WHERE id = 0") (:value op)])
-               (assoc op :type :ok))
+    (j/with-db-transaction [c c {:isolation isolation}]
+      (case (:f op)
+        ; update! can't handle column references
+        :add (do (c/execute! op c [(str "UPDATE " table-name " SET count = count + ? WHERE id = 0") (:value op)])
+                 (assoc op :type :ok))
 
-      :read (let [value (c/select-single-value op c table-name :count "id = 0")]
-              (assoc op :type :ok :value value))))
+        :read (let [value (c/select-single-value op c table-name :count "id = 0")]
+                (assoc op :type :ok :value value)))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))

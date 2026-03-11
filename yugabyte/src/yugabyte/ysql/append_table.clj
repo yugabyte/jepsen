@@ -121,7 +121,7 @@
              :r      (read-ordered conn table)
              :append (insert! conn table v))]))
 
-(defrecord InternalClient []
+(defrecord InternalClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper])
@@ -130,9 +130,8 @@
     (with-table c
       (let [txn       (:value op)
             use-txn?  (< 1 (count txn))
-            ; use-txn?  false ; Just for making sure the checker actually works
             txn'      (if use-txn?
-                        (c/with-txn c
+                        (j/with-db-transaction [c c {:isolation isolation}]
                           (mapv (partial mop! c test) txn))
                         (mapv (partial mop! c test) txn))]
         (assoc op :type :ok, :value txn')))))
