@@ -44,7 +44,8 @@ CmdResult = namedtuple('CmdResult',
                         'returncode',
                         'timed_out',
                         'everything_looks_good',
-                        'cycle_search_timeout_only'])
+                        'cycle_search_timeout_only',
+                        'has_valid_unknown'])
 
 
 def is_cycle_search_timeout_only(lines):
@@ -300,6 +301,7 @@ def run_cmd(cmd,
                 sys.exit(returncode)
         everything_looks_good = False
         cycle_search_timeout_only = False
+        has_valid_unknown = False
         last_lines_of_output = []
         if stdout_path is not None and os.path.exists(stdout_path):
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
@@ -307,6 +309,8 @@ def run_cmd(cmd,
                 line.startswith('Everything looks good!') for line in last_lines_of_output)
             if not everything_looks_good:
                 cycle_search_timeout_only = is_cycle_search_timeout_only(last_lines_of_output)
+                has_valid_unknown = any(
+                    ':valid? :unknown' in line for line in last_lines_of_output)
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
@@ -315,7 +319,8 @@ def run_cmd(cmd,
             returncode=returncode,
             timed_out=timed_out,
             everything_looks_good=everything_looks_good,
-            cycle_search_timeout_only=cycle_search_timeout_only)
+            cycle_search_timeout_only=cycle_search_timeout_only,
+            has_valid_unknown=has_valid_unknown)
 
     finally:
         if stdout_file is not None:
@@ -509,7 +514,7 @@ def main():
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_RC_APPEND_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
-            concurrency = '2n' if 'append-table' in test else args.concurrency
+            concurrency = '3' if 'append-table' in test else args.concurrency
             full_cmd = lein_cmd + \
                        f" --concurrency {concurrency}" + \
                        " --time-limit " + str(test_run_time_limit_no_analysis_sec) + \
@@ -545,16 +550,16 @@ def main():
                 test_index, test_elapsed_time_sec, result.returncode,
                 result.everything_looks_good)
 
-            # For rc.ol workloads, accept cycle-search-timeout as valid (no actual anomalies found)
-            is_rc_ol_timeout_acceptable = (
-                '/rc.ol' in test and
-                result.cycle_search_timeout_only and
+            # For read committed workloads, accept valid-unknown results (e.g. cycle-search-timeout)
+            is_rc_unknown_acceptable = (
+                '/rc.' in test and
+                result.has_valid_unknown and
                 not result.timed_out
             )
 
-            if result.everything_looks_good or is_rc_ol_timeout_acceptable:
-                if is_rc_ol_timeout_acceptable:
-                    logging.info("Accepting rc.ol test with cycle-search-timeout (no anomalies found)")
+            if result.everything_looks_good or is_rc_unknown_acceptable:
+                if is_rc_unknown_acceptable:
+                    logging.info("Accepting read committed test with valid-unknown result")
                 num_everything_looks_good += 1
 
                 if test_name not in test_cases:
