@@ -9,11 +9,14 @@
 ; Regular set test
 ;
 
+(def regular-index-name "idx_elements")
+
 (defrecord YSQLSetYbClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
-    (c/execute! c (j/create-table-ddl table-name [[:val :int "PRIMARY KEY"]])))
+    (c/execute! c (j/create-table-ddl table-name [[:val :int "PRIMARY KEY"]]))
+    (c/execute! c (str "CREATE INDEX " regular-index-name " ON " table-name " (val)")))
 
   (invoke-op! [this test op c conn-wrapper]
     (j/with-db-transaction [c c {:isolation isolation}]
@@ -21,7 +24,9 @@
         :add (do (c/insert! c table-name {:val (:value op)})
                  (assoc op :type :ok))
 
-        :read (let [value (->> (str "SELECT val FROM " table-name)
+        :read (let [value (->> (str (when (zero? (random/long 2))
+                                      (str "/*+ IndexOnlyScan(" table-name " " regular-index-name ") */ "))
+                                    "SELECT val FROM " table-name)
                                (c/query c)
                                (mapv :val))]
                 (assoc op :type :ok, :value value)))))

@@ -2,10 +2,12 @@
   "This test uses INSERT ... ON CONFLICT DO UPDATE"
   (:require [clojure.java.jdbc :as j]
             [jepsen.independent :as independent]
+            [jepsen.random :as random]
             [jepsen.txn.micro-op :as mop]
             [yugabyte.ysql.client :as c]))
 
 (def table-name "multi_key_acid")
+(def index-name "idx_multi_key_acid")
 
 (defrecord YSQLMultiKeyAcidYbClient []
   c/YSQLYbClient
@@ -14,15 +16,18 @@
     (c/execute! c (j/create-table-ddl table-name [[:k1 :int]
                                                   [:k2 :int]
                                                   [:val :int]
-                                                  ["PRIMARY KEY" "(k1, k2)"]])))
+                                                  ["PRIMARY KEY" "(k1, k2)"]]))
+    (c/execute! c (str "CREATE INDEX " index-name " ON " table-name " (k2, k1, val)")))
 
   (invoke-op! [this test op c conn-wrapper]
     (let [[k2 ops] (:value op)]
       (case (:f op)
         :read
         (let [k1s  (map mop/key ops)
-              ; Look up values
-              vs   (->> (str "SELECT k1, val FROM " table-name " WHERE k2 = " k2 " AND k1 " (c/in k1s))
+              ; Look up values, randomly using secondary index
+              vs   (->> (str (when (zero? (random/long 2))
+                               (str "/*+ IndexOnlyScan(" table-name " " index-name ") */ "))
+                             "SELECT k1, val FROM " table-name " WHERE k2 = " k2 " AND k1 " (c/in k1s))
                         (c/query op c)
                         (map (juxt :k1 :val))
                         (into {}))

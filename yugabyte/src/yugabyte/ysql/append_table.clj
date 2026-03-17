@@ -16,6 +16,7 @@
   sure what to do here."
   (:require [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
+            [jepsen.random :as random]
             [yugabyte.ysql.client :as c]))
 
 (defn table-name
@@ -56,7 +57,11 @@
 (defn read-ordered
   "Reads every value in table ordered by k."
   [conn table]
-  (let [res (c/query conn [(str "select k, v from " table " order by k")])]
+  (let [idx (str "idx_" table)
+        query-str (if (zero? (random/long 2))
+                    (str "/*+ IndexOnlyScan(" table " " idx ") */ select k, v from " table " order by k")
+                    (str "select k, v from " table " order by k"))
+        res (c/query conn [query-str])]
     (info "table" table "has" (map (juxt :k :v) res))
     (mapv :v res)))
 
@@ -78,6 +83,11 @@
                                           [:k :timestamp :default "NOW()"]
                                           [:v :int]]
                                          {:conditional? true}))
+    (catch com.yugabyte.util.PSQLException e
+      (when-not (re-find #"already exists" (.getMessage e))
+        (throw e))))
+  (try
+    (c/execute! conn (str "CREATE INDEX idx_" table-name " ON " table-name " (k, v)"))
     (catch com.yugabyte.util.PSQLException e
       (when-not (re-find #"already exists" (.getMessage e))
         (throw e)))))

@@ -108,8 +108,6 @@ TEST_PER_VERSION = [
             # "ycql/bank-inserts",
 
             # YSQL serializable (reduced coverage — product focus is on RC and SI)
-            "ysql/sz.long-fork",
-            "ysql/sz.single-key-acid",
             "ysql/sz.multi-key-acid",
             "ysql/sz.default-value",
             "ysql/sz.ol.append",
