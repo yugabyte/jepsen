@@ -107,12 +107,7 @@ TEST_PER_VERSION = [
             # Related to multipage index scan https://github.com/yugabyte/yugabyte-db/issues/13502
             # "ycql/bank-inserts",
 
-            # YSQL serializable
-            "ysql/sz.counter",
-            "ysql/sz.set",
-            "ysql/sz.bank",
-            "ysql/sz.bank-contention",
-            "ysql/sz.bank-multitable",
+            # YSQL serializable (reduced coverage — product focus is on RC and SI)
             "ysql/sz.long-fork",
             "ysql/sz.single-key-acid",
             "ysql/sz.multi-key-acid",
