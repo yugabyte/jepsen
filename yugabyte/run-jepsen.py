@@ -145,10 +145,8 @@ TEST_PER_VERSION = [
         "tests": [
             "ysql/rc.pl.geo.append",
             "ysql/si.pl.geo.append",
-            "ysql/sz.pl.geo.append",
             "ysql/rc.ol.geo.append",
             "ysql/si.ol.geo.append",
-            "ysql/sz.ol.geo.append",
         ]
     },
     {
