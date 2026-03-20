@@ -107,7 +107,7 @@
          :sz.pl.geo.append   (with-client append/workload-serializable (ysql.append/->Client :serializable :pessimistic :geo))
          :sz.ol.append       (with-client append/workload-serializable (ysql.append/->Client :serializable :optimistic :no-geo))
          :sz.pl.append       (with-client append/workload-serializable (ysql.append/->Client :serializable :pessimistic :no-geo))
-         :sz.append-table    (with-client append/workload-serializable (ysql.append-table/->Client :serializable))
+         :sz.append-table    (with-client append/workload-serializable-table (ysql.append-table/->Client :serializable))
          :sz.default-value   (with-client default-value/workload (ysql.default-value/->Client))
          :rc.ol.geo.append   (with-client append/workload-rc (ysql.append/->Client :read-committed :optimistic :geo))
          :rc.pl.geo.append   (with-client append/workload-rc (ysql.append/->Client :read-committed :pessimistic :geo))
@@ -122,10 +122,10 @@
          :si.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
          :si.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
          :si.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :repeatable-read))
-         :si.append-table    (with-client append/workload-si (ysql.append-table/->Client :repeatable-read))
+         :si.append-table    (with-client append/workload-si-table (ysql.append-table/->Client :repeatable-read))
          :si.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient :repeatable-read))
          :si.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient :repeatable-read))
-         :rc.append-table    (with-client append/workload-rc (ysql.append-table/->Client :read-committed))})
+         :rc.append-table    (with-client append/workload-rc-table (ysql.append-table/->Client :read-committed))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))

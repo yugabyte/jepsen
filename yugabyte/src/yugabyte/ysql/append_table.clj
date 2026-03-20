@@ -62,7 +62,6 @@
                     (str "/*+ IndexOnlyScan(" table " " idx ") */ select k, v from " table " order by k")
                     (str "select k, v from " table " order by k"))
         res (c/query conn [query-str])]
-    (info "table" table "has" (map (juxt :k :v) res))
     (mapv :v res)))
 
 (defn read-natural
