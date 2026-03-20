@@ -72,14 +72,14 @@
 
 (defn create-table!
   "Creates a table for the given relation. Swallows already-exists errors,
-  because YB can't do `create ... if not exists` properly."
+  because YB can't do `create ... if not exists` properly.
+  Uses k INT PRIMARY KEY for deterministic ordering — concurrent inserts at
+  the same position conflict on the PK, ensuring the ordering reflects the
+  actual serialization order."
   [conn table-name]
   (try
     (c/execute! conn (j/create-table-ddl table-name
-                                         [
-                                         ;[:k :SERIAL]
-                                         ;[:k :int]
-                                          [:k :timestamp :default "NOW()"]
+                                         [[:k :int "PRIMARY KEY"]
                                           [:v :int]]
                                          {:conditional? true}))
     (catch com.yugabyte.util.PSQLException e
@@ -128,7 +128,7 @@
   (let [table (table-name k)]
       [f k (case f
              :r      (read-ordered conn table)
-             :append (insert! conn table v))]))
+             :append (insert-using-count! conn table v))]))
 
 (defrecord InternalClient [isolation]
   c/YSQLYbClient
@@ -137,12 +137,9 @@
 
   (invoke-op! [this test op c conn-wrapper]
     (with-table c
-      (let [txn       (:value op)
-            use-txn?  (< 1 (count txn))
-            txn'      (if use-txn?
-                        (j/with-db-transaction [c c {:isolation isolation}]
-                          (mapv (partial mop! c test) txn))
-                        (mapv (partial mop! c test) txn))]
+      (let [txn  (:value op)
+            txn' (j/with-db-transaction [c c {:isolation isolation}]
+                   (mapv (partial mop! c test) txn))]
         (assoc op :type :ok, :value txn')))))
 
 (c/defclient Client InternalClient)
