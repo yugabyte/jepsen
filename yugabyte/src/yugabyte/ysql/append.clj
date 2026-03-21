@@ -151,9 +151,11 @@
         col (col-for test k)]
     [f k (case f
            :r
-           (if (and (not= geo-partitioning :geo) (zero? (random/long 2)))
-             (read-via-index locking conn table row col)
-             (read-primary locking conn table row col))
+           (let [use-index? (and (not= geo-partitioning :geo) (zero? (random/long 2)))]
+             (info table (if use-index? "IndexScan(k2)" "PrimaryScan(k)") "row=" row)
+             (if use-index?
+               (read-via-index locking conn table row col)
+               (read-primary locking conn table row col)))
 
            :append
            (append-primary! locking geo-partitioning conn table row col v))]))

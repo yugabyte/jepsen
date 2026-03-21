@@ -1,5 +1,6 @@
 (ns yugabyte.ysql.set
   (:require [clojure.java.jdbc :as j]
+            [clojure.tools.logging :refer [info]]
             [jepsen.random :as random]
             [yugabyte.ysql.client :as c]))
 
@@ -24,11 +25,13 @@
         :add (do (c/insert! c table-name {:val (:value op)})
                  (assoc op :type :ok))
 
-        :read (let [value (->> (str (when (zero? (random/long 2))
+        :read (let [use-index? (zero? (random/long 2))
+                    value (->> (str (when use-index?
                                       (str "/*+ IndexOnlyScan(" table-name " " regular-index-name ") */ "))
                                     "SELECT val FROM " table-name)
                                (c/query c)
                                (mapv :val))]
+                (info table-name (if use-index? "IndexOnlyScan" "SeqScan"))
                 (assoc op :type :ok, :value value)))))
 
   (teardown-cluster! [this test c conn-wrapper]

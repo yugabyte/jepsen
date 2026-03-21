@@ -14,12 +14,14 @@
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table"
   [op c]
-  (->> (str (when (zero? (random/long 2))
-              (str "/*+ IndexOnlyScan(" table-name " " index-name ") */ "))
-            "SELECT id, balance FROM " table-name)
-       (c/query op c)
-       (map (juxt :id :balance))
-       (into (sorted-map))))
+  (let [use-index? (zero? (random/long 2))]
+    (info table-name (if use-index? "IndexOnlyScan" "SeqScan"))
+    (->> (str (when use-index?
+                (str "/*+ IndexOnlyScan(" table-name " " index-name ") */ "))
+              "SELECT id, balance FROM " table-name)
+         (c/query op c)
+         (map (juxt :id :balance))
+         (into (sorted-map)))))
 
 (defrecord YSQLBankYbClient [allow-negatives? isolation]
   c/YSQLYbClient
@@ -98,8 +100,10 @@
           (->> accs
                (mapv (fn [a]
                        (let [tbl (str table-name a)
-                             idx (str index-name a)]
-                         (if (zero? (random/long 2))
+                             idx (str index-name a)
+                             use-index? (zero? (random/long 2))]
+                         (info tbl (if use-index? "IndexOnlyScan" "SeqScan"))
+                         (if use-index?
                            (-> (c/query op c (str "/*+ IndexOnlyScan(" tbl " " idx ") */ SELECT balance FROM " tbl " WHERE id = " a))
                                first :balance)
                            (c/select-single-value op c tbl :balance (str "id = " a))))))

@@ -1,5 +1,6 @@
 (ns yugabyte.ysql.single-key-acid
   (:require [clojure.java.jdbc :as j]
+            [clojure.tools.logging :refer [info]]
             [jepsen.independent :as independent]
             [jepsen.random :as random]
             [yugabyte.single-key-acid :as ska]
@@ -34,7 +35,9 @@
           (assoc op :type (if applied :ok :fail)))
 
         :read
-        (let [value (if (zero? (random/long 2))
+        (let [use-index? (zero? (random/long 2))
+              _ (info table-name (if use-index? "IndexOnlyScan" "SeqScan") "id=" id)
+              value (if use-index?
                       (-> (c/query op c (str "/*+ IndexOnlyScan(" table-name " " index-name ") */ SELECT val FROM " table-name " WHERE id = " id))
                           first :val)
                       (c/select-single-value c table-name :val (str "id = " id)))]

@@ -1,6 +1,7 @@
 (ns yugabyte.ysql.multi-key-acid
   "This test uses INSERT ... ON CONFLICT DO UPDATE"
   (:require [clojure.java.jdbc :as j]
+            [clojure.tools.logging :refer [info]]
             [jepsen.independent :as independent]
             [jepsen.random :as random]
             [jepsen.txn.micro-op :as mop]
@@ -25,7 +26,9 @@
         :read
         (let [k1s  (map mop/key ops)
               ; Look up values, randomly using secondary index
-              vs   (->> (str (when (zero? (random/long 2))
+              use-index? (zero? (random/long 2))
+              _ (info table-name (if use-index? "IndexOnlyScan" "SeqScan") "k2=" k2)
+              vs   (->> (str (when use-index?
                                (str "/*+ IndexOnlyScan(" table-name " " index-name ") */ "))
                              "SELECT k1, val FROM " table-name " WHERE k2 = " k2 " AND k1 " (c/in k1s))
                         (c/query op c)

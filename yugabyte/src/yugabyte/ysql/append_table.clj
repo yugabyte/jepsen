@@ -58,10 +58,12 @@
   "Reads every value in table ordered by k."
   [conn table]
   (let [idx (str "idx_" table)
-        query-str (if (zero? (random/long 2))
+        use-index? (zero? (random/long 2))
+        query-str (if use-index?
                     (str "/*+ IndexOnlyScan(" table " " idx ") */ select k, v from " table " order by k")
                     (str "select k, v from " table " order by k"))
         res (c/query conn [query-str])]
+    (info table (if use-index? "IndexOnlyScan" "SeqScan") "→" (mapv :v res))
     (mapv :v res)))
 
 (defn read-natural
