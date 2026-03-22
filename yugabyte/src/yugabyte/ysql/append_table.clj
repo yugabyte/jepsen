@@ -79,18 +79,23 @@
   the same position conflict on the PK, ensuring the ordering reflects the
   actual serialization order."
   [conn table-name]
+  (info "Creating table" table-name)
   (try
     (c/execute! conn (j/create-table-ddl table-name
                                          [[:k :int "PRIMARY KEY"]
                                           [:v :int]]
                                          {:conditional? true}))
+    (info "Created table" table-name)
     (catch com.yugabyte.util.PSQLException e
-      (when-not (re-find #"already exists" (.getMessage e))
+      (if (re-find #"already exists" (.getMessage e))
+        (info "Table" table-name "already exists")
         (throw e))))
   (try
     (c/execute! conn (str "CREATE INDEX idx_" table-name " ON " table-name " (k, v)"))
+    (info "Created index for" table-name)
     (catch com.yugabyte.util.PSQLException e
-      (when-not (re-find #"already exists" (.getMessage e))
+      (if (re-find #"already exists" (.getMessage e))
+        (info "Index for" table-name "already exists")
         (throw e)))))
 
 (defn catch-dne
