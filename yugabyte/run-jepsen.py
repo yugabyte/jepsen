@@ -412,6 +412,10 @@ def parse_args():
         default=None,
         choices=['mixed', 'optimistic', 'pessimistic'],
         help='Locking mode for append workloads: mixed (default), optimistic, or pessimistic')
+    parser.add_argument(
+        '--stress-tuning',
+        action='store_true',
+        help='Enable stress-test flags with tiny thresholds for internal subsystems')
     return parser.parse_args()
 
 
@@ -466,13 +470,15 @@ def main():
         stderr=subprocess.STDOUT).decode().strip()
     logging.info("Java version:\n%s", java_version)
     locking_flag = f"--locking {args.locking}" if args.locking else ""
+    stress_flag = "--stress-tuning" if args.stress_tuning else ""
     lein_cmd = " ".join(["lein run test",
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}",
                          connection_manager_flag,
-                         locking_flag])
+                         locking_flag,
+                         stress_flag])
 
     if args.iterations:
         lein_cmd += " --test-count 1"

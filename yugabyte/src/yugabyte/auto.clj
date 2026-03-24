@@ -483,6 +483,43 @@
      :--rpc_connection_timeout_ms 1500]
     []))
 
+(defn master-tserver-stress-flags
+  "Stress-test flags that exercise internal batching, WAL, and consensus paths
+  with small thresholds to trigger edge cases more frequently."
+  [test]
+  (if (:stress-tuning test)
+    [:--log_segment_size_bytes 524288               ; 512KB — multiple segment rollovers
+     :--consensus_max_batch_size_bytes 4096         ; 4KB — smaller replication batches
+     :--bg_superblock_flush_interval_secs 5]        ; frequent superblock flushes
+    []))
+
+(defn master-stress-flags
+  "Stress-test flags for master: tablet splitting with tiny thresholds."
+  [test]
+  (if (:stress-tuning test)
+    [:--enable_automatic_tablet_splitting
+     :--tablet_split_low_phase_size_threshold_bytes 1024    ; split after ~10 rows
+     :--tablet_split_high_phase_size_threshold_bytes 1024]
+    []))
+
+(defn tserver-stress-flags
+  "Stress-test flags for tserver that exercise DocDB, RocksDB, MVCC, PgGate,
+  and intent cleanup paths with small thresholds."
+  [test]
+  (if (:stress-tuning test)
+    [:--txn_max_apply_batch_records 2                       ; DocDB: 3-row txn triggers 2 batches
+     :--db_write_buffer_size 32768                          ; RocksDB: 32KB memtable, flush after a few rows
+     :--rocksdb_level0_file_num_compaction_trigger 2        ; RocksDB: compact after 2 SSTs
+     :--db_block_cache_size_bytes 1048576                   ; 1MB block cache — forces evictions
+     :--aborted_intent_cleanup_ms 1000                      ; 1s intent cleanup cycles
+     :--timestamp_history_retention_interval_sec 5          ; MVCC GC runs on recent data
+     :--max_transactions_in_status_request 2                ; multi-batch status checks
+     :--deadlock_detection_interval_usec 1000000            ; 1s deadlock scans
+     :--ysql_prefetch_limit 2                               ; PgGate: multi-fetch on small tables
+     :--backfill_index_write_batch_size 2                   ; index backfill: multiple rounds
+     :--cdc_stream_records_threshold_size_bytes 1024]       ; CDC: small batches
+    []))
+
 (def limits-conf
   "Ulimits, in the format for /etc/security/limits.conf."
   "
@@ -544,6 +581,8 @@
             (master-tserver-wait-on-conflict-flags test)
             (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
+            (master-tserver-stress-flags test)
+            (master-stress-flags test)
             (master-api-opts (:api test) node)
             )))
 
@@ -565,6 +604,8 @@
             (master-tserver-wait-on-conflict-flags test)
             (master-tserver-packed-columns test)
             (master-tserver-geo-partitioning-flags test node (:nodes test))
+            (master-tserver-stress-flags test)
+            (tserver-stress-flags test)
             (tserver-api-opts test node)
             (tserver-connection-manager-preview test)
             (tserver-read-committed-flags test)
