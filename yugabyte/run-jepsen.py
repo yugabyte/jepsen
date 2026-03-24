@@ -157,6 +157,7 @@ TEST_PER_VERSION = [
     },
     {
         "start_version": "2.29.0.0-b500",
+        "start_version_stable": "2026.1.0.0-b1",
         "tests": [
             "ysql/sz.append-table",
             "ysql/si.append-table",
@@ -184,12 +185,24 @@ REGEX_MAJOR_VERSION = r"^(\d+)\.(\d+)"
 child_processes = []
 
 
-def get_workload_version(workload):
+def is_stable_version(version):
+    """Check if version uses the stable/production format (2024.x, 2025.x, etc.)
+    Master versions use 2.x format (e.g. 2.29.0.0), stable use year-based (e.g. 2025.2.0.0)."""
+    first = int(re.split(r'\.|-b', version)[0])
+    return first >= 2024
+
+
+def get_workload_version(workload, target_version=None):
+    """Get the minimum version for a workload. When target_version is a stable/production
+    release and the workload has a start_version_stable, use that instead of the master
+    start_version."""
     for el in TEST_PER_VERSION:
         for tests in el["tests"]:
             if workload in tests:
+                if target_version and is_stable_version(target_version) and "start_version_stable" in el:
+                    return el["start_version_stable"]
                 return el["start_version"]
-    raise EnvironmentError(f"Unanable to find workload in tests: {TESTS}")
+    raise EnvironmentError(f"Unable to find workload in tests: {TESTS}")
 
 
 def is_version_at_least(v_least, v_actual):
@@ -469,7 +482,7 @@ def main():
 
     all_workloads = args.workloads.split(',')
     workloads_to_evaluate = [workload for workload in all_workloads
-                             if is_version_at_least(get_workload_version(workload),
+                             if is_version_at_least(get_workload_version(workload, version),
                                                     version)]
     workloads_to_skip = set(all_workloads) - set(workloads_to_evaluate)
 
