@@ -121,7 +121,12 @@
 
    [nil "--random-seed SEED" "Random seed for deterministic test execution. If not provided, a random seed is generated."
     :default nil
-    :parse-fn parse-long]])
+    :parse-fn parse-long]
+
+   [nil "--locking MODE" "Locking mode for append workloads: mixed (default), optimistic, or pessimistic"
+    :default nil
+    :parse-fn keyword
+    :validate [#{:mixed :optimistic :pessimistic} "Must be one of: mixed, optimistic, pessimistic"]]])
 
 (def test-all-opts
   "CLI options for testing everything."

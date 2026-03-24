@@ -110,10 +110,8 @@ TEST_PER_VERSION = [
             # YSQL serializable (reduced coverage — product focus is on RC and SI)
             "ysql/sz.multi-key-acid",
             "ysql/sz.default-value",
-            "ysql/sz.ol.append",
 
             # YSQL snapshot isolation
-            "ysql/si.ol.append",
             "ysql/si.bank",
             "ysql/si.bank-contention",
             "ysql/si.bank-multitable",
@@ -122,37 +120,32 @@ TEST_PER_VERSION = [
         ]
     },
     {
-        "start_version": "2.13.1.0-b1",
-        "tests": [
-            # YSQL read committed
-            "ysql/rc.ol.append",
-        ]
-    },
-    {
+        # RC pessimistic locking available since 2.15
         "start_version": "2.15.0.0-b1",
         "tests": [
-            "ysql/rc.pl.append",
+            "ysql/rc.append",
         ]
     },
     {
+        # SI pessimistic locking available since 2.17.2
         "start_version": "2.17.2.0-b1",
         "tests": [
-            "ysql/si.pl.append",
+            "ysql/si.append",
         ]
     },
     {
         "start_version": "2.18.0.0-b1",
         "tests": [
-            "ysql/rc.pl.geo.append",
-            "ysql/si.pl.geo.append",
-            "ysql/rc.ol.geo.append",
-            "ysql/si.ol.geo.append",
+            "ysql/rc.geo.append",
+            "ysql/si.geo.append",
+            "ysql/sz.geo.append",
         ]
     },
     {
+        # SZ pessimistic locking available since 2.20
         "start_version": "2.20.0.0-b1",
         "tests": [
-            "ysql/sz.pl.append",
+            "ysql/sz.append",
         ]
     },
     {
@@ -414,6 +407,11 @@ def parse_args():
         '--iterations',
         type=int,
         help='Run each workload repeatedly for this many iterations.')
+    parser.add_argument(
+        '--locking',
+        default=None,
+        choices=['mixed', 'optimistic', 'pessimistic'],
+        help='Locking mode for append workloads: mixed (default), optimistic, or pessimistic')
     return parser.parse_args()
 
 
@@ -467,12 +465,14 @@ def main():
         [os.path.join(os.environ["JAVA_HOME"], "bin", "java"), "-version"],
         stderr=subprocess.STDOUT).decode().strip()
     logging.info("Java version:\n%s", java_version)
+    locking_flag = f"--locking {args.locking}" if args.locking else ""
     lein_cmd = " ".join(["lein run test",
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}",
-                         connection_manager_flag])
+                         connection_manager_flag,
+                         locking_flag])
 
     if args.iterations:
         lein_cmd += " --test-count 1"

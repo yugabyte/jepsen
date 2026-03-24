@@ -184,6 +184,13 @@
                      ", PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('" postfix "') "
                      "TABLESPACE " tablespace-name "_" postfix)))
 
+(defn resolve-locking
+  "Resolves locking mode for a transaction. :mixed randomly picks :optimistic or :pessimistic."
+  [locking]
+  (if (= :mixed locking)
+    (random/nth [:optimistic :pessimistic])
+    locking))
+
 (defrecord InternalClient [isolation locking geo-partitioning]
   c/YSQLYbClient
 
@@ -212,10 +219,11 @@
   (invoke-op! [this test op c conn-wrapper]
     (let [txn (:value op)
           use-txn? (< 1 (count txn))
+          resolved-locking (resolve-locking locking)
           txn' (if use-txn?
                  (j/with-db-transaction [c c {:isolation isolation}]
-                                        (mapv (partial mop! geo-partitioning locking c test) txn))
-                 (mapv (partial mop! geo-partitioning locking c test) txn))]
+                                        (mapv (partial mop! geo-partitioning resolved-locking c test) txn))
+                 (mapv (partial mop! geo-partitioning resolved-locking c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
