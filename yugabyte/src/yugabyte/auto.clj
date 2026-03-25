@@ -505,11 +505,13 @@
   (if (:stress-tuning test)
     [:--txn_max_apply_batch_records 2
      :--db_write_buffer_size 524288                         ; 512KB — safe but still small
-     :--rocksdb_level0_file_num_compaction_trigger 2
+     ; rocksdb_level0_file_num_compaction_trigger=2 too aggressive — causes write stalls during startup
+     ; :--rocksdb_level0_file_num_compaction_trigger 2
      :--db_block_cache_size_bytes 8388608                   ; 8MB — safe but forces evictions
      :--aborted_intent_cleanup_ms 1000
      :--timestamp_history_retention_interval_sec 5
-     :--max_transactions_in_status_request 2
+     ; max_transactions_in_status_request=2 too low — causes timeouts resolving pending txns at startup
+     ; :--max_transactions_in_status_request 2
      :--transaction_deadlock_detection_interval_usec 1000000
      :--backfill_index_write_batch_size 2
      :--cdc_stream_records_threshold_size_bytes 1024]
