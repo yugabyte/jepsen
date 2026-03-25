@@ -490,7 +490,7 @@
   (if (:stress-tuning test)
     [; WAL: 512KB segments — may be too small for catalog bootstrap
      ; :--log_segment_size_bytes 524288
-     :--consensus_max_batch_size_bytes 65536        ; 64KB — smaller replication batches
+;     :--consensus_max_batch_size_bytes 65536        ; 64KB — smaller replication batches
      ; :--bg_superblock_flush_interval_secs 5
      ]
     []))
