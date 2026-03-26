@@ -121,7 +121,15 @@
 
    [nil "--random-seed SEED" "Random seed for deterministic test execution. If not provided, a random seed is generated."
     :default nil
-    :parse-fn parse-long]])
+    :parse-fn parse-long]
+
+   [nil "--locking MODE" "Locking mode for append workloads: mixed (default), optimistic, or pessimistic"
+    :default nil
+    :parse-fn keyword
+    :validate [#{:mixed :optimistic :pessimistic} "Must be one of: mixed, optimistic, pessimistic"]]
+
+   [nil "--stress-tuning" "Enable stress-test flags that use tiny thresholds for internal subsystems (batching, compaction, WAL, cache, splitting, etc.) to trigger edge cases more frequently"
+    :default true]])
 
 (def test-all-opts
   "CLI options for testing everything."

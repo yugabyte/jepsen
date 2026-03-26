@@ -5,6 +5,7 @@
             [yugabyte.ysql.client :as c]))
 
 (def table-name "accounts")
+(def index-name "idx_accounts")
 
 ;
 ; Single-table bank test
@@ -13,10 +14,14 @@
 (defn- read-accounts-map
   "Read {id balance} accounts map from a unified bank table"
   [op c]
-  (->> (str "SELECT id, balance FROM " table-name)
-       (c/query op c)
-       (map (juxt :id :balance))
-       (into (sorted-map))))
+  (let [use-index? (zero? (random/long 2))]
+    (info table-name (if use-index? "IndexOnlyScan" "SeqScan"))
+    (->> (str (when use-index?
+                (str "/*+ IndexOnlyScan(" table-name " " index-name ") */ "))
+              "SELECT id, balance FROM " table-name)
+         (c/query op c)
+         (map (juxt :id :balance))
+         (into (sorted-map)))))
 
 (defrecord YSQLBankYbClient [allow-negatives? isolation]
   c/YSQLYbClient
@@ -24,6 +29,7 @@
   (setup-cluster! [this test c conn-wrapper]
     (c/execute! c (j/create-table-ddl table-name [[:id :int "PRIMARY KEY"]
                                                   [:balance :bigint]]))
+    (c/execute! c (str "CREATE INDEX " index-name " ON " table-name " (id, balance)"))
     (c/with-retry
       (info "Creating accounts")
       (c/insert! c table-name {:id      (first (:accounts test))
@@ -71,12 +77,14 @@
 
     (doseq [a (:accounts test)]
       (let [acc-table-name (str table-name a)
+            acc-index-name (str index-name a)
             balance        (if (= a (first (:accounts test)))
                              (:total-amount test)
                              0)]
         (info "Creating table" a)
         (c/execute! c (j/create-table-ddl acc-table-name [[:id :int "PRIMARY KEY"]
                                                           [:balance :bigint]]))
+        (c/execute! c (str "CREATE INDEX " acc-index-name " ON " acc-table-name " (id, balance)"))
 
         (info "Populating account" a " (balance =" balance ")")
         (c/with-retry
@@ -91,7 +99,14 @@
         (let [accs (random/shuffle (:accounts test))]
           (->> accs
                (mapv (fn [a]
-                       (c/select-single-value op c (str table-name a) :balance (str "id = " a))))
+                       (let [tbl (str table-name a)
+                             idx (str index-name a)
+                             use-index? (zero? (random/long 2))]
+                         (info tbl (if use-index? "IndexOnlyScan" "SeqScan"))
+                         (if use-index?
+                           (-> (c/query op c (str "/*+ IndexOnlyScan(" tbl " " idx ") */ SELECT balance FROM " tbl " WHERE id = " a))
+                               first :balance)
+                           (c/select-single-value op c tbl :balance (str "id = " a))))))
                (zipmap accs)
                (assoc op :type :ok, :value))))
 

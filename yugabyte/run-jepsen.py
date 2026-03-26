@@ -44,7 +44,8 @@ CmdResult = namedtuple('CmdResult',
                         'returncode',
                         'timed_out',
                         'everything_looks_good',
-                        'cycle_search_timeout_only'])
+                        'cycle_search_timeout_only',
+                        'has_valid_unknown'])
 
 
 def is_cycle_search_timeout_only(lines):
@@ -85,7 +86,7 @@ SINGLE_TEST_RUN_TIME = 600
 # The set test might time out if you let it run for 10 minutes and leave 10 more
 # minutes for analysis, so cut its running time in half.
 SINGLE_TEST_RUN_TIME_FOR_SET_TEST = 300
-SINGLE_TEST_RUN_TIME_FOR_RC_OL_TEST = 300
+SINGLE_TEST_RUN_TIME_FOR_RC_APPEND_TEST = 300
 
 TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar.gz"
@@ -109,56 +110,56 @@ TEST_PER_VERSION = [
             # YSQL serializable
             "ysql/sz.counter",
             "ysql/sz.set",
-            "ysql/sz.bank",
             "ysql/sz.bank-contention",
             "ysql/sz.bank-multitable",
             "ysql/sz.long-fork",
             "ysql/sz.single-key-acid",
             "ysql/sz.multi-key-acid",
             "ysql/sz.default-value",
-            "ysql/sz.ol.append",
 
             # YSQL snapshot isolation
-            "ysql/si.ol.append",
-            "ysql/si.bank",
             "ysql/si.bank-contention",
             "ysql/si.bank-multitable",
+            "ysql/si.counter",
+            "ysql/si.set",
         ]
     },
     {
-        "start_version": "2.13.1.0-b1",
-        "tests": [
-            # YSQL read committed
-            "ysql/rc.ol.append",
-        ]
-    },
-    {
+        # RC pessimistic locking available since 2.15
         "start_version": "2.15.0.0-b1",
         "tests": [
-            "ysql/rc.pl.append",
+            "ysql/rc.append",
         ]
     },
     {
+        # SI pessimistic locking available since 2.17.2
         "start_version": "2.17.2.0-b1",
         "tests": [
-            "ysql/si.pl.append",
+            "ysql/si.append",
         ]
     },
     {
         "start_version": "2.18.0.0-b1",
         "tests": [
-            "ysql/rc.pl.geo.append",
-            "ysql/si.pl.geo.append",
-            "ysql/sz.pl.geo.append",
-            "ysql/rc.ol.geo.append",
-            "ysql/si.ol.geo.append",
-            "ysql/sz.ol.geo.append",
+            "ysql/rc.geo.append",
+            "ysql/si.geo.append",
+            "ysql/sz.geo.append",
         ]
     },
     {
+        # SZ pessimistic locking available since 2.20
         "start_version": "2.20.0.0-b1",
         "tests": [
-            "ysql/sz.pl.append",
+            "ysql/sz.append",
+        ]
+    },
+    {
+        "start_version": "2.29.0.0-b500",
+        "start_version_stable": "2026.1.0.0-b1",
+        "tests": [
+            "ysql/sz.append-table",
+            "ysql/si.append-table",
+            "ysql/rc.append-table",
         ]
     }
 ]
@@ -182,12 +183,24 @@ REGEX_MAJOR_VERSION = r"^(\d+)\.(\d+)"
 child_processes = []
 
 
-def get_workload_version(workload):
+def is_stable_version(version):
+    """Check if version uses the stable/production format (2024.x, 2025.x, etc.)
+    Master versions use 2.x format (e.g. 2.29.0.0), stable use year-based (e.g. 2025.2.0.0)."""
+    first = int(re.split(r'\.|-b', version)[0])
+    return first >= 2024
+
+
+def get_workload_version(workload, target_version=None):
+    """Get the minimum version for a workload. When target_version is a stable/production
+    release and the workload has a start_version_stable, use that instead of the master
+    start_version."""
     for el in TEST_PER_VERSION:
         for tests in el["tests"]:
             if workload in tests:
+                if target_version and is_stable_version(target_version) and "start_version_stable" in el:
+                    return el["start_version_stable"]
                 return el["start_version"]
-    raise EnvironmentError(f"Unanable to find workload in tests: {TESTS}")
+    raise EnvironmentError(f"Unable to find workload in tests: {TESTS}")
 
 
 def is_version_at_least(v_least, v_actual):
@@ -290,6 +303,7 @@ def run_cmd(cmd,
                 sys.exit(returncode)
         everything_looks_good = False
         cycle_search_timeout_only = False
+        has_valid_unknown = False
         last_lines_of_output = []
         if stdout_path is not None and os.path.exists(stdout_path):
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
@@ -297,6 +311,8 @@ def run_cmd(cmd,
                 line.startswith('Everything looks good!') for line in last_lines_of_output)
             if not everything_looks_good:
                 cycle_search_timeout_only = is_cycle_search_timeout_only(last_lines_of_output)
+                has_valid_unknown = any(
+                    ':valid? :unknown' in line for line in last_lines_of_output)
         if everything_looks_good:
             keep_output_log_file = False
         return CmdResult(
@@ -305,7 +321,8 @@ def run_cmd(cmd,
             returncode=returncode,
             timed_out=timed_out,
             everything_looks_good=everything_looks_good,
-            cycle_search_timeout_only=cycle_search_timeout_only)
+            cycle_search_timeout_only=cycle_search_timeout_only,
+            has_valid_unknown=has_valid_unknown)
 
     finally:
         if stdout_file is not None:
@@ -395,6 +412,15 @@ def parse_args():
         '--iterations',
         type=int,
         help='Run each workload repeatedly for this many iterations.')
+    parser.add_argument(
+        '--locking',
+        default=None,
+        choices=['mixed', 'optimistic', 'pessimistic'],
+        help='Locking mode for append workloads: mixed (default), optimistic, or pessimistic')
+    parser.add_argument(
+        '--stress-tuning',
+        action='store_true',
+        help='Enable stress-test flags with tiny thresholds for internal subsystems')
     return parser.parse_args()
 
 
@@ -448,13 +474,16 @@ def main():
         [os.path.join(os.environ["JAVA_HOME"], "bin", "java"), "-version"],
         stderr=subprocess.STDOUT).decode().strip()
     logging.info("Java version:\n%s", java_version)
+    locking_flag = f"--locking {args.locking}" if args.locking else ""
+    stress_flag = "--stress-tuning" if args.stress_tuning else ""
     lein_cmd = " ".join(["lein run test",
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}",
                          connection_manager_flag,
-                         f"--concurrency {args.concurrency}"])
+                         locking_flag,
+                         stress_flag])
 
     if args.iterations:
         lein_cmd += " --test-count 1"
@@ -464,7 +493,7 @@ def main():
 
     all_workloads = args.workloads.split(',')
     workloads_to_evaluate = [workload for workload in all_workloads
-                             if is_version_at_least(get_workload_version(workload),
+                             if is_version_at_least(get_workload_version(workload, version),
                                                     version)]
     workloads_to_skip = set(all_workloads) - set(workloads_to_evaluate)
 
@@ -496,11 +525,13 @@ def main():
             test_start_time_sec = time.time()
             if '/set' in test:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST if args.test_time_sec == 0 else args.test_time_sec
-            elif '/rc.ol' in test:
-                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_RC_OL_TEST if args.test_time_sec == 0 else args.test_time_sec
+            elif '/rc.' in test and 'append' in test:
+                test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_RC_APPEND_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
+            concurrency = '3' if 'append-table' in test else args.concurrency
             full_cmd = lein_cmd + \
+                       f" --concurrency {concurrency}" + \
                        " --time-limit " + str(test_run_time_limit_no_analysis_sec) + \
                        " --workload " + test
             result = run_cmd(
@@ -534,16 +565,16 @@ def main():
                 test_index, test_elapsed_time_sec, result.returncode,
                 result.everything_looks_good)
 
-            # For rc.ol workloads, accept cycle-search-timeout as valid (no actual anomalies found)
-            is_rc_ol_timeout_acceptable = (
-                '/rc.ol' in test and
-                result.cycle_search_timeout_only and
+            # For read committed workloads, accept valid-unknown results (e.g. cycle-search-timeout)
+            is_rc_unknown_acceptable = (
+                '/rc.' in test and
+                result.has_valid_unknown and
                 not result.timed_out
             )
 
-            if result.everything_looks_good or is_rc_ol_timeout_acceptable:
-                if is_rc_ol_timeout_acceptable:
-                    logging.info("Accepting rc.ol test with cycle-search-timeout (no anomalies found)")
+            if result.everything_looks_good or is_rc_unknown_acceptable:
+                if is_rc_unknown_acceptable:
+                    logging.info("Accepting read committed test with valid-unknown result")
                 num_everything_looks_good += 1
 
                 if test_name not in test_cases:

@@ -22,8 +22,8 @@ find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
     if grep -q ':valid? false' "$log_path"; then
       category="invalid"
     elif grep -q ':valid? :unknown' "$log_path"; then
-      # For rc.ol tests, :valid? :unknown with only cycle-search-timeout is acceptable
-      if [[ "$rel_dir_path" == *"rc.ol"* ]] && grep -q ':cycle-search-timeout' "$log_path" && ! grep -qE ':G0|:G1a|:G1b|:G1c|:G2' "$log_path"; then
+      # For rc tests, :valid? :unknown with only cycle-search-timeout is acceptable
+      if [[ "$rel_dir_path" == *"_rc."* ]] && grep -q ':cycle-search-timeout' "$log_path" && ! grep -qE ':G0|:G1a|:G1b|:G1c|:G2' "$log_path"; then
         category="ok"
       else
         category="valid-unknown"

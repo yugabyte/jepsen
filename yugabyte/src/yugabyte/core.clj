@@ -92,8 +92,8 @@
   "A map of workload names to functions that can take option maps and construct workloads."
   #:ysql{:none               noop-test
          :sleep              sleep-test
-         :sz.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient))
-         :sz.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient))
+         :sz.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient :serializable))
+         :sz.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient :serializable))
          ; This one doesn't work because of https://github.com/YugaByte/yugabyte-db/issues/1554
          ; :set-index       (with-client set/workload (yugabyte.ysql.set/->YSQLSetIndexClient))
          ; We'd rather allow negatives for now because it makes reproducing error easier
@@ -103,25 +103,23 @@
          :sz.long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
          :sz.single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :sz.multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
-         :sz.ol.geo.append   (with-client append/workload-serializable (ysql.append/->Client :serializable :optimistic :geo))
-         :sz.pl.geo.append   (with-client append/workload-serializable (ysql.append/->Client :serializable :pessimistic :geo))
-         :sz.ol.append       (with-client append/workload-serializable (ysql.append/->Client :serializable :optimistic :no-geo))
-         :sz.pl.append       (with-client append/workload-serializable (ysql.append/->Client :serializable :pessimistic :no-geo))
-         :sz.append-table    (with-client append/workload-serializable (ysql.append-table/->Client :serializable))
+         :sz.geo.append      (with-client append/workload-serializable (ysql.append/->Client :serializable (or (:locking opts) :mixed) :geo))
+         :sz.append          (with-client append/workload-serializable (ysql.append/->Client :serializable (or (:locking opts) :mixed) :no-geo))
+         :sz.append-table    (with-client append/workload-serializable-table (ysql.append-table/->Client :serializable))
          :sz.default-value   (with-client default-value/workload (ysql.default-value/->Client))
-         :rc.ol.geo.append   (with-client append/workload-rc (ysql.append/->Client :read-committed :optimistic :geo))
-         :rc.pl.geo.append   (with-client append/workload-rc (ysql.append/->Client :read-committed :pessimistic :geo))
-         :rc.ol.append       (with-client append/workload-rc (ysql.append/->Client :read-committed :optimistic :no-geo))
-         :rc.pl.append       (with-client append/workload-rc (ysql.append/->Client :read-committed :pessimistic :no-geo))
+         :rc.geo.append      (with-client append/workload-rc (ysql.append/->Client :read-committed (or (:locking opts) :mixed) :geo))
+         :rc.append          (with-client append/workload-rc (ysql.append/->Client :read-committed (or (:locking opts) :mixed) :no-geo))
          ; See https://docs.yugabyte.com/latest/architecture/transactions/isolation-levels/
          ; :snapshot-isolation maps to :repeatable_read SQL
-         :si.ol.geo.append   (with-client append/workload-si (ysql.append/->Client :repeatable-read :optimistic :geo))
-         :si.pl.geo.append   (with-client append/workload-si (ysql.append/->Client :repeatable-read :pessimistic :geo))
-         :si.ol.append       (with-client append/workload-si (ysql.append/->Client :repeatable-read :optimistic :no-geo))
-         :si.pl.append       (with-client append/workload-si (ysql.append/->Client :repeatable-read :pessimistic :no-geo))
+         :si.geo.append      (with-client append/workload-si (ysql.append/->Client :repeatable-read (or (:locking opts) :mixed) :geo))
+         :si.append          (with-client append/workload-si (ysql.append/->Client :repeatable-read (or (:locking opts) :mixed) :no-geo))
          :si.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
          :si.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :repeatable-read))
-         :si.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :repeatable-read))})
+         :si.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :repeatable-read))
+         :si.append-table    (with-client append/workload-si-table (ysql.append-table/->Client :repeatable-read))
+         :si.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient :repeatable-read))
+         :si.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient :repeatable-read))
+         :rc.append-table    (with-client append/workload-rc-table (ysql.append-table/->Client :read-committed))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
