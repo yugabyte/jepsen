@@ -16,6 +16,7 @@
   sure what to do here."
   (:require [clojure.java.jdbc :as j]
             [clojure.tools.logging :refer [info]]
+            [jepsen.random :as random]
             [yugabyte.ysql.client :as c]))
 
 (defn table-name
@@ -56,8 +57,13 @@
 (defn read-ordered
   "Reads every value in table ordered by k."
   [conn table]
-  (let [res (c/query conn [(str "select k, v from " table " order by k")])]
-    (info "table" table "has" (map (juxt :k :v) res))
+  (let [idx (str "idx_" table)
+        use-index? (zero? (random/long 2))
+        query-str (if use-index?
+                    (str "/*+ IndexOnlyScan(" table " " idx ") */ select k, v from " table " order by k")
+                    (str "select k, v from " table " order by k"))
+        res (c/query conn [query-str])]
+    (info table (if use-index? "IndexOnlyScan" "SeqScan") "→" (mapv :v res))
     (mapv :v res)))
 
 (defn read-natural
@@ -68,18 +74,28 @@
 
 (defn create-table!
   "Creates a table for the given relation. Swallows already-exists errors,
-  because YB can't do `create ... if not exists` properly."
+  because YB can't do `create ... if not exists` properly.
+  Uses k INT PRIMARY KEY for deterministic ordering — concurrent inserts at
+  the same position conflict on the PK, ensuring the ordering reflects the
+  actual serialization order."
   [conn table-name]
+  (info "Creating table" table-name)
   (try
     (c/execute! conn (j/create-table-ddl table-name
-                                         [
-                                         ;[:k :SERIAL]
-                                         ;[:k :int]
-                                          [:k :timestamp :default "NOW()"]
+                                         [[:k :int "PRIMARY KEY"]
                                           [:v :int]]
                                          {:conditional? true}))
+    (info "Created table" table-name)
     (catch com.yugabyte.util.PSQLException e
-      (when-not (re-find #"already exists" (.getMessage e))
+      (if (re-find #"already exists" (.getMessage e))
+        (info "Table" table-name "already exists")
+        (throw e))))
+  (try
+    (c/execute! conn (str "CREATE INDEX idx_" table-name " ON " table-name " (k, v)"))
+    (info "Created index for" table-name)
+    (catch com.yugabyte.util.PSQLException e
+      (if (re-find #"already exists" (.getMessage e))
+        (info "Index for" table-name "already exists")
         (throw e)))))
 
 (defn catch-dne
@@ -119,22 +135,18 @@
   (let [table (table-name k)]
       [f k (case f
              :r      (read-ordered conn table)
-             :append (insert! conn table v))]))
+             :append (insert-using-count! conn table v))]))
 
-(defrecord InternalClient []
+(defrecord InternalClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper])
 
   (invoke-op! [this test op c conn-wrapper]
     (with-table c
-      (let [txn       (:value op)
-            use-txn?  (< 1 (count txn))
-            ; use-txn?  false ; Just for making sure the checker actually works
-            txn'      (if use-txn?
-                        (c/with-txn c
-                          (mapv (partial mop! c test) txn))
-                        (mapv (partial mop! c test) txn))]
+      (let [txn  (:value op)
+            txn' (j/with-db-transaction [c c {:isolation isolation}]
+                   (mapv (partial mop! c test) txn))]
         (assoc op :type :ok, :value txn')))))
 
 (c/defclient Client InternalClient)

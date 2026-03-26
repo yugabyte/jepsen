@@ -29,5 +29,8 @@
   (clojure.string/includes? (name (:workload test)) "rc."))
 
 (defn is-test-has-pessimistic-locs?
+  "Returns true if the test may use pessimistic locking. With mixed locking
+  (default), pessimistic is used randomly, so wait queues must be enabled.
+  Only returns false when locking is explicitly :optimistic."
   [test]
-  (clojure.string/includes? (name (:workload test)) "pl."))
+  (not= :optimistic (:locking test)))

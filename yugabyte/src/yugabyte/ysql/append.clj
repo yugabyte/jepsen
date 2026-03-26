@@ -113,6 +113,21 @@
           (str/split #",")
           (->> (mapv #(Long/parseLong %)))))
 
+(defn read-via-index
+  "Reads a key using secondary index on k2"
+  [locking conn table row col]
+  (let [clause (if (= :pessimistic locking)
+                 (random/nth ["" " for update" " for no key update" " for share" " for key share"])
+                 "")]
+    (some-> conn
+            (c/query [(str "select (" col ") from " table " where k2 = ?" clause) row])
+            first
+            (get (keyword col))
+            (str/split #",")
+            (->>
+              (remove str/blank?)
+              (mapv #(Long/parseLong %))))))
+
 (defn append-secondary!
   "Writes a key based on a predicate over a secondary key, k2. Returns v."
   [conn table row col v]
@@ -136,7 +151,11 @@
         col (col-for test k)]
     [f k (case f
            :r
-           (read-primary locking conn table row col)
+           (let [use-index? (and (not= geo-partitioning :geo) (zero? (random/long 2)))]
+             (info table (if use-index? "IndexScan(k2)" "PrimaryScan(k)") "row=" row)
+             (if use-index?
+               (read-via-index locking conn table row col)
+               (read-primary locking conn table row col)))
 
            :append
            (append-primary! locking geo-partitioning conn table row col v))]))
@@ -165,6 +184,13 @@
                      ", PRIMARY KEY (k, geo_partition)) FOR VALUES IN ('" postfix "') "
                      "TABLESPACE " tablespace-name "_" postfix)))
 
+(defn resolve-locking
+  "Resolves locking mode for a transaction. :mixed randomly picks :optimistic or :pessimistic."
+  [locking]
+  (if (= :mixed locking)
+    (random/nth [:optimistic :pessimistic])
+    locking))
+
 (defrecord InternalClient [isolation locking geo-partitioning]
   c/YSQLYbClient
 
@@ -183,20 +209,21 @@
                                          (range keys-per-row)))
                                   {:conditional? true
                                    :table-spec   (get-table-spec geo-partitioning)}))
-                  (if (= geo-partitioning :geo)
-                    (do
-                      (create-partitioning-table c table tablespace-name "1a")
-                      (create-partitioning-table c table tablespace-name "2a")))
-                  ))
+                  (when (not= geo-partitioning :geo)
+                    (c/execute! c (str "CREATE INDEX idx_" table " ON " table " (k2)")))
+                  (when (= geo-partitioning :geo)
+                    (create-partitioning-table c table tablespace-name "1a")
+                    (create-partitioning-table c table tablespace-name "2a"))))
            dorun)))
 
   (invoke-op! [this test op c conn-wrapper]
     (let [txn (:value op)
           use-txn? (< 1 (count txn))
+          resolved-locking (resolve-locking locking)
           txn' (if use-txn?
                  (j/with-db-transaction [c c {:isolation isolation}]
-                                        (mapv (partial mop! geo-partitioning locking c test) txn))
-                 (mapv (partial mop! geo-partitioning locking c test) txn))]
+                                        (mapv (partial mop! geo-partitioning resolved-locking c test) txn))
+                 (mapv (partial mop! geo-partitioning resolved-locking c test) txn))]
       (assoc op :type :ok, :value txn'))))
 
 (c/defclient Client InternalClient)
