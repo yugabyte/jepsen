@@ -129,7 +129,15 @@
     :validate [#{:mixed :optimistic :pessimistic} "Must be one of: mixed, optimistic, pessimistic"]]
 
    [nil "--stress-tuning" "Enable stress-test flags that use tiny thresholds for internal subsystems (batching, compaction, WAL, cache, splitting, etc.) to trigger edge cases more frequently"
-    :default true]])
+    :default true]
+
+   [nil "--master-flags FLAG" "Extra gflag for master (repeatable): flag_name or flag_name=value. pg_conf flags are merged."
+    :default []
+    :assoc-fn (fn [m _ v] (update m :master-flags conj v))]
+
+   [nil "--tserver-flags FLAG" "Extra gflag for tserver (repeatable): flag_name or flag_name=value. pg_conf flags are merged."
+    :default []
+    :assoc-fn (fn [m _ v] (update m :tserver-flags conj v))]])
 
 (def test-all-opts
   "CLI options for testing everything."

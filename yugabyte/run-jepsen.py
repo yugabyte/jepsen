@@ -25,6 +25,7 @@ import argparse
 import json
 import logging
 import os
+import random
 import re
 import socket
 import subprocess
@@ -421,6 +422,26 @@ def parse_args():
         '--stress-tuning',
         action='store_true',
         help='Enable stress-test flags with tiny thresholds for internal subsystems')
+    parser.add_argument(
+        '--random-seed',
+        type=int,
+        default=None,
+        help='Random seed for deterministic test execution. If not provided, Jepsen generates one.')
+    parser.add_argument(
+        '--connection-manager',
+        action='store_true',
+        default=False,
+        help='Force enable connection manager (overrides random selection)')
+    parser.add_argument(
+        '--master-flags',
+        action='append',
+        default=[],
+        help='Extra gflag for master (repeatable): flag_name or flag_name=value')
+    parser.add_argument(
+        '--tserver-flags',
+        action='append',
+        default=[],
+        help='Extra gflag for tserver (repeatable): flag_name or flag_name=value')
     return parser.parse_args()
 
 
@@ -466,9 +487,18 @@ def main():
 
     not_good_tests = []
     # need to disable connection manager forcefully for older versions
-    connection_manager_flag = "--connection-manager false" \
-        if not (is_version_at_least("2024.1.0.0-b1", version) or
-                is_version_at_least("2.25.1.0-b1", version)) else ""
+    # randomly enable for supported versions
+    if args.connection_manager:
+        connection_manager_flag = "--connection-manager"
+        logging.info("Connection manager explicitly enabled")
+    elif not (is_version_at_least("2024.1.0.0-b1", version) or
+              is_version_at_least("2.25.1.0-b1", version)):
+        connection_manager_flag = "--connection-manager false"
+    elif random.choice([True, False]):
+        connection_manager_flag = "--connection-manager"
+        logging.info("Randomly enabled connection manager")
+    else:
+        connection_manager_flag = ""
     os.environ["JAVA_HOME"] = "/usr/lib/jvm/zulu-17.jdk"
     java_version = subprocess.check_output(
         [os.path.join(os.environ["JAVA_HOME"], "bin", "java"), "-version"],
@@ -476,14 +506,20 @@ def main():
     logging.info("Java version:\n%s", java_version)
     locking_flag = f"--locking {args.locking}" if args.locking else ""
     stress_flag = "--stress-tuning" if args.stress_tuning else ""
-    lein_cmd = " ".join(["lein run test",
+    random_seed_flag = f"--random-seed {args.random_seed}" if args.random_seed is not None else ""
+    master_flags = " ".join(f"--master-flags '{f}'" for f in args.master_flags)
+    tserver_flags = " ".join(f"--tserver-flags '{f}'" for f in args.tserver_flags)
+    lein_cmd = " ".join(filter(None, ["lein run test",
                          "--os debian",
                          f"--url {url}",
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}",
                          connection_manager_flag,
                          locking_flag,
-                         stress_flag])
+                         stress_flag,
+                         random_seed_flag,
+                         master_flags,
+                         tserver_flags]))
 
     if args.iterations:
         lein_cmd += " --test-count 1"
@@ -529,7 +565,12 @@ def main():
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_RC_APPEND_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
-            concurrency = '3' if 'append-table' in test else args.concurrency
+            if 'append-table' in test:
+                concurrency = '3'
+            elif '/sz.' in test:
+                concurrency = '3n'
+            else:
+                concurrency = args.concurrency
             full_cmd = lein_cmd + \
                        f" --concurrency {concurrency}" + \
                        " --time-limit " + str(test_run_time_limit_no_analysis_sec) + \

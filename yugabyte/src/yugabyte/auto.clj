@@ -522,6 +522,59 @@
      ]
     []))
 
+(defn parse-gflag
+  "Parse a gflag spec 'flag_name=value' into [flag-name value], or
+  'flag_name' into [flag-name nil] for boolean flags."
+  [spec]
+  (let [idx (.indexOf ^String spec (int \=))]
+    (if (pos? idx)
+      [(subs spec 0 idx) (subs spec (inc idx))]
+      [spec nil])))
+
+(defn pg-conf-flag?
+  "Returns true if flag-name is a pg_conf-style flag whose values should be
+  merged rather than overwritten."
+  [flag-name]
+  (str/includes? flag-name "ysql_pg_conf_csv"))
+
+(defn merge-pg-conf-csv
+  "Merge two pg_conf_csv value strings. Settings in `override` take precedence
+  over those in `base`. Each string is a CSV of key=value pairs."
+  [base override]
+  (let [parse (fn [s]
+                (when (seq s)
+                  (into {}
+                        (map (fn [pair]
+                               (let [[k v] (str/split pair #"=" 2)]
+                                 [k v]))
+                             (str/split s #",")))))
+        merged (merge (parse base) (parse override))]
+    (str/join "," (map (fn [[k v]] (str k "=" v)) merged))))
+
+(defn apply-extra-gflags
+  "Apply extra gflags to a flag vector built by start-master!/start-tserver!.
+  Regular flags are appended at the end (YugaByteDB uses last-wins).
+  pg_conf flags are merged with any existing value in the flag vector."
+  [flag-vec extra-specs]
+  (if (empty? extra-specs)
+    flag-vec
+    (let [flat (vec (flatten flag-vec))]
+      (reduce
+        (fn [acc [flag-name value]]
+          (let [kw (keyword (str "--" flag-name))]
+            (if (and value (pg-conf-flag? flag-name))
+              ;; pg_conf flag — find existing and merge, or append
+              (let [idx (.indexOf acc kw)]
+                (if (and (>= idx 0) (< (inc idx) (count acc)))
+                  (assoc acc (inc idx) (merge-pg-conf-csv (str (get acc (inc idx))) value))
+                  (conj acc kw value)))
+              ;; Regular flag — append (last-wins)
+              (if value
+                (conj acc kw value)
+                (conj acc kw)))))
+        flat
+        (map parse-gflag extra-specs)))))
+
 (def limits-conf
   "Ulimits, in the format for /etc/security/limits.conf."
   "
@@ -567,52 +620,56 @@
 
   (start-master! [db test node]
     (c/su (c/exec :mkdir :-p ce-master-log-dir)
-          (cu/start-daemon!
+          (apply cu/start-daemon!
             {:logfile ce-master-logfile
              :pidfile ce-master-pidfile
              :chdir   dir}
             ce-master-bin
-            (ce-shared-opts node)
-            :--master_addresses (master-addresses test)
-            :--replication_factor (:replication-factor test)
-            ;:--auto_create_local_transaction_tables=false
-            (master-tserver-experimental-tuning-flags test)
-            (master-tserver-random-clock-skew test node)
-            (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns test)
-            (master-tserver-geo-partitioning-flags test node (:nodes test))
-            (master-tserver-stress-flags test)
-            (master-stress-flags test)
-            (master-api-opts (:api test) node)
-            )))
+            (apply-extra-gflags
+              [(ce-shared-opts node)
+               :--master_addresses (master-addresses test)
+               :--replication_factor (:replication-factor test)
+               :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
+               :--enable_ysql_conn_mgr
+               ;:--auto_create_local_transaction_tables=false
+               (master-tserver-experimental-tuning-flags test)
+               (master-tserver-random-clock-skew test node)
+               (master-tserver-wait-on-conflict-flags test)
+               (master-tserver-packed-columns test)
+               (master-tserver-geo-partitioning-flags test node (:nodes test))
+               (master-tserver-stress-flags test)
+               (master-stress-flags test)
+               (master-api-opts (:api test) node)]
+              (:master-flags test)))))
 
   (start-tserver! [db test node]
     (c/su (info "ulimit\n" (c/exec :ulimit :-a))
           (c/exec :mkdir :-p ce-tserver-log-dir)
-          (cu/start-daemon!
+          (apply cu/start-daemon!
             {:logfile ce-tserver-logfile
              :pidfile ce-tserver-pidfile
              :chdir   dir}
             ce-tserver-bin
-            (ce-shared-opts node)
-            :--tserver_master_addrs (master-addresses test)
-            ; Tracing
-            :--enable_tracing
-            :--vmodule "transaction=5,conflict_resolution=4"
-            :--TEST_docdb_log_write_batches
-            :--rpc_slow_query_threshold_ms 1000
-            (master-tserver-experimental-tuning-flags test)
-            (master-tserver-random-clock-skew test node)
-            (master-tserver-wait-on-conflict-flags test)
-            (master-tserver-packed-columns test)
-            (master-tserver-geo-partitioning-flags test node (:nodes test))
-            (master-tserver-stress-flags test)
-            (tserver-stress-flags test)
-            (tserver-api-opts test node)
-            (tserver-connection-manager-preview test)
-            (tserver-read-committed-flags test)
-            (tserver-heartbeat-flags test)
-            )))
+            (apply-extra-gflags
+              [(ce-shared-opts node)
+               :--tserver_master_addrs (master-addresses test)
+               ; Tracing
+               :--enable_tracing
+               :--vmodule "transaction=5,conflict_resolution=4"
+               :--TEST_docdb_log_write_batches
+               :--rpc_slow_query_threshold_ms 1000
+               (master-tserver-experimental-tuning-flags test)
+               (master-tserver-random-clock-skew test node)
+               (master-tserver-wait-on-conflict-flags test)
+               (master-tserver-packed-columns test)
+               (master-tserver-geo-partitioning-flags test node (:nodes test))
+               (master-tserver-stress-flags test)
+               (tserver-stress-flags test)
+               (tserver-api-opts test node)
+               (tserver-connection-manager-preview test)
+               (tserver-read-committed-flags test)
+               (tserver-heartbeat-flags test)]
+              (:tserver-flags test)))))
 
   (stop-master! [db]
     (c/su (cu/stop-daemon! ce-master-pidfile)))
