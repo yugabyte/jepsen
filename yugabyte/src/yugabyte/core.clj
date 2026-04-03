@@ -225,12 +225,8 @@
   name, OS, DB."
   [opts]
   (let [api (keyword (namespace (:workload opts)))
-        url-version (first (re-find version-regex (get opts :url "")))
-        serializable? (str/starts-with? (name (:workload opts)) "sz.")]
+        url-version (first (re-find version-regex (get opts :url "")))]
     (assoc opts
-      :concurrency (if serializable?
-                     (max 1 (quot (:concurrency opts) 3))
-                     (:concurrency opts))
       :version (or url-version (:version opts))
       :api api
       :name (str "yb_" (-> (or (:url opts) (:version opts))
