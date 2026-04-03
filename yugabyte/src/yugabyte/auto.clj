@@ -522,6 +522,59 @@
      ]
     []))
 
+(defn parse-gflag
+  "Parse a gflag spec 'flag_name=value' into [flag-name value], or
+  'flag_name' into [flag-name nil] for boolean flags."
+  [spec]
+  (let [idx (.indexOf ^String spec (int \=))]
+    (if (pos? idx)
+      [(subs spec 0 idx) (subs spec (inc idx))]
+      [spec nil])))
+
+(defn pg-conf-flag?
+  "Returns true if flag-name is a pg_conf-style flag whose values should be
+  merged rather than overwritten."
+  [flag-name]
+  (str/includes? flag-name "ysql_pg_conf_csv"))
+
+(defn merge-pg-conf-csv
+  "Merge two pg_conf_csv value strings. Settings in `override` take precedence
+  over those in `base`. Each string is a CSV of key=value pairs."
+  [base override]
+  (let [parse (fn [s]
+                (when (seq s)
+                  (into {}
+                        (map (fn [pair]
+                               (let [[k v] (str/split pair #"=" 2)]
+                                 [k v]))
+                             (str/split s #",")))))
+        merged (merge (parse base) (parse override))]
+    (str/join "," (map (fn [[k v]] (str k "=" v)) merged))))
+
+(defn apply-extra-gflags
+  "Apply extra gflags to a flag vector built by start-master!/start-tserver!.
+  Regular flags are appended at the end (YugaByteDB uses last-wins).
+  pg_conf flags are merged with any existing value in the flag vector."
+  [flag-vec extra-specs]
+  (if (empty? extra-specs)
+    flag-vec
+    (let [flat (vec (flatten flag-vec))]
+      (reduce
+        (fn [acc [flag-name value]]
+          (let [kw (keyword (str "--" flag-name))]
+            (if (and value (pg-conf-flag? flag-name))
+              ;; pg_conf flag — find existing and merge, or append
+              (let [idx (.indexOf acc kw)]
+                (if (and (>= idx 0) (< (inc idx) (count acc)))
+                  (assoc acc (inc idx) (merge-pg-conf-csv (str (get acc (inc idx))) value))
+                  (conj acc kw value)))
+              ;; Regular flag — append (last-wins)
+              (if value
+                (conj acc kw value)
+                (conj acc kw)))))
+        flat
+        (map parse-gflag extra-specs)))))
+
 (def limits-conf
   "Ulimits, in the format for /etc/security/limits.conf."
   "
