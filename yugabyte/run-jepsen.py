@@ -499,6 +499,10 @@ def main():
         logging.info("Randomly enabled connection manager")
     else:
         connection_manager_flag = ""
+    replication_factor = random.choice([3, 5])
+    replication_factor_flag = f"--replication-factor {replication_factor}"
+    logging.info("Replication factor: %d", replication_factor)
+
     os.environ["JAVA_HOME"] = "/usr/lib/jvm/zulu-17.jdk"
     java_version = subprocess.check_output(
         [os.path.join(os.environ["JAVA_HOME"], "bin", "java"), "-version"],
@@ -515,6 +519,7 @@ def main():
                          f"--nemesis {nemeses}",
                          f"--nodes {get_ip_from_dns()}",
                          connection_manager_flag,
+                         replication_factor_flag,
                          locking_flag,
                          stress_flag,
                          random_seed_flag,
