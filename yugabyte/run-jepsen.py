@@ -573,7 +573,7 @@ def main():
             if 'append-table' in test:
                 concurrency = '3'
             elif '/sz.' in test:
-                concurrency = '2n'
+                concurrency = '3n'
             else:
                 concurrency = args.concurrency
             full_cmd = lein_cmd + \
