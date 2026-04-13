@@ -674,7 +674,8 @@
 
   (stop-tserver! [db]
     (c/su (cu/stop-daemon! ce-tserver-pidfile))
-    (c/su (cu/grepkill! "postgres")))
+    (c/su (cu/grepkill! "postgres"))
+    (c/su (cu/grepkill! "odyssey")))
 
   (wipe! [db]
     (suppress-interrupted-exception
