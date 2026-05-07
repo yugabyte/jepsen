@@ -490,7 +490,7 @@
   (if (:stress-tuning test)
     [; WAL: 512KB segments — may be too small for catalog bootstrap
      ; :--log_segment_size_bytes 524288
-     :--consensus_max_batch_size_bytes 65536        ; 64KB — smaller replication batches
+;     :--consensus_max_batch_size_bytes 65536        ; 64KB — smaller replication batches
       :--bg_superblock_flush_interval_secs 5
      ]
     []))
@@ -501,9 +501,9 @@
   [test]
   (if (:stress-tuning test)
     [; :--enable_automatic_tablet_splitting true
-      :--tablet_split_low_phase_size_threshold_bytes 1024
-      :--tablet_split_high_phase_size_threshold_bytes 4096
-      :--tablet_force_split_threshold_bytes 8192
+;      :--tablet_split_low_phase_size_threshold_bytes 1024
+;      :--tablet_split_high_phase_size_threshold_bytes 4096
+;      :--tablet_force_split_threshold_bytes 8192
      ]
     []))
 
@@ -512,10 +512,10 @@
   [test]
   (if (:stress-tuning test)
     [:--txn_max_apply_batch_records 5
-      :--db_write_buffer_size 524288
+;      :--db_write_buffer_size 524288
       :--db_block_cache_size_bytes 8388608
 ;     :--aborted_intent_cleanup_ms 1000
-     :--timestamp_history_retention_interval_sec 5
+;     :--timestamp_history_retention_interval_sec 5
 ;     :--transaction_deadlock_detection_interval_usec 1000000
      :--backfill_index_write_batch_size 10
      ; :--cdc_stream_records_threshold_size_bytes 1024
