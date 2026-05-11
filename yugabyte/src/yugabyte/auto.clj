@@ -515,7 +515,7 @@
 ;      :--db_write_buffer_size 524288
       :--db_block_cache_size_bytes 8388608
 ;     :--aborted_intent_cleanup_ms 1000
-;     :--timestamp_history_retention_interval_sec 5
+     :--timestamp_history_retention_interval_sec 5
 ;     :--transaction_deadlock_detection_interval_usec 1000000
      :--backfill_index_write_batch_size 10
      ; :--cdc_stream_records_threshold_size_bytes 1024
