@@ -398,6 +398,13 @@
     [:--yb_enable_read_committed_isolation]
     []))
 
+(defn tserver-serializable-flags
+  "Serializable-isolation specific flags"
+  [test]
+  (if (utils/is-test-serializable? test)
+    [:--skip_prefix_locks=false]
+    []))
+
 (defn get-random-node-skew
   [max_skew node_ip]
   (random/long max_skew))
@@ -629,9 +636,6 @@
               [(ce-shared-opts node)
                :--master_addresses (master-addresses test)
                :--replication_factor (:replication-factor test)
-               :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
-               :--enable_ysql_conn_mgr
-               ;:--auto_create_local_transaction_tables=false
                (master-tserver-experimental-tuning-flags test)
                (master-tserver-random-clock-skew test node)
                (master-tserver-wait-on-conflict-flags test)
@@ -666,6 +670,7 @@
                (tserver-api-opts test node)
                (tserver-connection-manager-preview test)
                (tserver-read-committed-flags test)
+               (tserver-serializable-flags test)
                (tserver-heartbeat-flags test)]
               (:tserver-flags test)))))
 
