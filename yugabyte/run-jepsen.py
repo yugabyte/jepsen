@@ -572,6 +572,8 @@ def main():
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec
             if 'append-table' in test:
                 concurrency = '3'
+            elif '/sz.' in test:
+                concurrency = '2n'
             else:
                 concurrency = args.concurrency
             full_cmd = lein_cmd + \
