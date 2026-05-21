@@ -33,7 +33,8 @@
                             (-> (c/query op c (str "/*+ IndexOnlyScan(" table-name " " index-name ") */ SELECT count FROM " table-name " WHERE id = 0"))
                                 first :count)
                             (c/select-single-value op c table-name :count "id = 0"))]
-                (assoc op :type :ok :value value)))))
+                ; Checker asserts the value is Long; JDBC INT → java.lang.Integer
+                (assoc op :type :ok :value (some-> value long))))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))
