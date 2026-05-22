@@ -144,15 +144,35 @@
   (dissoc conn :connection))
 
 (defn check-setup-successful
-  "Connects to the YSQL interface and immediately disconnects. YB just...
-  doesn't accept connections sometimes, so we use this to give up on the setup
-  process if the cluster looks broken. Hack hack hack."
+  "Per-node probe: blocks until the YSQL port serves a real query as postgres.
+  With Connection Manager enabled, Odyssey accepts clients before its auth
+  backend can read pg_authid (system tablet still in CREATING on a fresh
+  tserver) — clients see 'host based authentication rejected' until that
+  tablet is up. Retries on the observed warmup patterns; other errors
+  propagate."
   [node test]
-  (try+
-    (let [conn (open-conn "postgres" "postgres" "" node (ysql-port test))]
-      (close-conn conn))
-    (catch [:type :connection-timed-out] e
-      (throw+ {:type :jepsen.db/setup-failed}))))
+  (let [port     (ysql-port test)
+        deadline (+ (System/currentTimeMillis) 90000)]
+    (info "Waiting for YSQL ready on" (str node ":" port))
+    (loop []
+      (let [outcome
+            (try
+              (let [spec (db-spec "postgres" "postgres" "" node port)
+                    conn (j/get-connection spec)]
+                (try
+                  (j/query (j/add-connection spec conn) ["SELECT 1"])
+                  ::ready
+                  (finally (.close conn))))
+              (catch Throwable e
+                (if (re-find #"(?i)tablet .* not running|failed to connect|host based authentication|connection reset|read error"
+                             (or (.getMessage e) ""))
+                  ::retry
+                  (throw e))))]
+        (cond
+          (= ::ready outcome) (do (info "YSQL ready on" node) :ready)
+          (< deadline (System/currentTimeMillis))
+            (throw+ {:type :jepsen.db/setup-failed :node node})
+          :else (do (Thread/sleep 500) (recur)))))))
 
 (defn conn-wrapper
   "Constructs a network client for a node, and opens it"
