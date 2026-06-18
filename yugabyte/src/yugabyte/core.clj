@@ -226,9 +226,15 @@
   [opts]
   (let [api (keyword (namespace (:workload opts)))
         url-version (first (re-find version-regex (get opts :url "")))]
+    (when (and (= :ycql api) (:connection-manager opts))
+      (warn "Connection manager is a YSQL-only feature; disabling it for YCQL workload"
+            (:workload opts)))
     (assoc opts
       :version (or url-version (:version opts))
       :api api
+      ; Connection manager (YSQL Connection Manager / Odyssey) only applies to
+      ; YSQL. Never enable it for YCQL tests, regardless of the CLI flag.
+      :connection-manager (and (not= :ycql api) (:connection-manager opts))
       :name (str "yb_" (-> (or (:url opts) (:version opts))
                            (str/split #"/")
                            (last))
