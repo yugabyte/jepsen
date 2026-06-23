@@ -651,9 +651,13 @@
               (if (and (>= idx 0) (< (inc idx) (count acc)))
                 (assoc acc (inc idx) (merge-fn (str (get acc (inc idx))) value))
                 (conj acc kw value)))
-            ;; Regular flag — append (last-wins)
+            ;; Regular flag — append (last-wins). Render as a single
+            ;; --flag=value token: `--flag value` is invalid for boolean
+            ;; gflags (the value is left as a stray positional and YB aborts
+            ;; with "Error parsing command-line flags"). Matches the
+            ;; --skip_prefix_locks=false style used elsewhere.
             (if value
-              (conj acc kw value)
+              (conj acc (keyword (str "--" flag-name "=" value)))
               (conj acc kw)))))
       flat
       (map parse-gflag extra-specs))))
