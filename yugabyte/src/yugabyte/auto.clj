@@ -558,22 +558,46 @@
         merged (merge (parse base) (parse override))]
     (str/join "," (map (fn [[k v]] (str k "=" v)) merged))))
 
+(defn preview-flags-csv-flag?
+  "Returns true if flag-name is allowed_preview_flags_csv, whose value is a
+  plain CSV list of flag names that must be unioned rather than overwritten:
+  gflags is last-wins, so two occurrences would silently drop earlier entries
+  (e.g. enable_ysql_conn_mgr) and make YB reject the preview flag at startup."
+  [flag-name]
+  (str/includes? flag-name "allowed_preview_flags_csv"))
+
+(defn merge-csv-list
+  "Merge two plain CSV list strings into a deduplicated union, preserving the
+  order of first appearance."
+  [base override]
+  (->> (concat (str/split (or base "") #",")
+               (str/split (or override "") #","))
+       (map str/trim)
+       (remove empty?)
+       distinct
+       (str/join ",")))
+
 (defn apply-extra-gflags
   "Apply extra gflags to a flag vector built by start-master!/start-tserver!.
   Regular flags are appended at the end (YugaByteDB uses last-wins).
-  pg_conf flags are merged with any existing value in the flag vector."
+  CSV flags (pg_conf, allowed_preview_flags) are merged with any existing
+  value in the flag vector instead of producing a duplicate occurrence."
   [flag-vec extra-specs]
   (if (empty? extra-specs)
     flag-vec
     (let [flat (vec (flatten flag-vec))]
       (reduce
         (fn [acc [flag-name value]]
-          (let [kw (keyword (str "--" flag-name))]
-            (if (and value (pg-conf-flag? flag-name))
-              ;; pg_conf flag — find existing and merge, or append
+          (let [kw       (keyword (str "--" flag-name))
+                merge-fn (cond
+                           (pg-conf-flag? flag-name)          merge-pg-conf-csv
+                           (preview-flags-csv-flag? flag-name) merge-csv-list
+                           :else                              nil)]
+            (if (and value merge-fn)
+              ;; CSV flag — find existing and merge, or append
               (let [idx (.indexOf acc kw)]
                 (if (and (>= idx 0) (< (inc idx) (count acc)))
-                  (assoc acc (inc idx) (merge-pg-conf-csv (str (get acc (inc idx))) value))
+                  (assoc acc (inc idx) (merge-fn (str (get acc (inc idx))) value))
                   (conj acc kw value)))
               ;; Regular flag — append (last-wins)
               (if value
