@@ -144,15 +144,35 @@
   (dissoc conn :connection))
 
 (defn check-setup-successful
-  "Connects to the YSQL interface and immediately disconnects. YB just...
-  doesn't accept connections sometimes, so we use this to give up on the setup
-  process if the cluster looks broken. Hack hack hack."
+  "Per-node probe: blocks until the YSQL port serves a real query as postgres.
+  With Connection Manager enabled, Odyssey takes ~30s after tserver start to
+  begin listening (connection refused before that), and its auth backend
+  can't read pg_authid until the system tablet leaves CREATING (auth rejected
+  / 'Tablet not running' until then). During setup every SQL-level failure is
+  transient, so retry any SQLException until the deadline, then declare setup
+  failed. Non-SQL throwables (e.g. interrupt on teardown) propagate."
   [node test]
-  (try+
-    (let [conn (open-conn "postgres" "postgres" "" node (ysql-port test))]
-      (close-conn conn))
-    (catch [:type :connection-timed-out] e
-      (throw+ {:type :jepsen.db/setup-failed}))))
+  (let [port     (ysql-port test)
+        deadline (+ (System/currentTimeMillis) 120000)]
+    (info "Waiting for YSQL ready on" (str node ":" port))
+    (loop []
+      (let [ready?
+            (try
+              (let [spec (db-spec "postgres" "postgres" "" node port)
+                    conn (j/get-connection spec)]
+                (try
+                  (j/query (j/add-connection spec conn) ["SELECT 1"])
+                  true
+                  (finally (.close conn))))
+              (catch java.sql.SQLException e
+                (when (< deadline (System/currentTimeMillis))
+                  (throw+ {:type  :jepsen.db/setup-failed
+                           :node  node
+                           :cause (.getMessage e)}))
+                false))]
+        (if ready?
+          (do (info "YSQL ready on" node) :ready)
+          (do (Thread/sleep 500) (recur)))))))
 
 (defn conn-wrapper
   "Constructs a network client for a node, and opens it"

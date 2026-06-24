@@ -28,6 +28,14 @@
   [test]
   (clojure.string/includes? (name (:workload test)) "rc."))
 
+(defn is-test-serializable?
+  [test]
+  (clojure.string/includes? (name (:workload test)) "sz."))
+
+(defn is-test-append-table?
+  [test]
+  (clojure.string/includes? (name (:workload test)) "append-table"))
+
 (defn is-test-has-pessimistic-locs?
   "Returns true if the test may use pessimistic locking. With mixed locking
   (default), pessimistic is used randomly, so wait queues must be enabled.

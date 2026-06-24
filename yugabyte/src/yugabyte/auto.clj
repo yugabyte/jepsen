@@ -398,6 +398,35 @@
     [:--yb_enable_read_committed_isolation]
     []))
 
+(defn tserver-serializable-flags
+  "Serializable-isolation specific flags"
+  [test]
+  (if (utils/is-test-serializable? test)
+    [:--skip_prefix_locks=false]
+    []))
+
+(defn tserver-append-table-flags
+  "append-table workload flags: transactional DDL, table-level object locking,
+  and concurrent DDL. All three are preview-gated, so they're added to
+  allowed_preview_flags_csv (apply-extra-gflags collapses this into a single
+  flag alongside any other preview flags, e.g. connection manager)."
+  [test]
+  (if (utils/is-test-append-table? test)
+    [:--allowed_preview_flags_csv "enable_object_locking_for_table_locks,ysql_yb_ddl_transaction_block_enabled,ysql_enable_concurrent_ddl"
+     :--enable_object_locking_for_table_locks
+     :--ysql_yb_ddl_transaction_block_enabled
+     :--ysql_enable_concurrent_ddl]
+    []))
+
+(defn master-append-table-flags
+  "Object locking is coordinated through the master, so the table-lock flag and
+  its preview allow-list entry must be present on the master as well."
+  [test]
+  (if (utils/is-test-append-table? test)
+    [:--allowed_preview_flags_csv "enable_object_locking_for_table_locks"
+     :--enable_object_locking_for_table_locks]
+    []))
+
 (defn get-random-node-skew
   [max_skew node_ip]
   (random/long max_skew))
@@ -491,7 +520,7 @@
     [; WAL: 512KB segments — may be too small for catalog bootstrap
      ; :--log_segment_size_bytes 524288
 ;     :--consensus_max_batch_size_bytes 65536        ; 64KB — smaller replication batches
-     ; :--bg_superblock_flush_interval_secs 5
+      :--bg_superblock_flush_interval_secs 5
      ]
     []))
 
@@ -501,9 +530,9 @@
   [test]
   (if (:stress-tuning test)
     [; :--enable_automatic_tablet_splitting true
-     ; :--tablet_split_low_phase_size_threshold_bytes 1024
-     ; :--tablet_split_high_phase_size_threshold_bytes 4096
-     ; :--tablet_force_split_threshold_bytes 8192
+;      :--tablet_split_low_phase_size_threshold_bytes 1024
+;      :--tablet_split_high_phase_size_threshold_bytes 4096
+;      :--tablet_force_split_threshold_bytes 8192
      ]
     []))
 
@@ -512,10 +541,10 @@
   [test]
   (if (:stress-tuning test)
     [:--txn_max_apply_batch_records 5
-     ; :--db_write_buffer_size 524288
-     ; :--db_block_cache_size_bytes 8388608
+;      :--db_write_buffer_size 524288
+      :--db_block_cache_size_bytes 8388608
 ;     :--aborted_intent_cleanup_ms 1000
-;     :--timestamp_history_retention_interval_sec 5
+     :--timestamp_history_retention_interval_sec 5
 ;     :--transaction_deadlock_detection_interval_usec 1000000
      :--backfill_index_write_batch_size 10
      ; :--cdc_stream_records_threshold_size_bytes 1024
@@ -551,29 +580,87 @@
         merged (merge (parse base) (parse override))]
     (str/join "," (map (fn [[k v]] (str k "=" v)) merged))))
 
+(defn preview-flags-csv-flag?
+  "Returns true if flag-name is allowed_preview_flags_csv, whose value is a
+  plain CSV list of flag names that must be unioned rather than overwritten:
+  gflags is last-wins, so two occurrences would silently drop earlier entries
+  (e.g. enable_ysql_conn_mgr) and make YB reject the preview flag at startup."
+  [flag-name]
+  (str/includes? flag-name "allowed_preview_flags_csv"))
+
+(defn merge-csv-list
+  "Merge two plain CSV list strings into a deduplicated union, preserving the
+  order of first appearance."
+  [base override]
+  (->> (concat (str/split (or base "") #",")
+               (str/split (or override "") #","))
+       (map str/trim)
+       (remove empty?)
+       distinct
+       (str/join ",")))
+
+(defn merge-fn-for
+  "Returns the CSV merge function for a flag name (without the leading --), or
+  nil for a regular flag. pg_conf merges key=value settings; preview-flag lists
+  are unioned."
+  [flag-name]
+  (cond
+    (pg-conf-flag? flag-name)           merge-pg-conf-csv
+    (preview-flags-csv-flag? flag-name) merge-csv-list
+    :else                               nil))
+
+(defn collapse-csv-flags
+  "Collapse repeated CSV flags (pg_conf, allowed_preview_flags) in a flattened
+  flag vector into a single merged occurrence at the position of the first one,
+  preserving the order of every other flag. Different parts of the flag list
+  (e.g. connection manager and append-table) each emit their own
+  allowed_preview_flags_csv; gflags is last-wins, so leaving the duplicates
+  would silently drop entries and make YB reject the preview flag at startup."
+  [flat]
+  (loop [items (seq flat), out [], seen {}]
+    (if-not items
+      out
+      (let [x        (first items)
+            merge-fn (when (keyword? x) (merge-fn-for (subs (name x) 2)))]
+        (if (and merge-fn (next items))
+          (let [v (str (second items))]
+            (if-let [i (get seen x)]
+              (recur (nnext items)
+                     (update out (inc i) #(merge-fn (str %) v))
+                     seen)
+              (recur (nnext items)
+                     (conj out x v)
+                     (assoc seen x (count out)))))
+          (recur (next items) (conj out x) seen))))))
+
 (defn apply-extra-gflags
   "Apply extra gflags to a flag vector built by start-master!/start-tserver!.
-  Regular flags are appended at the end (YugaByteDB uses last-wins).
-  pg_conf flags are merged with any existing value in the flag vector."
+  The flag vector is first flattened and its CSV flags collapsed (so multiple
+  features can each emit allowed_preview_flags_csv safely). Regular extra flags
+  are then appended (YugaByteDB uses last-wins); extra CSV flags are merged into
+  the existing occurrence instead of producing a duplicate."
   [flag-vec extra-specs]
-  (if (empty? extra-specs)
-    flag-vec
-    (let [flat (vec (flatten flag-vec))]
-      (reduce
-        (fn [acc [flag-name value]]
-          (let [kw (keyword (str "--" flag-name))]
-            (if (and value (pg-conf-flag? flag-name))
-              ;; pg_conf flag — find existing and merge, or append
-              (let [idx (.indexOf acc kw)]
-                (if (and (>= idx 0) (< (inc idx) (count acc)))
-                  (assoc acc (inc idx) (merge-pg-conf-csv (str (get acc (inc idx))) value))
-                  (conj acc kw value)))
-              ;; Regular flag — append (last-wins)
-              (if value
-                (conj acc kw value)
-                (conj acc kw)))))
-        flat
-        (map parse-gflag extra-specs)))))
+  (let [flat (collapse-csv-flags (vec (flatten flag-vec)))]
+    (reduce
+      (fn [acc [flag-name value]]
+        (let [kw       (keyword (str "--" flag-name))
+              merge-fn (merge-fn-for flag-name)]
+          (if (and value merge-fn)
+            ;; CSV flag — find existing and merge, or append
+            (let [idx (.indexOf acc kw)]
+              (if (and (>= idx 0) (< (inc idx) (count acc)))
+                (assoc acc (inc idx) (merge-fn (str (get acc (inc idx))) value))
+                (conj acc kw value)))
+            ;; Regular flag — append (last-wins). Render as a single
+            ;; --flag=value token: `--flag value` is invalid for boolean
+            ;; gflags (the value is left as a stray positional and YB aborts
+            ;; with "Error parsing command-line flags"). Matches the
+            ;; --skip_prefix_locks=false style used elsewhere.
+            (if value
+              (conj acc (keyword (str "--" flag-name "=" value)))
+              (conj acc kw)))))
+      flat
+      (map parse-gflag extra-specs))))
 
 (def limits-conf
   "Ulimits, in the format for /etc/security/limits.conf."
@@ -629,9 +716,6 @@
               [(ce-shared-opts node)
                :--master_addresses (master-addresses test)
                :--replication_factor (:replication-factor test)
-               :--allowed_preview_flags_csv "enable_ysql_conn_mgr"
-               :--enable_ysql_conn_mgr
-               ;:--auto_create_local_transaction_tables=false
                (master-tserver-experimental-tuning-flags test)
                (master-tserver-random-clock-skew test node)
                (master-tserver-wait-on-conflict-flags test)
@@ -639,6 +723,7 @@
                (master-tserver-geo-partitioning-flags test node (:nodes test))
                (master-tserver-stress-flags test)
                (master-stress-flags test)
+               (master-append-table-flags test)
                (master-api-opts (:api test) node)]
               (:master-flags test)))))
 
@@ -666,6 +751,8 @@
                (tserver-api-opts test node)
                (tserver-connection-manager-preview test)
                (tserver-read-committed-flags test)
+               (tserver-serializable-flags test)
+               (tserver-append-table-flags test)
                (tserver-heartbeat-flags test)]
               (:tserver-flags test)))))
 

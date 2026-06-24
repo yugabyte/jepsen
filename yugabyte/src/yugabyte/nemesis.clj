@@ -5,7 +5,8 @@
             [jepsen.nemesis :as nemesis]
             [jepsen.util :as util :refer [meh timeout]]
             [jepsen.nemesis.time :as nt]
-            [yugabyte.auto :as auto]))
+            [yugabyte.auto :as auto]
+            [yugabyte.ysql.client :as ysql.client]))
 
 (defn process-nemesis
   "A nemesis that can start, stop, and kill randomly selected subsets of
@@ -31,7 +32,10 @@
                  (fn [test node]
                    (case (:f op)
                      :start-master  (auto/start-master!  db test node)
-                     :start-tserver (auto/start-tserver! db test node)
+                     :start-tserver (do (auto/start-tserver! db test node)
+                                        (when (and (= :ysql (:api test))
+                                                   (:connection-manager test))
+                                          (ysql.client/check-setup-successful node test)))
                      :stop-master   (auto/stop-master!   db)
                      :stop-tserver  (auto/stop-tserver!  db)
                      :kill-master   (auto/kill-master!   db)

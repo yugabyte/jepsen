@@ -347,7 +347,7 @@
            (assoc ~op :type crash#, :error [:no-host-available (.getMessage e#)])))
 
        (catch DriverException e#
-         (if (re-find #"Value write after transaction start|Conflicts with higher priority transaction|Conflicts with committed transaction|Operation expired: Failed UpdateTransaction.* status: COMMITTED .*: Transaction expired"
+         (if (re-find #"Value write after transaction start|Conflicts with higher priority transaction|Conflicts with committed transaction|Operation expired: Failed UpdateTransaction.* status: COMMITTED .*: Transaction expired|Error parsing schema for table"
                       (.getMessage e#))
            ; Definitely failed
            (assoc ~op :type :fail, :error (.getMessage e#))
