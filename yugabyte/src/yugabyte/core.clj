@@ -232,6 +232,11 @@
     (assoc opts
       :version (or url-version (:version opts))
       :api api
+      ; Serializable workloads conflict heavily; run them with fewer worker
+      ; threads (half) so contention doesn't drown out useful throughput.
+      :concurrency (if (utils/is-test-serializable? opts)
+                     (max 1 (quot (:concurrency opts) 2))
+                     (:concurrency opts))
       ; Connection manager (YSQL Connection Manager / Odyssey) only applies to
       ; YSQL. Never enable it for YCQL tests, regardless of the CLI flag.
       :connection-manager (and (not= :ycql api) (:connection-manager opts))
