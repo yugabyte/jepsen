@@ -233,10 +233,14 @@
       :version (or url-version (:version opts))
       :api api
       ; Serializable workloads conflict heavily; run them with fewer worker
-      ; threads (half) so contention doesn't drown out useful throughput.
-      :concurrency (if (utils/is-test-serializable? opts)
-                     (max 1 (quot (:concurrency opts) 2))
-                     (:concurrency opts))
+      ; threads (~half) so contention doesn't drown out useful throughput.
+      ; Keep the result a multiple of 4 (and >= 4): the *-key-acid and set
+      ; workloads split threads via (/ threads 2) and (/ threads 4), and jepsen
+      ; asserts those group sizes are integers, so an odd count crashes.
+      :concurrency (let [c (:concurrency opts)]
+                     (if (utils/is-test-serializable? opts)
+                       (min c (max 4 (* 4 (quot c 8))))
+                       c))
       ; Connection manager (YSQL Connection Manager / Odyssey) only applies to
       ; YSQL. Never enable it for YCQL tests, regardless of the CLI flag.
       :connection-manager (and (not= :ycql api) (:connection-manager opts))
