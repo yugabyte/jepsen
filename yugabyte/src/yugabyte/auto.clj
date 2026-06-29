@@ -28,6 +28,10 @@
 (def tserver-log-dir (str dir "/tserver/logs"))
 (def installed-url-file (str dir "/installed-url"))
 (def minimal-packed-version "2.16.4.0-b1")
+(def minimal-skip-prefix-locks-version
+  "skip_prefix_locks gflag was introduced in 2026.1; older clusters fail to
+  start when it is set."
+  "2026.1.0.0-b0")
 (def tablespace-name "geo_tablespace")
 
 (def max-bump-time-ops-per-test
@@ -399,9 +403,11 @@
     []))
 
 (defn tserver-serializable-flags
-  "Serializable-isolation specific flags"
+  "Serializable-isolation specific flags. skip_prefix_locks only exists in
+  2026.1+; setting it on older versions makes the cluster fail to start."
   [test]
-  (if (utils/is-test-serializable? test)
+  (if (and (utils/is-test-serializable? test)
+           (v/newer-or-equal? (:version test) minimal-skip-prefix-locks-version))
     [:--skip_prefix_locks=false]
     []))
 
