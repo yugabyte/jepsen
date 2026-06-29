@@ -21,16 +21,30 @@ jobs:
         # The yugabyte test suite depends on the jepsen artifact from Clojars,
         # not on the in-repo jepsen/ submodule, so a shallow checkout is fine.
         fetch-depth: 1
+    - name: Set up JDK 21
+      # A jepsen 0.3.11 dependency targets JDK 21 (references
+      # java.util.SequencedCollection). The runner's default JDK is older, and
+      # apt's leiningen does not use the JDK it pulls in, so pin the runtime
+      # here; setup-java exports JAVA_HOME, which lein honors.
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+
     - name: Debug environment
       run: |
         echo "Working directory: $(pwd)"
+        java -version
         ls -la
 
     - name: Install Leiningen
       working-directory: .
       run: |
-        sudo apt-get update
-        sudo apt-get install -y leiningen
+        # Official lein script honors JAVA_HOME/PATH from setup-java (the
+        # Debian package would run lein on the runner's default JDK instead).
+        curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o lein
+        chmod +x lein
+        sudo mv lein /usr/local/bin/lein
         lein version
 
     - name: Compile all namespaces
