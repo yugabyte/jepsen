@@ -40,12 +40,12 @@ jobs:
     - name: Install Leiningen
       working-directory: .
       run: |
-        # Official lein script honors JAVA_HOME/PATH from setup-java (the
-        # Debian package would run lein on the runner's default JDK instead).
-        curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o lein
-        chmod +x lein
-        sudo mv lein /usr/local/bin/lein
-        lein version
+        sudo apt-get update
+        sudo apt-get install -y leiningen
+        # Force lein onto the setup-java JDK 21 (apt's lein would otherwise use
+        # the runner's default JDK, which lacks java.util.SequencedCollection).
+        echo "JAVA_CMD=$JAVA_HOME/bin/java" >> "$GITHUB_ENV"
+        JAVA_CMD="$JAVA_HOME/bin/java" lein version
 
     - name: Compile all namespaces
       run: |
