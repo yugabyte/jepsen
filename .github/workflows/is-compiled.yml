@@ -11,29 +11,76 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: yugabyte
+
     steps:
     - uses: actions/checkout@v3
-    - name: Debug Environment
+      with:
+        # The yugabyte test suite depends on the jepsen artifact from Clojars,
+        # not on the in-repo jepsen/ submodule, so a shallow checkout is fine.
+        fetch-depth: 1
+    - name: Set up JDK 21
+      # A jepsen 0.3.11 dependency targets JDK 21 (references
+      # java.util.SequencedCollection). The runner's default JDK is older, and
+      # apt's leiningen does not use the JDK it pulls in, so pin the runtime
+      # here; setup-java exports JAVA_HOME, which lein honors.
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Debug environment
       run: |
-        echo "Current Directory: $(pwd)"
-        echo "List of Files:"
+        echo "Working directory: $(pwd)"
+        java -version
         ls -la
-        echo "Environment Variables:"
-        env
+
     - name: Install Leiningen
+      working-directory: .
       run: |
         sudo apt-get update
         sudo apt-get install -y leiningen
-    - name: Run command and check for specific output
+        # Force lein onto the setup-java JDK 21 (apt's lein would otherwise use
+        # the runner's default JDK, which lacks java.util.SequencedCollection).
+        echo "JAVA_CMD=$JAVA_HOME/bin/java" >> "$GITHUB_ENV"
+        JAVA_CMD="$JAVA_HOME/bin/java" lein version
+
+    - name: Compile all namespaces
       run: |
-        cd yugabyte
-        OUTPUT=$(lein run test 2>&1 | grep 'Must be one of' || true)
-        
-        if [[ -n "$OUTPUT" ]]; then
-          echo "The output contains the expected string:"
-          echo "$OUTPUT"
+        set -uo pipefail
+        # Map every src/**/*.clj to its namespace symbol (path: / -> . , _ -> -)
+        # and require them all. A compile error in any namespace throws here,
+        # so this fails CI even when the CLI path below doesn't touch the file.
+        nses=$(find src -name '*.clj' \
+          | sed -e 's#^src/##' -e 's#\.clj$##' -e 's#/#.#g' -e 's#_#-#g' \
+          | sort | tr '\n' ' ')
+        echo "Namespaces to compile:"
+        echo "$nses" | tr ' ' '\n'
+        echo "==================== compile output ===================="
+        # Require the roots first so Clojure resolves dependency load order;
+        # requiring AOT'd namespaces piecemeal can otherwise hit spurious
+        # class-load ordering errors. The remaining requires then confirm every
+        # source namespace loads.
+        lein run -m clojure.main \
+          -e "(do (require 'yugabyte.runner 'yugabyte.core) (doseq [n '($nses)] (require n)) (println :compile-ok))" \
+          2>&1 | tee compile.log
+        echo "========================================================"
+        grep -q ':compile-ok' compile.log
+
+    - name: CLI parses and reaches validation
+      run: |
+        # `test` with no --workload must reach option validation; that only
+        # happens if every namespace loaded. lein exits non-zero on the
+        # validation error, which is expected, so don't fail on it directly.
+        lein run test > run.log 2>&1 || true
+        echo "==================== lein run test ====================="
+        cat run.log
+        echo "========================================================"
+        if grep -q 'Must be one of' run.log; then
+          echo "PASS: code compiled and CLI workload validation reached."
         else
-          echo "The output does not contain the expected string."
-          echo "$OUTPUT"
+          echo "FAIL: workload validation not reached (see output above)."
           exit 1
         fi
