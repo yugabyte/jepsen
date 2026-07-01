@@ -176,7 +176,6 @@ TEST_PER_VERSION = [
         "tests": [
             "ysql/rc.wr",
             "ysql/si.wr",
-            "ysql/sz.wr",
             "ysql/rc.upsert",
             "ysql/si.upsert",
             "ysql/rc.types",

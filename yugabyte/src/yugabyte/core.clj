@@ -141,8 +141,9 @@
          :rc.append-table    (with-client append/workload-rc-table (ysql.append-table/->Client :read-committed))
 
          ; Elle write-read register (complements list-append). Anomaly set is
-         ; calibrated per isolation level, like the append workloads.
-         :sz.wr              (with-client wr/workload-serializable (ysql.wr/->Client :serializable))
+         ; calibrated per isolation level, like the append workloads. Only rc/si:
+         ; at serializable, sz.multi-key-acid already covers multi-key register
+         ; transactions (via linearizability), so a sz.wr would overlap it.
          :si.wr              (with-client wr/workload-si (ysql.wr/->Client :repeatable-read))
          :rc.wr              (with-client wr/workload-rc (ysql.wr/->Client :read-committed))
 

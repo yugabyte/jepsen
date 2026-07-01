@@ -27,11 +27,5 @@
             :consistency-models [:read-committed]
             :additional-graphs  [elle/realtime-graph]}))
 
-(defn workload-serializable
-  [opts]
-  (wr/test {:key-count          10
-            :max-txn-length     4
-            :max-writes-per-key 256
-            :anomalies          [:G1 :G2]
-            ; :consistency-models [:strict-serializable] ; default
-            :additional-graphs  [elle/realtime-graph]}))
+; No workload-serializable: at serializable, multi-key-acid already covers
+; multi-key register transactions (via linearizability), so it would overlap.
