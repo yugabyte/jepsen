@@ -162,6 +162,22 @@ TEST_PER_VERSION = [
             "ysql/si.append-table",
             "ysql/rc.append-table",
         ]
+    },
+    {
+        # Enrichment workloads focused on read-committed and snapshot isolation:
+        #   wr     - Elle write-read register (complements list-append)
+        #   upsert - INSERT ... ON CONFLICT uniqueness under contention
+        #   types  - numeric boundary round-trip (overflow / truncation)
+        "start_version": "2.20.0.0-b1",
+        "tests": [
+            "ysql/rc.wr",
+            "ysql/si.wr",
+            "ysql/sz.wr",
+            "ysql/rc.upsert",
+            "ysql/si.upsert",
+            "ysql/rc.types",
+            "ysql/si.types",
+        ]
     }
 ]
 NEMESES = [
@@ -566,7 +582,9 @@ def main():
             test_start_time_sec = time.time()
             if '/set' in test:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_SET_TEST if args.test_time_sec == 0 else args.test_time_sec
-            elif '/rc.' in test and 'append' in test:
+            elif '/rc.' in test and ('append' in test or '.wr' in test):
+                # rc.wr is an Elle cycle workload like rc.append; give it the
+                # same longer analysis budget so cycle search isn't cut short.
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME_FOR_RC_APPEND_TEST if args.test_time_sec == 0 else args.test_time_sec
             else:
                 test_run_time_limit_no_analysis_sec = SINGLE_TEST_RUN_TIME if args.test_time_sec == 0 else args.test_time_sec

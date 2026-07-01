@@ -9,7 +9,10 @@
             [jepsen.os.debian :as debian]
             [jepsen.os.centos :as centos]
             [yugabyte [append :as append]
-             [default-value :as default-value]]
+             [default-value :as default-value]
+             [wr :as wr]
+             [upsert :as upsert]
+             [types :as types]]
             [yugabyte.auto :as auto]
             [yugabyte.bank :as bank]
             [yugabyte.bank-improved :as bank-improved]
@@ -30,7 +33,10 @@
             [yugabyte.ycql.single-key-acid]
             [yugabyte.ysql [append :as ysql.append]
              [append-table :as ysql.append-table]
-             [default-value :as ysql.default-value]]
+             [default-value :as ysql.default-value]
+             [wr :as ysql.wr]
+             [upsert :as ysql.upsert]
+             [types :as ysql.types]]
             [yugabyte.ysql.bank]
             [yugabyte.ysql.bank-improved]
             [yugabyte.ysql.counter]
@@ -119,7 +125,21 @@
          :si.append-table    (with-client append/workload-si-table (ysql.append-table/->Client :repeatable-read))
          :si.counter         (with-client counter/workload (yugabyte.ysql.counter/->YSQLCounterClient :repeatable-read))
          :si.set             (with-client set/workload (yugabyte.ysql.set/->YSQLSetClient :repeatable-read))
-         :rc.append-table    (with-client append/workload-rc-table (ysql.append-table/->Client :read-committed))})
+         :rc.append-table    (with-client append/workload-rc-table (ysql.append-table/->Client :read-committed))
+
+         ; Elle write-read register (complements list-append). Anomaly set is
+         ; calibrated per isolation level, like the append workloads.
+         :sz.wr              (with-client wr/workload-serializable (ysql.wr/->Client :serializable))
+         :si.wr              (with-client wr/workload-si (ysql.wr/->Client :repeatable-read))
+         :rc.wr              (with-client wr/workload-rc (ysql.wr/->Client :read-committed))
+
+         ; INSERT ... ON CONFLICT uniqueness under contention.
+         :si.upsert          (with-client upsert/workload (ysql.upsert/->Client :repeatable-read))
+         :rc.upsert          (with-client upsert/workload (ysql.upsert/->Client :read-committed))
+
+         ; Numeric boundary round-trip (overflow / truncation).
+         :si.types           (with-client types/workload (ysql.types/->Client :repeatable-read))
+         :rc.types           (with-client types/workload (ysql.types/->Client :read-committed))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
