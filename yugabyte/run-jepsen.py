@@ -164,10 +164,14 @@ TEST_PER_VERSION = [
         ]
     },
     {
-        # Enrichment workloads focused on read-committed and snapshot isolation:
-        #   wr     - Elle write-read register (complements list-append)
-        #   upsert - INSERT ... ON CONFLICT uniqueness under contention
-        #   types  - numeric boundary round-trip (overflow / truncation)
+        # Enrichment workloads (rc/si focus, plus a couple of anomaly tests that
+        # only bite at their native isolation level):
+        #   wr        - Elle write-read register (complements list-append)
+        #   upsert    - INSERT ... ON CONFLICT / LWT uniqueness under contention
+        #   types     - numeric boundary round-trip (overflow / truncation)
+        #   monotonic - per-session monotonic reads
+        #   g2        - Adya predicate write-skew (serializable only)
+        #   long-fork - snapshot-isolation long-fork anomaly (also at si)
         "start_version": "2.20.0.0-b1",
         "tests": [
             "ysql/rc.wr",
@@ -177,6 +181,13 @@ TEST_PER_VERSION = [
             "ysql/si.upsert",
             "ysql/rc.types",
             "ysql/si.types",
+            "ysql/rc.monotonic",
+            "ysql/si.monotonic",
+            "ysql/sz.g2",
+            "ysql/si.long-fork",
+            "ycql/upsert",
+            "ycql/types",
+            "ycql/monotonic",
         ]
     }
 ]

@@ -12,7 +12,9 @@
              [default-value :as default-value]
              [wr :as wr]
              [upsert :as upsert]
-             [types :as types]]
+             [types :as types]
+             [g2 :as g2]
+             [monotonic :as monotonic]]
             [yugabyte.auto :as auto]
             [yugabyte.bank :as bank]
             [yugabyte.bank-improved :as bank-improved]
@@ -31,12 +33,17 @@
             [yugabyte.ycql.multi-key-acid]
             [yugabyte.ycql.set]
             [yugabyte.ycql.single-key-acid]
+            [yugabyte.ycql.upsert]
+            [yugabyte.ycql.types]
+            [yugabyte.ycql.monotonic]
             [yugabyte.ysql [append :as ysql.append]
              [append-table :as ysql.append-table]
              [default-value :as ysql.default-value]
              [wr :as ysql.wr]
              [upsert :as ysql.upsert]
-             [types :as ysql.types]]
+             [types :as ysql.types]
+             [g2 :as ysql.g2]
+             [monotonic :as ysql.monotonic]]
             [yugabyte.ysql.bank]
             [yugabyte.ysql.bank-improved]
             [yugabyte.ysql.counter]
@@ -92,7 +99,13 @@
          ; :bank-multitable (with-client bank/workload-allow-neg (yugabyte.ycql.bank/->CQLMultiBank))
          :long-fork       (with-client long-fork/workload (yugabyte.ycql.long-fork/->CQLLongForkIndexClient))
          :single-key-acid (with-client single-key-acid/workload (yugabyte.ycql.single-key-acid/->CQLSingleKey))
-         :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ycql.multi-key-acid/->CQLMultiKey))})
+         :multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ycql.multi-key-acid/->CQLMultiKey))
+         ; INSERT ... IF NOT EXISTS uniqueness via lightweight transactions.
+         :upsert          (with-client upsert/workload (yugabyte.ycql.upsert/->CQLUpsert))
+         ; Numeric boundary round-trip (overflow / truncation).
+         :types           (with-client types/workload (yugabyte.ycql.types/->CQLTypes))
+         ; Per-session monotonic reads over a counter.
+         :monotonic       (with-client monotonic/workload (yugabyte.ycql.monotonic/->CQLMonotonic))})
 
 (def workloads-ysql
   "A map of workload names to functions that can take option maps and construct workloads."
@@ -106,7 +119,7 @@
          :sz.bank            (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLBankClient true :serializable))
          :sz.bank-multitable (with-client bank/workload-allow-neg (yugabyte.ysql.bank/->YSQLMultiBankClient true :serializable))
          :sz.bank-contention (with-client bank-improved/workload-contention-keys (yugabyte.ysql.bank-improved/->YSQLBankContentionClient :serializable))
-         :sz.long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient))
+         :sz.long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient :serializable))
          :sz.single-key-acid (with-client single-key-acid/workload (yugabyte.ysql.single-key-acid/->YSQLSingleKeyAcidClient))
          :sz.multi-key-acid  (with-client multi-key-acid/workload (yugabyte.ysql.multi-key-acid/->YSQLMultiKeyAcidClient))
          :sz.geo.append      (with-client append/workload-serializable (ysql.append/->Client :serializable (or (:locking opts) :mixed) :geo))
@@ -139,7 +152,20 @@
 
          ; Numeric boundary round-trip (overflow / truncation).
          :si.types           (with-client types/workload (ysql.types/->Client :repeatable-read))
-         :rc.types           (with-client types/workload (ysql.types/->Client :read-committed))})
+         :rc.types           (with-client types/workload (ysql.types/->Client :read-committed))
+
+         ; Adya G2 predicate write-skew. Serializable only: write skew is legal
+         ; under snapshot and read-committed, so it would false-positive there.
+         :sz.g2              (with-client g2/workload (ysql.g2/->Client :serializable))
+
+         ; Long fork is an SI-level anomaly (forbidden at snapshot and
+         ; serializable). We already run it at serializable; also run at
+         ; snapshot/repeatable-read.
+         :si.long-fork       (with-client long-fork/workload (yugabyte.ysql.long-fork/->YSQLLongForkClient :repeatable-read))
+
+         ; Per-session monotonic reads over a monotonically increasing register.
+         :si.monotonic       (with-client monotonic/workload (ysql.monotonic/->Client :repeatable-read))
+         :rc.monotonic       (with-client monotonic/workload (ysql.monotonic/->Client :read-committed))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
