@@ -56,7 +56,9 @@
 (defn workload
   [opts]
   (let [threads (:concurrency opts)]
-    {:generator (->> (gen/reserve (quot threads 2) (upserts) (reads))
+    ; reads must be an infinite generator (repeat), not a single op map: a lone
+    ; map emits once then exhausts, starving reads to one op for the whole run.
+    {:generator (->> (gen/reserve (quot threads 2) (upserts) (repeat (reads)))
                      (gen/stagger (/ 1 threads))
                      (ygen/with-op-index))
      :checker   (checker)}))

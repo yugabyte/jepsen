@@ -30,7 +30,10 @@
   (let [threads (:concurrency opts)]
     {:generator (->> (gen/reserve (quot threads 2)
                                   (repeat {:type :invoke, :f :inc})
-                                  {:type :invoke, :f :read})
+                                  ; Must be an infinite generator, not a bare op
+                                  ; map: a lone map emits once and then exhausts,
+                                  ; which starves reads to a single op.
+                                  (repeat {:type :invoke, :f :read}))
                      (gen/stagger (/ 1 threads))
                      (ygen/with-op-index))
      :checker   (checker)}))
