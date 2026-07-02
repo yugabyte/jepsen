@@ -42,15 +42,18 @@
     (c/execute! c (str "CREATE INDEX " index-name " ON " table-name " (k2) INCLUDE (v)")))
 
   (invoke-op! [this test op c conn-wrapper]
-    (case (:f op)
-      :upsert
-      (let [[k v]  (:value op)
-            result (c/execute! c [(str "insert into " table-name " (k, k2, v) values (?, ?, ?) "
-                                       "on conflict (k) do nothing") k k v])]
-        (assoc op :type :ok, :value [k v (pos? (first result))]))
+    ; Run at the client's isolation (see note in ysql.types): without it the op
+    ; uses the connection default (serializable) rather than si./rc.
+    (j/with-db-transaction [c c {:isolation isolation}]
+      (case (:f op)
+        :upsert
+        (let [[k v]  (:value op)
+              result (c/execute! c [(str "insert into " table-name " (k, k2, v) values (?, ?, ?) "
+                                         "on conflict (k) do nothing") k k v])]
+          (assoc op :type :ok, :value [k v (pos? (first result))]))
 
-      :read
-      (assoc op :type :ok, :value (read-all c))))
+        :read
+        (assoc op :type :ok, :value (read-all c)))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))

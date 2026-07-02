@@ -21,15 +21,18 @@
                         "on conflict (k) do nothing")]))
 
   (invoke-op! [this test op c conn-wrapper]
-    (case (:f op)
-      :inc
-      (do (c/execute! c [(str "update " table-name " set v = v + 1 where k = 0")])
-          (assoc op :type :ok))
+    ; Run at the client's isolation (see note in ysql.types): without it the op
+    ; uses the connection default (serializable) rather than si./rc.
+    (j/with-db-transaction [c c {:isolation isolation}]
+      (case (:f op)
+        :inc
+        (do (c/execute! c [(str "update " table-name " set v = v + 1 where k = 0")])
+            (assoc op :type :ok))
 
-      :read
-      (let [v (-> (c/query c [(str "select v from " table-name " where k = 0")])
-                  first :v)]
-        (assoc op :type :ok, :value (some-> v long)))))
+        :read
+        (let [v (-> (c/query c [(str "select v from " table-name " where k = 0")])
+                    first :v)]
+          (assoc op :type :ok, :value (some-> v long))))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))

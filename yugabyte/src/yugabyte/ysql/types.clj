@@ -41,15 +41,19 @@
     (c/execute! c (str "CREATE INDEX " index-name " ON " table-name " (k2) INCLUDE (v)")))
 
   (invoke-op! [this test op c conn-wrapper]
-    (case (:f op)
-      :write
-      (let [[k v] (:value op)]
-        (c/execute! c [(str "insert into " table-name " (k, k2, v) values (?, ?, ?) "
-                            "on conflict (k) do update set v = ?") k k v v])
-        (assoc op :type :ok))
+    ; Run at the client's isolation. Without this the op uses the connection
+    ; default (serializable), so si./rc. would silently run serializable and
+    ; the hot key space would deadlock-storm every write to failure.
+    (j/with-db-transaction [c c {:isolation isolation}]
+      (case (:f op)
+        :write
+        (let [[k v] (:value op)]
+          (c/execute! c [(str "insert into " table-name " (k, k2, v) values (?, ?, ?) "
+                              "on conflict (k) do update set v = ?") k k v v])
+          (assoc op :type :ok))
 
-      :read
-      (assoc op :type :ok, :value (read-all c))))
+        :read
+        (assoc op :type :ok, :value (read-all c)))))
 
   (teardown-cluster! [this test c conn-wrapper]
     (c/drop-table c table-name)))
