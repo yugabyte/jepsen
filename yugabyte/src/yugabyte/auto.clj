@@ -457,6 +457,31 @@
       [:--time_source (format "skewed,%s" (- host-skew half-skew))])
     []))
 
+(def transaction-ignore-applying-probability
+  "Value for TEST_transaction_ignore_applying_probability. With this
+  probability the tablet transaction participant silently skips APPLYING a
+  transaction's intents and reports success anyway (HandleApplying in
+  tablet/transaction_participant.cc); the follow-up cleanup then deletes those
+  intents unconditionally, so the write is permanently lost. Deliberately
+  injecting lost writes is exactly what our consistency checkers are built to
+  catch, which is the point - but ONLY on tserver data tablets.
+
+  Tserver-only, NEVER on masters: the master's sys_catalog is a tablet running
+  this same transaction-participant path, so this flag on master_flags would
+  let DDL (CREATE TABLE/DATABASE, catalog version bumps) get silently dropped
+  and cleaned up the same way - corrupting catalog state cluster-wide and
+  manifesting as setup hangs / stalled throughput unrelated to any real bug."
+  0.3)
+
+(defn tserver-ignore-applying-flags
+  "Sets TEST_transaction_ignore_applying_probability on this tserver, logging
+  the value so it's visible in the run log without having to grep gflags. Do
+  not call this from start-master! - see transaction-ignore-applying-probability."
+  [node]
+  (info "Setting TEST_transaction_ignore_applying_probability ="
+        transaction-ignore-applying-probability "on" node)
+  [:--TEST_transaction_ignore_applying_probability transaction-ignore-applying-probability])
+
 (defn master-tserver-wait-on-conflict-flags
   "Pessimistic specific flags"
   [test]
@@ -752,6 +777,7 @@
                (master-tserver-wait-on-conflict-flags test)
                (master-tserver-packed-columns test)
                (master-tserver-geo-partitioning-flags test node (:nodes test))
+               (tserver-ignore-applying-flags node)
                (master-tserver-stress-flags test)
                (tserver-stress-flags test)
                (tserver-api-opts test node)
