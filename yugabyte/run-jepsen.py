@@ -27,6 +27,7 @@ import logging
 import os
 import random
 import re
+import signal
 import socket
 import subprocess
 from collections import namedtuple
@@ -89,7 +90,13 @@ SINGLE_TEST_RUN_TIME = 600
 SINGLE_TEST_RUN_TIME_FOR_SET_TEST = 300
 SINGLE_TEST_RUN_TIME_FOR_RC_APPEND_TEST = 300
 
-TEST_AND_ANALYSIS_TIMEOUT_SEC = 1200  # Includes test results analysis.
+# Includes test results analysis. The rc/si workloads (wr, upsert, types,
+# monotonic, g2) produce histories whose Elle analysis alone can take longer
+# than the test itself: a valid ysql/si.wr + partition run has been observed
+# to need ~25 min end to end against the old 20-min budget, getting a passing
+# run binned as timed-out. Only binds when a run actually overruns, so the
+# extra headroom costs nothing on healthy runs.
+TEST_AND_ANALYSIS_TIMEOUT_SEC = 2400
 DEFAULT_TARBALL_URL = "https://downloads.yugabyte.com/yugabyte-1.3.1.0-linux.tar.gz"
 
 TEST_PER_VERSION = [
@@ -238,16 +245,33 @@ def is_version_at_least(v_least, v_actual):
                                          fillvalue=0) if i != j), True)
 
 
+def kill_process_tree(p):
+    """Kill a run_cmd child and everything it spawned. Commands run via
+    shell=True, so p.pid is the shell's pid: a bare p.kill() kills only the
+    shell and orphans the real work (lein -> JVM), which keeps running - a
+    'timed out' jepsen run would then finish analysis and write results
+    minutes after we declared it dead, and could still be chewing on the
+    cluster while the next test starts. run_cmd starts children in their own
+    session (start_new_session), so the process group id is the shell's pid
+    and killpg takes down the whole tree."""
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (OSError, ProcessLookupError) as e:
+        if isinstance(e, OSError) and e.errno not in (errno.ESRCH, errno.EPERM):
+            raise
+        try:
+            p.kill()
+        except OSError as e2:
+            if e2.errno != errno.ESRCH:
+                raise
+
+
 def cleanup():
     deadline = time.time() + 5
     for p in child_processes:
         while p.poll() is None and time.time() < deadline:
             time.sleep(1)
-        try:
-            p.kill()
-        except OSError as e:
-            if e.errno != errno.ESRCH:
-                raise e
+        kill_process_tree(p)
 
 
 def truncate_line(line, max_chars=500):
@@ -300,7 +324,10 @@ def run_cmd(cmd,
     stdout_file = None
     stderr_file = None
 
-    popen_kwargs = dict(shell=True)
+    # start_new_session puts the shell and everything under it (lein, the JVM)
+    # into their own process group, so a timeout kill can take down the whole
+    # tree - see kill_process_tree.
+    popen_kwargs = dict(shell=True, start_new_session=True)
     try:
         if log_name_prefix is None:
             p = subprocess.Popen(cmd, **popen_kwargs)
@@ -317,7 +344,7 @@ def run_cmd(cmd,
 
         if p.poll() is None:
             timed_out = True
-            p.kill()
+            kill_process_tree(p)
             returncode = p.wait()
         else:
             timed_out = False
