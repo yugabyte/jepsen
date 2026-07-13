@@ -156,7 +156,8 @@ TEST_PER_VERSION = [
     },
     {
         "start_version": "2.29.0.0-b500",
-        "start_version_stable": "2026.1.0.0-b1",
+        # Skip append-table tests for 2026.1
+        "start_version_stable": "2026.2.0.0-b1",
         "tests": [
             "ysql/sz.append-table",
             "ysql/si.append-table",
