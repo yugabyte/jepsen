@@ -10,7 +10,7 @@
   [key-seq]
   (str "SElECT key2, val FROM " table-name " WHERE key2 " (c/in key-seq)))
 
-(defrecord YSQLLongForkYbClient []
+(defrecord YSQLLongForkYbClient [isolation]
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
@@ -28,19 +28,22 @@
 
     (let [txn (:value op)]
       (case (:f op)
-        :read (let [ks   (seq (lf/op-read-keys op))
-                    ; Look up values by the value index
-                    vs   (->> (long-fork-index-query ks)
-                              (c/query op c)
-                              (map (juxt :key2 :val))
-                              (into (sorted-map)))
-                    ; Rewrite txn to use those values
-                    txn' (reduce (fn [txn [f k _]]
-                                   ; We already know these are all reads
-                                   (conj txn [f k (get vs k)]))
-                                 []
-                                 txn)]
-                (assoc op :type :ok :value txn'))
+        ; The multi-key read must run at the target isolation: long fork is
+        ; forbidden under snapshot and serializable, allowed at read-committed.
+        :read (j/with-db-transaction [c c {:isolation isolation}]
+                (let [ks   (seq (lf/op-read-keys op))
+                      ; Look up values by the value index
+                      vs   (->> (long-fork-index-query ks)
+                                (c/query op c)
+                                (map (juxt :key2 :val))
+                                (into (sorted-map)))
+                      ; Rewrite txn to use those values
+                      txn' (reduce (fn [txn [f k _]]
+                                     ; We already know these are all reads
+                                     (conj txn [f k (get vs k)]))
+                                   []
+                                   txn)]
+                  (assoc op :type :ok :value txn')))
 
         :write (let [[[_ k v]] txn]
                  (do (c/insert! op c table-name {:key  k

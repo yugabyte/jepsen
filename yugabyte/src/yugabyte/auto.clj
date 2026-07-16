@@ -130,16 +130,19 @@
                    (zipmap [:uuid :address :state :role]))))))
 
 (defn list-all-tservers
-  "Asks a node to list all the tservers it knows about."
+  "Asks a node to list all the tservers it knows about. Columns are
+  `UUID  RPC-Host/Port  Heartbeat-delay  Status ...`, so we capture the status
+  as :state (ALIVE/DEAD) - without it the readiness filter in await-tservers has
+  nothing to match on and never counts a tserver as up."
   [test]
   (->> (yb-admin test :list_all_tablet_servers)
        (str/split-lines)
        rest
        (map (fn [line]
               (->> line
-                   (re-find #"(\w+)\s+([^\s]+)")
+                   (re-find #"(\w+)\s+([^\s]+)\s+([^\s]+)\s+(\w+)")
                    next
-                   (zipmap [:uuid :address]))))))
+                   (zipmap [:uuid :address :heartbeat :state]))))))
 
 (defn create-geo-tablespace
   [node tablespace-name replica-placement]
@@ -184,33 +187,58 @@
                           ]
        })))
 
-(defn await-masters
-  "Waits until all masters for a test are online, according to this node."
+(defn master-voter?
+  "True if a `list-all-masters` entry is a committed voting member of the master
+  Raft group: it is ALIVE and currently acting as LEADER or FOLLOWER. A master
+  that is still being added to the config shows up as a LEARNER (Raft PRE_VOTER)
+  and is not yet a dependable quorum member."
+  [master]
+  (and (= "ALIVE" (:state master))
+       (contains? #{"LEADER" "FOLLOWER"} (:role master))))
+
+(defn masters-converged?
+  "True when the master Raft group has converged for this test: every expected
+  master is a voting member and exactly one leader has been elected.
+
+  NB: the old check compared (count (master-addresses test)) - the LENGTH of the
+  joined address string, e.g. 59 - against the ALIVE master count, so it could
+  never succeed and await-masters always timed out."
   [test]
-  (dt/with-retry
-    [tries 20]
-    (when (< 0 tries 20)
-      (info "Waiting for masters to come online")
-      (Thread/sleep 1000))
+  (let [masters (list-all-masters test)]
+    (and (= (count (master-nodes test))
+            (count (filter master-voter? masters)))
+         (= 1 (count (filter (comp #{"LEADER"} :role) masters))))))
 
-    (when (zero? tries)
-      (throw (RuntimeException. "Giving up waiting for masters.")))
+(defn await-masters
+  "Blocks until the master Raft group has converged: every expected master is an
+  ALIVE voting member and a single leader has been elected. Retries through the
+  transient errors that occur while masters are still starting up and electing a
+  leader."
+  [test]
+  (let [max-tries 60]
+    (dt/with-retry
+      [tries max-tries]
+      (when (< tries max-tries)
+        (info "Waiting for masters to converge")
+        (Thread/sleep 1000))
 
-    (when-not (= (count (master-addresses test))
-                 (->> (list-all-masters test)
-                      (filter (comp #{"ALIVE"} :state))
-                      count))
-      (retry (dec tries)))
+      (when (zero? tries)
+        (throw (RuntimeException. "Giving up waiting for masters to converge.")))
 
-    :ready
+      (when-not (masters-converged? test)
+        (retry (dec tries)))
 
-    (catch RuntimeException e
-      (condp re-find (.getMessage e)
-        #"Could not locate the leader master" (retry (dec tries))
-        #"Timed out" (retry (dec tries))
-        #"Leader not yet ready to serve requests" (retry (dec tries))
-        #"Could not locate the leader master" (retry (dec tries))
-        (throw e)))))
+      :ready
+
+      (catch RuntimeException e
+        (condp re-find (.getMessage e)
+          #"Could not locate the leader master"      (retry (dec tries))
+          #"Timed out"                                (retry (dec tries))
+          #"Leader not yet ready to serve requests"   (retry (dec tries))
+          #"Leader not yet replicated NoOp"           (retry (dec tries))
+          #"Not the leader"                           (retry (dec tries))
+          #"This leader has not yet acquired a lease" (retry (dec tries))
+          (throw e))))))
 
 (defn await-tservers
   "Waits until all tservers for a test are online, according to this node."
