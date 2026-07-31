@@ -180,6 +180,8 @@ TEST_PER_VERSION = [
         #   monotonic - per-session monotonic reads
         #   g2        - Adya predicate write-skew (serializable only)
         #   long-fork - snapshot-isolation long-fork anomaly (also at si)
+        #   queue     - SELECT ... FOR UPDATE SKIP LOCKED work queue (no sz:
+        #               SKIP LOCKED downgrades to blocking there, #11761)
         "start_version": "2.20.0.0-b1",
         "tests": [
             "ysql/rc.wr",
@@ -190,6 +192,8 @@ TEST_PER_VERSION = [
             "ysql/si.types",
             "ysql/rc.monotonic",
             "ysql/si.monotonic",
+            "ysql/rc.queue",
+            "ysql/si.queue",
             "ysql/sz.g2",
             "ysql/si.long-fork",
             "ycql/upsert",
