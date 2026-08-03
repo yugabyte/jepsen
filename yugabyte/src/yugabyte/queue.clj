@@ -66,10 +66,11 @@
 
 (defn main-generator
   "Half the threads only enqueue, so supply continues even when dequeues block
-  under a nemesis. `stagger` is global in 0.3, hence dividing by threads. A bare
+  under a nemesis; at least one, or a single-threaded run would enqueue nothing
+  and test nothing. `stagger` is global in 0.3, hence dividing by threads. A bare
   op map is a one-shot generator, hence `repeat`."
   [threads]
-  (->> (gen/reserve (quot threads 2) (enqueues) (repeat dequeue))
+  (->> (gen/reserve (max 1 (quot threads 2)) (enqueues) (repeat dequeue))
        (gen/stagger (/ 1 threads))))
 
 (defn final-generator
@@ -141,7 +142,10 @@
                           (map :value)
                           set)
             acked    (set (map :value (of :ok :enqueue)))
-            claims   (map (juxt :value :process) (of :ok :dequeue))
+            ok-deq   (of :ok :dequeue)
+            claims   (map (juxt :value :process) ok-deq)
+            ; rows each claim stepped over; nil on drains, which do not measure
+            skips    (keep :skipped ok-deq)
             claimed  (set (map first claims))
             ; a process is retired after an indeterminate op, so each :info claim
             ; is one row that process may have claimed unseen
@@ -203,6 +207,10 @@
                  :problems problems
                  :stats    {:enqueued    (count acked)
                             :claimed     (count claims)
+                            ; zero here means SKIP LOCKED never had to skip, so the
+                            ; run exercised plain locking and proved little
+                            :rows-skipped        (reduce + 0 skips)
+                            :claims-that-skipped (count (filter pos? skips))
                             :rows        (count rows)
                             :unclaimed   (count (remove :claimed rows))
                             :final-read? (some? read)
