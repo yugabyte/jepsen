@@ -5,18 +5,21 @@
 
     :enqueue v  -> insert a row with a globally unique, increasing payload.
     :dequeue    -> claim the head of the queue. :ok with the claimed payload, or
-                   :fail :empty when nothing was claimable, which is a legal
-                   outcome and never an anomaly by itself. Ops marked
-                   :drain? true are the final phase's hold-free drain.
-    :read-table -> every row: the checker's ground truth, since a checker sees
-                   only the history, never the database.
+                   :fail :empty when nothing was claimable, which is legal and
+                   never an anomaly by itself. :drain? true marks the final
+                   phase's hold-free drain.
+    :read-table -> every row; the checker's ground truth, since it sees only the
+                   history, never the database.
 
-  Invariants: no payload is claimed twice (mutual exclusion, checked always), and
-  every acked enqueue is still present and eventually claimed (completeness,
-  asserted only once the drain has quiesced, because YugabyteDB also skips rows a
-  committed transaction touched after the reader's read time, so mid-run a row can
-  be briefly invisible to every claimer). Indeterminate claims are budgeted rather
-  than assumed either way.
+  Invariants: no payload is claimed twice, checked always; and every acked
+  enqueue is still present and eventually claimed, checked only once the drain
+  has quiesced, because YugabyteDB also skips rows a committed transaction
+  touched after the reader's read time, so mid-run a row can be briefly invisible
+  to every claimer. Indeterminate claims are budgeted, never assumed either way.
+
+  A run that could not assert an invariant - no final read, or a drain that never
+  quiesced with acked payloads still unclaimed - is :valid? :unknown with an
+  :error, not a green result that checked less than it appears to.
 
   Bespoke rather than jepsen.checker/total-queue: that checker does not fail on
   duplicates, and its drain handling throws on the :info ops a nemesis produces.
@@ -30,10 +33,10 @@
             [yugabyte.generator :as ygen]))
 
 (def ^:private terminal-errors
-  "Enqueue errors meaning the insert certainly did not commit. A whitelist:
-  exception-to-op also labels [:conn-closed ...] :fail, but that is what a backend
-  reports when a kill/stop nemesis takes it down, which a commit that already
-  landed reports too."
+  "Error tags proving the transaction committed nothing. A whitelist, because
+  exception-to-op also labels [:conn-closed ...] :fail, and that is what a
+  backend reports when a nemesis takes it down mid-transaction as well as when a
+  commit already landed."
   #{:rollback :conflicting-transaction :try-again :restart-read-required
     :conn-not-ready})
 
@@ -44,6 +47,13 @@
         (sequential? error) (recur (if (= :batch (first error))
                                      (second error)
                                      (first error)))))
+
+(defn- definitely-failed?
+  "Whether a :fail op's error proves it committed nothing. :empty is our own
+  marker for `no row was claimable`, not an exception-to-op tag."
+  [op]
+  (let [tag (error-tag (:error op))]
+    (or (= :empty tag) (contains? terminal-errors tag))))
 
 (defn enqueues
   "Infinite stream of :enqueue ops. Payloads are globally unique and increasing,
@@ -60,15 +70,19 @@
   "Hold-free, so a generous quota costs seconds."
   500)
 
+(def drain-time-limit
+  "Seconds. core.clj time-limits the main phase only, so without this a cluster
+  that never recovers spends drains-per-thread times the 30s statement timeout on
+  every thread and blows the nightly's per-test budget."
+  120)
+
 (def final-reads
   "A few, so one :info read can't leave the checker without ground truth."
   5)
 
 (defn main-generator
   "Half the threads only enqueue, so supply continues even when dequeues block
-  under a nemesis; at least one, or a single-threaded run would enqueue nothing
-  and test nothing. `stagger` is global in 0.3, hence dividing by threads. A bare
-  op map is a one-shot generator, hence `repeat`."
+  under a nemesis. `stagger` is global in 0.3, hence dividing by threads."
   [threads]
   (->> (gen/reserve (max 1 (quot threads 2)) (enqueues) (repeat dequeue))
        (gen/stagger (/ 1 threads))))
@@ -76,18 +90,19 @@
 (defn final-generator
   "Post-heal drain, then the reads that give the checker its ground truth.
   Multi-round because a single empty claim proves nothing: SKIP LOCKED also
-  returns nothing for rows that are merely contended."
+  returns nothing for rows that are merely contended. The limit wraps only the
+  drain, so an expired drain still leaves the reads to run."
   []
   (gen/phases
-    (gen/each-thread (gen/limit drains-per-thread (repeat drain)))
+    (gen/time-limit drain-time-limit
+                    (gen/each-thread (gen/limit drains-per-thread (repeat drain))))
     (gen/limit final-reads (repeat read-table))))
 
 (defn- final-read
   "The last :ok :read-table invoked after every :ok claim completed; an earlier
   read may predate a straggler claim's commit and misreport it as lost. Only :ok
   claims count: an :info claim may complete after the reads, and its commit may
-  land after its own completion anyway, so waiting for it protects nothing.
-  gen/phases synchronizes, so this already holds; the filter guards it."
+  land after its own completion anyway, so waiting for it protects nothing."
   [history ops]
   (let [last-claim (->> ops
                         (filter #(and (= :dequeue (:f %)) (= :ok (:type %))))
@@ -113,43 +128,48 @@
       {:count (count v), :sample (subvec v 0 max-reported)})))
 
 (defn- converged?
-  "True if every draining thread ended on an empty claim, so the queue was
-  quiescent and leftover rows are a real loss rather than transient contention. A
-  thread whose final attempt failed for another reason, or was indeterminate,
-  leaves the queue's state unknown there and blocks the conclusion. Grouped by
-  thread, not process: jepsen retires a process after an :info and hands its
-  thread `process + concurrency`, so a retired process alone never looks
-  converged."
+  "Whether the drain proved the queue quiescent. Every thread must have run its
+  full quota - a short one means drain-time-limit cut the drain off, and threads
+  that all stop at the same deadline can all see :empty through mutual SKIP
+  LOCKED while rows remain - and every thread's last attempt must have found the
+  queue empty. Grouped by thread, not process: jepsen retires a process after an
+  :info and hands its thread `process + concurrency`."
   [test ops]
   (let [by-thread (->> ops
                        (filter #(and (:drain? %) (not= :invoke (:type %))))
                        (group-by #(mod (:process %) (:concurrency test))))]
-    (and (seq by-thread)
-         (every? (fn [os]
-                   (let [l (apply max-key :index os)]
-                     (and (= :fail (:type l)) (= :empty (:error l)))))
-                 (vals by-thread)))))
+    (boolean
+      (and (seq by-thread)
+           (every? (fn [os]
+                     (and (= drains-per-thread (count os))
+                          (let [l (apply max-key :index os)]
+                            (and (= :fail (:type l)) (= :empty (:error l))))))
+                   (vals by-thread))))))
 
 (defn checker
   []
   (reify checker/Checker
     (check [_ test history _]
       (let [ops      (h/client-ops history)
-            of       (fn [t f] (filter #(and (= t (:type %)) (= f (:f %))) ops))
+            by-t-f   (group-by (juxt :type :f) ops)
+            of       (fn [t f] (by-t-f [t f]))
             tried    (set (map :value (of :invoke :enqueue)))
-            failed   (->> (of :fail :enqueue)
-                          (filter (comp terminal-errors error-tag :error))
-                          (map :value)
-                          set)
+            failed   (->> (of :fail :enqueue) (filter definitely-failed?)
+                          (map :value) set)
             acked    (set (map :value (of :ok :enqueue)))
             ok-deq   (of :ok :dequeue)
             claims   (map (juxt :value :process) ok-deq)
             ; rows each claim stepped over; nil on drains, which do not measure
             skips    (keep :skipped ok-deq)
             claimed  (set (map first claims))
-            ; a process is retired after an indeterminate op, so each :info claim
-            ; is one row that process may have claimed unseen
-            unsure   (frequencies (map :process (of :info :dequeue)))
+            ; Each indeterminate claim is one row that process may have claimed
+            ; unseen. A :fail that is not provably terminal counts too: kill and
+            ; stop nemeses do produce [:conn-closed ...] on a claim whose UPDATE
+            ; already committed.
+            unsure   (frequencies (map :process
+                                       (concat (of :info :dequeue)
+                                               (remove definitely-failed?
+                                                       (of :fail :dequeue)))))
             read     (final-read history ops)
             rows     (:value read)
             row-of   (into {} (map (juxt :payload identity)) rows)
@@ -191,33 +211,49 @@
                                                        (sort-by :payload rs))))
                                        (map :payload)
                                        sort)
+                 ; Only acked enqueues were promised a place in the queue, so only
+                 ; they must have been claimed. A row from an indeterminate
+                 ; enqueue may have committed after the drainers swept past it,
+                 ; and one from a terminally-failed enqueue is already reported
+                 ; under :unexpected-rows.
                  :undrained       (when drained?
                                     (->> rows (remove :claimed) (map :payload)
-                                         (remove unexpected)
+                                         (filter acked)
                                          (remove lost-claims)
                                          sort))}))
             problems (into {} (comp (remove (comp empty? val))
                                     (map (fn [[k v]] [k (summarize v)])))
-                           (assoc table-problems :duplicate-claims dups))]
+                           (assoc table-problems :duplicate-claims dups))
+            ; Why an otherwise-clean history still could not be judged. One
+            ; source of truth for both :valid? and :error.
+            unverified
+            (cond (nil? read)
+                  (str "No :ok :read-table was invoked after the last claim "
+                       "committed; only mutual exclusion could be checked.")
+
+                  ; lost-claims is deliberately not excluded: this only changes
+                  ; :valid? when problems is empty, and a non-empty lost-claims
+                  ; would itself have made problems non-empty.
+                  (and (not drained?)
+                       (seq (filter acked (map :payload (remove :claimed rows)))))
+                  (str "The drain never quiesced while acked payloads were still "
+                       "unclaimed, so completeness could not be asserted. See "
+                       ":drain-converged? and :unclaimed."))]
         (cond-> {:valid?   (cond (seq problems) false
-                                 ; nothing wrong in the history, but most
-                                 ; invariants went unchecked
-                                 (nil? read)    :unknown
+                                 unverified     :unknown
                                  :else          true)
                  :problems problems
-                 :stats    {:enqueued    (count acked)
-                            :claimed     (count claims)
-                            ; zero here means SKIP LOCKED never had to skip, so the
-                            ; run exercised plain locking and proved little
+                 :stats    {:enqueued            (count acked)
+                            :claimed             (count claims)
+                            ; zero means SKIP LOCKED never had to skip, so the run
+                            ; exercised plain locking and proved little
                             :rows-skipped        (reduce + 0 skips)
                             :claims-that-skipped (count (filter pos? skips))
-                            :rows        (count rows)
-                            :unclaimed   (count (remove :claimed rows))
-                            :final-read? (some? read)
-                            :drain-converged? drained?}}
-          (nil? read)
-          (assoc :error (str "No :ok :read-table was invoked after the last claim "
-                             "committed; only mutual exclusion could be checked.")))))))
+                            :rows                (count rows)
+                            :unclaimed           (count (remove :claimed rows))
+                            :final-read?         (some? read)
+                            :drain-converged?    drained?}}
+          unverified (assoc :error unverified))))))
 
 (defn workload
   "Shared by si.queue and rc.queue; only the client's isolation differs."

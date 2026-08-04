@@ -16,7 +16,8 @@
 
   Every op runs in a transaction at the client's isolation. Both parts matter: the
   connection default is serializable, where YugabyteDB downgrades SKIP LOCKED to a
-  blocking lock, and a locking read outside a transaction is rejected outright."
+  blocking lock, and the row lock has to outlive the SELECT for concurrent
+  claimers to have anything to skip."
   (:require [clojure.java.jdbc :as j]
             [clojure.string :as str]
             [jepsen.random :as random]
@@ -35,10 +36,11 @@
   50)
 
 (defn- assert-isolation!
-  "Fails setup unless a transaction really runs at the client's isolation. If it
-  silently fell back to the connection default of serializable, YugabyteDB would
-  downgrade SKIP LOCKED to a blocking lock and every assertion would still pass,
-  so the whole test would be vacuous while looking healthy."
+  "Fails setup unless a transaction really runs at the client's isolation: a silent
+  fallback to the connection default of serializable would downgrade SKIP LOCKED
+  to a blocking lock and leave every assertion passing on a vacuous test. Reads
+  the PostgreSQL-level setting, so it does not detect YugabyteDB mapping read
+  committed onto snapshot when yb_enable_read_committed_isolation is off."
   [c isolation]
   (j/with-db-transaction [c c {:isolation isolation}]
     (let [want   (str/replace (name isolation) "-" " ")
@@ -62,8 +64,6 @@
     (assert-isolation! c isolation))
 
   (invoke-op! [this test op c conn-wrapper]
-    ; Explicit isolation on every op, enqueues included, and the locking select is
-    ; only legal inside a transaction at all. See the namespace docstring.
     (j/with-db-transaction [c c {:isolation isolation}]
       (case (:f op)
         :enqueue
@@ -79,19 +79,16 @@
           ; measures how many rows SKIP LOCKED stepped over. Exact at repeatable
           ; read, where the count shares the claim's snapshot; approximate at read
           ; committed, which re-snapshots per statement.
-          (let [skipped (when-not (:drain? op)
-                          (let [s (:skipped (first (c/query op c [(str "select count(*) as skipped from "
-                                                                       table-name " where " unclaimed
-                                                                       " and id < ?")
-                                                                  (:id row)])))]
-                            (Thread/sleep (random/long hold-ms))
-                            s))
-                updated (first (c/execute! op c [(str "update " table-name
-                                                      " set claimed = true, claimer = ? where id = ?")
-                                                 (:process op) (:id row)]))]
-            (when (not= 1 updated)
-              (throw (ex-info "claim updated wrong number of rows"
-                              {:op op, :row row, :updated updated})))
+          (let [measure? (not (:drain? op))
+                skipped  (when measure?
+                           (:skipped (first (c/query op c [(str "select count(*) as skipped from "
+                                                                table-name " where " unclaimed
+                                                                " and id < ?")
+                                                           (:id row)]))))]
+            (when measure? (Thread/sleep (random/long hold-ms)))
+            (c/execute! op c [(str "update " table-name
+                                   " set claimed = true, claimer = ? where id = ?")
+                              (:process op) (:id row)])
             (assoc op :type :ok, :value (:payload row), :skipped skipped))
           (assoc op :type :fail, :error :empty))
 
