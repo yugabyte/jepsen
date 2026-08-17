@@ -14,7 +14,8 @@
              [upsert :as upsert]
              [types :as types]
              [g2 :as g2]
-             [monotonic :as monotonic]]
+             [monotonic :as monotonic]
+             [queue :as queue]]
             [yugabyte.auto :as auto]
             [yugabyte.bank :as bank]
             [yugabyte.bank-improved :as bank-improved]
@@ -43,7 +44,8 @@
              [upsert :as ysql.upsert]
              [types :as ysql.types]
              [g2 :as ysql.g2]
-             [monotonic :as ysql.monotonic]]
+             [monotonic :as ysql.monotonic]
+             [queue :as ysql.queue]]
             [yugabyte.ysql.bank]
             [yugabyte.ysql.bank-improved]
             [yugabyte.ysql.counter]
@@ -166,7 +168,13 @@
 
          ; Per-session monotonic reads over a monotonically increasing register.
          :si.monotonic       (with-client monotonic/workload (ysql.monotonic/->Client :repeatable-read))
-         :rc.monotonic       (with-client monotonic/workload (ysql.monotonic/->Client :read-committed))})
+         :rc.monotonic       (with-client monotonic/workload (ysql.monotonic/->Client :read-committed))
+
+         ; SELECT ... FOR UPDATE SKIP LOCKED work queue: no payload claimed twice,
+         ; nothing left unclaimed once drained. No sz. variant - YugabyteDB
+         ; downgrades SKIP LOCKED to blocking at serializable (yugabyte-db#11761).
+         :si.queue           (with-client queue/workload (ysql.queue/->Client :repeatable-read))
+         :rc.queue           (with-client queue/workload (ysql.queue/->Client :read-committed))})
 
 (def workloads
   (merge workloads-ycql workloads-ysql))
