@@ -759,7 +759,7 @@
                (master-stress-flags test)
                (master-append-table-flags test)
                ; Debug logging for DDL correctness issues
-               :--vmodule "pg_client_session=4,async_rpc=2"
+               :--vmodule "pg_client_session=4,async_rpc=2,read_query=2"
                (master-api-opts (:api test) node)]
               (:master-flags test)))))
 
@@ -792,7 +792,7 @@
                (tserver-heartbeat-flags test)
                ; Debug logging for DDL correctness issues. ysql_pg_conf_csv is
                ; tserver-only.
-               :--vmodule "pg_client_session=4,async_rpc=2"
+               :--vmodule "pg_client_session=4,async_rpc=2,read_query=2"
                :--ysql_pg_conf_csv "log_statement=all,yb_debug_log_internal_restarts=true"]
               (:tserver-flags test)))))
 
