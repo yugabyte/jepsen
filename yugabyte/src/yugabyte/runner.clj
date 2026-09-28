@@ -77,9 +77,9 @@
     :assoc-fn (fn [m k v] (update m :nemesis merge v))
     :validate [(fn [parsed]
                  (and (map? parsed)
-                      (every? core/nemesis-specs (keys parsed))))
+                      (every? core/all-nemesis-specs (keys parsed))))
                (str "Should be a comma-separated list of failure types. A failure "
-                    (.toLowerCase (cli/one-of core/nemesis-specs))
+                    (.toLowerCase (cli/one-of core/all-nemesis-specs))
                     ". Or, you can use 'none' to indicate no failures.")]]
 
    [nil "--nemesis-interval SECONDS"
@@ -134,6 +134,28 @@
    [nil "--master-flags FLAG" "Extra gflag for master (repeatable): flag_name or flag_name=value. pg_conf flags are merged."
     :default []
     :assoc-fn (fn [m _ v] (update m :master-flags conj v))]
+
+   [nil "--amp" "Test an already-deployed AMP stack on Kubernetes instead of installing YugabyteDB over SSH. Use with --no-ssh."
+    :default false]
+
+   [nil "--amp-host HOST" "AMP endpoint host (the endpoint Service DNS name)"]
+
+   [nil "--amp-port PORT" "AMP endpoint Postgres port"
+    :default 55433
+    :parse-fn parse-long]
+
+   [nil "--amp-user USER" "AMP endpoint role jepsen connects as; its password comes from $AMP_PASSWORD, which keeps it out of the logged test map"]
+
+   [nil "--amp-dbname NAME" "Existing database to connect to while recreating the jepsen database"
+    :default "postgres"]
+
+   [nil "--amp-namespace NS" "Namespace of the AMP control plane and endpoint pods"]
+
+   [nil "--amp-endpoint-selector SELECTOR" "Label selector for the endpoint pod under test"]
+
+   [nil "--amp-endpoint-path PATH" "Controller API path of the endpoint under test, /storage-pools/<p>/clusters/<c>/branches/<b>/endpoints/<e>"]
+
+   [nil "--yb-namespace NS" "Namespace of the YugabyteDB universe pods"]
 
    [nil "--tserver-flags FLAG" "Extra gflag for tserver (repeatable): flag_name or flag_name=value. pg_conf flags are merged."
     :default []

@@ -8,6 +8,7 @@
             [jepsen.tests :as tests]
             [jepsen.os.debian :as debian]
             [jepsen.os.centos :as centos]
+            [jepsen.os :as os]
             [yugabyte [append :as append]
              [default-value :as default-value]
              [wr :as wr]
@@ -17,6 +18,8 @@
              [monotonic :as monotonic]
              [queue :as queue]]
             [yugabyte.auto :as auto]
+            [yugabyte.amp.db :as amp.db]
+            [yugabyte.amp.nemesis :as amp.nemesis]
             [yugabyte.bank :as bank]
             [yugabyte.bank-improved :as bank-improved]
             [yugabyte.counter :as counter]
@@ -213,6 +216,8 @@
     :stop-tserver
     :clock-skew})
 
+(def all-nemesis-specs (into nemesis-specs amp.nemesis/specs))
+
 (def all-nemeses
   "All nemesis specs to run as a part of a complete test suite."
   (->> [[]                                                  ; No faults
@@ -280,7 +285,7 @@
   name, OS, DB."
   [opts]
   (let [api (keyword (namespace (:workload opts)))
-        url-version (first (re-find version-regex (get opts :url "")))]
+        url-version (first (re-find version-regex (or (:url opts) "")))]
     (when (and (= :ycql api) (:connection-manager opts))
       (warn "Connection manager is a YSQL-only feature; disabling it for YCQL workload"
             (:workload opts)))
@@ -299,9 +304,11 @@
       ; Connection manager (YSQL Connection Manager / Odyssey) only applies to
       ; YSQL. Never enable it for YCQL tests, regardless of the CLI flag.
       :connection-manager (and (not= :ycql api) (:connection-manager opts))
-      :name (str "yb_" (-> (or (:url opts) (:version opts))
-                           (str/split #"/")
-                           (last))
+      :name (str (if (:amp opts)
+                   "amp"
+                   (str "yb_" (-> (or (:url opts) (:version opts))
+                                  (str/split #"/")
+                                  (last))))
                  "_" (name api)
                  "_" (name (:workload opts))
                  (when-not (= [:interval] (keys (:nemesis opts)))
@@ -311,30 +318,39 @@
                                          sort
                                          (str/join ",")))))
       :pure-generators true
-      :os (case (:os opts)
-            :centos centos/os
-            :debian debian/os)
-      :db (auto/->YugaByteDB))))
+      :os (cond (:amp opts)            os/noop
+                (= :centos (:os opts)) centos/os
+                :else                  debian/os)
+      :db (if (:amp opts) (amp.db/db) (auto/->YugaByteDB)))))
 
 (defn test-2
   "Second phase of test construction. Builds the workload and nemesis, and
   finalizes the test."
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
-        nemesis (nemesis/nemesis opts)
+        nemesis (if (:amp opts) (amp.nemesis/nemesis opts) (nemesis/nemesis opts))
         gen (->> (:generator workload)
                  (gen/nemesis (:generator nemesis))
                  (gen/time-limit (:time-limit opts)))
-        gen (if (:final-generator workload)
+        gen (cond
+              (:final-generator workload)
               (gen/phases gen
                           (gen/log "Healing cluster")
                           (gen/nemesis (:final-generator nemesis))
                           (gen/log "Waiting for recovery...")
                           (gen/sleep (:final-recovery-time opts))
                           (gen/clients (:final-generator workload)))
-              gen)
+
+              ; An AMP stack outlives the test, so a fault still active at the
+              ; time limit would poison the next test.
+              (:amp opts)
+              (gen/phases gen
+                          (gen/log "Healing cluster")
+                          (gen/nemesis (:final-generator nemesis)))
+
+              :else gen)
         perf (checker/perf
-               {:nemeses #{{:name       "kill master"
+               {:nemeses (if (:amp opts) amp.nemesis/perf-nemeses #{{:name       "kill master"
                             :start      #{:kill-master :stop-master}
                             :stop       #{:start-master}
                             :fill-color "#E9A4A0"}
@@ -357,7 +373,7 @@
                            {:name       "partition"
                             :start      #{:start-partition}
                             :stop       #{:stop-partition}
-                            :fill-color "#888888"}}})
+                            :fill-color "#888888"}})})
         checker (if (is-stub-workload (:workload opts))
                   (:checker workload)
                   (checker/compose {:perf                 perf

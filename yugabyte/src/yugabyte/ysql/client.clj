@@ -22,9 +22,9 @@
 
 (defn ysql-port
   [test]
-  (if (:connection-manager test)
-    5431
-    5433))
+  (cond (:amp test)                (:amp-port test)
+        (:connection-manager test) 5431
+        :else                      5433))
 
 (def max-retry-attempts "Maximum number of attempts to be performed by with-retry" 30)
 (def max-delay-between-retries-ms "Maximum delay between retries for with-retry" 200)
@@ -180,7 +180,10 @@
   (rc/open!
     (rc/wrapper
       {:name  node
-       :open  (partial open-conn "jepsen" "jepsen" "jepsen" node (ysql-port test))
+       :open  (if (:amp test)
+                (partial open-conn "jepsen" (:amp-user test) (System/getenv "AMP_PASSWORD")
+                         (:amp-host test) (ysql-port test))
+                (partial open-conn "jepsen" "jepsen" "jepsen" node (ysql-port test)))
        :close close-conn
        ; Do not log intermediate reconnection errors (if the reconnect fails, we'll still get it)
        :log?  false})))
@@ -214,6 +217,14 @@
 
       com.yugabyte.util.PSQLException
       (condp re-find m
+        ; PostgreSQL's own aborts (SQLSTATE 40001 / 40P01), which an AMP
+        ; endpoint raises where YugabyteDB would say "Conflicts with".
+        #"(?i)could not serialize access"
+        {:type :fail, :error [:serialization-failure m]}
+
+        #"(?i)deadlock detected"
+        {:type :fail, :error [:deadlock m]}
+
         #"(?i)Conflicts with [- a-z]+ transaction"
         {:type :fail, :error [:conflicting-transaction m]}
 
