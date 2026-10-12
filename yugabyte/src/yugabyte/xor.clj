@@ -65,6 +65,9 @@
                      " --scan-all-databases"
                      " --tools-path " auto/dir "/bin"
                      " --max-runtime " max-runtime
+                     ;; Fail fast when no master is reachable: the defaults
+                     ;; retry list_tables 3x at 60s, burning ~3 min per run.
+                     " --admin-timeout 20 --admin-retries 0"
                      " > " log " 2>&1; echo EXIT_CODE=$?")]
         (c/upload-resource! script remote-path)
         (let [res  (c/su (c/exec :bash :-c cmd))

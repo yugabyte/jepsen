@@ -334,9 +334,14 @@
                           (gen/sleep (:final-recovery-time opts))
                           (gen/clients (:final-generator workload)))
               gen)
+        ; Most workloads have no :final-generator, so nothing has healed the
+        ; cluster by this point and the check would find no reachable master.
         gen (if (is-stub-workload (:workload opts))
               gen
               (gen/phases gen
+                          (gen/log "Healing cluster for XOR check")
+                          (gen/nemesis (:final-generator nemesis))
+                          (gen/sleep (:final-recovery-time opts))
                           (gen/log "Checking replica consistency (XOR)")
                           (gen/nemesis (gen/once (nemesis/op :xor-check)))))
         perf (checker/perf
