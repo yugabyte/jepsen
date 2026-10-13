@@ -29,7 +29,13 @@
   c/YSQLYbClient
 
   (setup-cluster! [this test c conn-wrapper]
-    (c/execute! c "CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public")
+    ; CREATE EXTENSION is database-wide and IF NOT EXISTS does not guard
+    ; against concurrent creation: the loser of a race gets a unique
+    ; violation on pg_extension. Runs sharing the database serialize on a
+    ; transaction-scoped advisory lock.
+    (j/with-db-transaction [c c {:isolation :read-committed}]
+      (c/query c ["SELECT pg_advisory_xact_lock(hashtext('jepsen.btree_gist'))"])
+      (c/execute! c "CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public"))
     (c/execute! c (str "CREATE TABLE " table-name " ("
                        "id bigint NOT NULL, "
                        "room int NOT NULL, "

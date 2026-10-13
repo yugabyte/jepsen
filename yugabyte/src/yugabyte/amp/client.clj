@@ -11,7 +11,7 @@
   PGPASSWORD environment variable and is never stored in the test map, which
   Jepsen writes to store/."
   (:require [clojure.java.jdbc :as j]
-            [clojure.tools.logging :refer [info]]
+            [clojure.tools.logging :refer [info warn]]
             [jepsen.client :as client]
             [jepsen.reconnect :as rc]
             [yugabyte.ysql.client :as c])
@@ -83,6 +83,13 @@
   rollback, 55 object not in prerequisite state."
   #{"23" "25" "40" "55"})
 
+(defn definite-state?
+  "True when SQLSTATE guarantees the transaction did not commit. 40003
+  (statement_completion_unknown) is in class 40 but indeterminate."
+  [state]
+  (and (not= "40003" state)
+       (boolean (definite-classes (subs state 0 2)))))
+
 (defn exception->op
   "Maps an exception to a partial op. :fail when the transaction definitely
   did not commit, :info when the outcome is unknown. nil for errors in the
@@ -92,14 +99,23 @@
         m     (.getMessage e)]
     (if (nil? state)
       (when (instance? clojure.lang.ExceptionInfo e)
-        ; jepsen.reconnect has no connection open
-        {:type :fail, :error [:no-conn m]})
+        (let [data (ex-data e)]
+          (cond
+            ; clojure.java.jdbc: rollback failed after the body or COMMIT
+            ; threw, usually because the connection is gone. The original
+            ; error decides, so a lost connection during COMMIT is :info.
+            (:handling data)
+            (exception->op (:handling data))
+
+            ; jepsen.reconnect has no connection open: nothing was sent
+            (= :jepsen.reconnect/no-conn (:type data))
+            {:type :fail, :error [:no-conn m]})))
       (let [cls (subs state 0 2)
             err [(error-names state :sql) state m]]
         (cond
           ; Connection could not be established: nothing was sent
           (#{"08001" "08004"} state) {:type :fail, :error err}
-          (definite-classes cls)     {:type :fail, :error err}
+          (definite-state? state)    {:type :fail, :error err}
           (#{"22" "42"} cls)         nil
           ; Connection loss (08), shutdown (57P0x), cancel (57014), anything
           ; else: the transaction may have committed
@@ -110,12 +126,12 @@
   #{:read})
 
 (defn definite-failure?
-  "True when the server rejected the transaction (SQLSTATE class 23, 25, 40
-  or 55). The session is still healthy: the server answered and
-  with-db-transaction rolled back."
+  "True when the server rejected the transaction (see definite-state?). The
+  session is still healthy: the server answered and with-db-transaction
+  rolled back."
   [e]
   (when-let [state (sql-state e)]
-    (boolean (definite-classes (subs state 0 2)))))
+    (definite-state? state)))
 
 (defn invoke-with-conn
   "Runs (f c) with a connection from the wrapper and maps exceptions to ops.
@@ -138,6 +154,27 @@
     (if (and (= :info (:type op')) (read-fs (:f op')))
       (assoc op' :type :fail)
       op')))
+
+(def drop-attempts 3)
+
+(defn drop-schema!
+  "Drops the test schema. Never throws: Jepsen runs client teardown in a
+  finally around the test, so an exception there would replace the history
+  and lose the verdict. Each failed attempt reopens the connection, which is
+  likely dead after an endpoint restart."
+  [conn-wrapper schema]
+  (loop [attempt 1]
+    (let [dropped? (try
+                     (rc/with-conn [c conn-wrapper]
+                       (c/execute! c (str "DROP SCHEMA IF EXISTS " schema " CASCADE")))
+                     true
+                     (catch Exception e
+                       (warn e "Dropping schema" schema "failed, attempt" attempt "of" drop-attempts)
+                       false))]
+      (cond
+        dropped?                  (info "Dropped schema" schema)
+        (< attempt drop-attempts) (do (Thread/sleep 1000) (recur (inc attempt)))
+        :else                     (warn "Leaving schema" schema "behind")))))
 
 (defrecord AmpClient [conn-wrapper inner setup? teardown?]
   client/Client
@@ -163,9 +200,7 @@
       teardown?
       (if (:leave-db-running? test)
         (info "Leaving schema" (:schema test) "in place")
-        (rc/with-conn [c conn-wrapper]
-          (info "Dropping schema" (:schema test))
-          (c/execute! c (str "DROP SCHEMA IF EXISTS " (:schema test) " CASCADE"))))))
+        (drop-schema! conn-wrapper (:schema test)))))
 
   (close! [this test]
     (rc/close! conn-wrapper)))
