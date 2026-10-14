@@ -32,14 +32,28 @@
   [s]
   (str/trim (str/replace (str s) #"\u001b\[[0-9;]*m" "")))
 
-(def failing-statuses
-  "Statuses that invalidate a run. :unverifiable fails because a replica we could
-  not read is exactly where a loss would hide; the stress suite treats it the
-  same way."
-  #{:mismatch :unverifiable})
+(def no-tables-marker
+  "Printed when discovery succeeded but found nothing to compare, e.g.
+  sz.default-value drops its tables as a workload operation. Nothing to compare
+  is not a gap in coverage."
+  "No tables")
+
+(def status->valid
+  "How each status rolls up into the run verdict. Only :ok and :no-tables are a
+  pass: anything that checked less than everything must not look like a run we
+  checked and found clean. :unverifiable fails rather than being indeterminate
+  because a replica we could not read is exactly where a loss would hide, which
+  is how the stress suite treats it too."
+  {:ok           true
+   :no-tables    true
+   :mismatch     false
+   :unverifiable false
+   :partial      :unknown
+   :error        :unknown
+   :not-run      :unknown})
 
 (defn classify
-  "Exit code and stdout -> {:status :ok|:mismatch|:unverifiable|:warn}."
+  "Exit code and stdout -> {:status ... :summary ...}; see status->valid."
   [exit-code out]
   (let [lines (remove str/blank? (str/split-lines out))]
     (cond
@@ -54,17 +68,20 @@
       {:status  :unverifiable
        :summary "exit 2: some tablets could not be read from enough replicas"}
 
+      (= 3 exit-code)
+      {:status :partial, :summary "exit 3: stopped early, partial coverage"}
+
+      (str/includes? out no-tables-marker)
+      {:status :no-tables, :summary "discovery found no tables to compare"}
+
       :else
-      {:status  :warn
-       :summary (str "exit " exit-code ": "
-                     (if (= 3 exit-code)
-                       "stopped early, partial coverage"
-                       (clean (last lines))))})))
+      {:status  :error
+       :summary (str "exit " exit-code ": " (clean (last lines)))})))
 
 (defn run-check!
   "Runs the check from the node this is invoked on. Never throws."
   [test]
-  (util/timeout timeout-ms {:status :warn, :summary "timed out"}
+  (util/timeout timeout-ms {:status :error, :summary "timed out"}
     (try
       ;; Output to a file: a scan prints a line per tablet, and c/exec throws on
       ;; a nonzero exit, so the code has to come back separately.
@@ -87,7 +104,7 @@
               code (parse-long (second (re-find #"EXIT_CODE=(\d+)" res)))]
           (classify code (c/su (c/exec :cat log)))))
       (catch Exception e
-        {:status :warn, :summary (str "errored: " (.getMessage e))}))))
+        {:status :error, :summary (str "errored: " (.getMessage e))}))))
 
 (defn checker
   "Reads the :xor-check op out of the history."
@@ -98,7 +115,7 @@
                            (filter #(and (= :xor-check (:f %)) (map? (:value %))))
                            first
                            :value)]
-        (assoc result :valid? (not (contains? failing-statuses (:status result))))
+        (assoc result :valid? (get status->valid (:status result) :unknown))
         ;; Not a pass: the op is missing only if it never completed (e.g. the
         ;; nemesis invoke! threw), and a run we did not check must not look
         ;; like one we checked and found clean. Stub workloads do not reach
