@@ -334,8 +334,8 @@
                           (gen/sleep (:final-recovery-time opts))
                           (gen/clients (:final-generator workload)))
               gen)
-        ; Most workloads have no :final-generator, so nothing has healed the
-        ; cluster by this point and the check would find no reachable master.
+        ; Heal here: only 2 of 49 workloads have a :final-generator, so for the
+        ; rest nothing above has repaired what the nemesis broke.
         gen (if (is-stub-workload (:workload opts))
               gen
               (gen/phases gen

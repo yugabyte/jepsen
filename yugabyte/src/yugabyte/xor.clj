@@ -16,12 +16,26 @@
 (def timeout-ms 240000)
 
 (def mismatch-marker
-  "The only line the script prints exclusively where it actually compared peers.
-  Neither the exit code nor the summary's \"Failure: Found inconsistencies\" can
-  stand in for it: the script initialises exit_code = 1, and a per-table
-  exception or a table with no tablets also returns 1 and is counted into that
-  summary line."
+  "Matched instead of the exit code or the summary line: the script initialises
+  exit_code = 1, and a per-table exception or a table with no tablets is also
+  counted into \"Failure: Found inconsistencies\"."
   "MISMATCH DETECTED")
+
+(def no-tables-marker
+  "Discovery succeeded but found nothing to compare, e.g. sz.default-value drops
+  its tables as a workload operation."
+  "No tables")
+
+(def status->valid
+  "Run verdict per status. Only :ok and :no-tables pass: a run that checked less
+  than everything must not look like one that checked everything and agreed."
+  {:ok           true
+   :no-tables    true
+   :mismatch     false
+   :unverifiable false
+   :partial      :unknown
+   :error        :unknown
+   :not-run      :unknown})
 
 (defn- marker?
   [s]
@@ -32,71 +46,51 @@
   [s]
   (str/trim (str/replace (str s) #"\u001b\[[0-9;]*m" "")))
 
-(def no-tables-marker
-  "Printed when discovery succeeded but found nothing to compare, e.g.
-  sz.default-value drops its tables as a workload operation. Nothing to compare
-  is not a gap in coverage."
-  "No tables")
-
-(def status->valid
-  "How each status rolls up into the run verdict. Only :ok and :no-tables are a
-  pass: anything that checked less than everything must not look like a run we
-  checked and found clean. :unverifiable fails rather than being indeterminate
-  because a replica we could not read is exactly where a loss would hide, which
-  is how the stress suite treats it too."
-  {:ok           true
-   :no-tables    true
-   :mismatch     false
-   :unverifiable false
-   :partial      :unknown
-   :error        :unknown
-   :not-run      :unknown})
+(defn- lines-of
+  [out]
+  (remove str/blank? (str/split-lines out)))
 
 (defn classify
   "Exit code and stdout -> {:status ... :summary ...}; see status->valid."
   [exit-code out]
-  (let [lines (remove str/blank? (str/split-lines out))]
-    (cond
-      (zero? exit-code)
-      {:status :ok, :summary "all replicas consistent"}
+  (cond
+    (zero? exit-code)
+    {:status :ok, :summary "all replicas consistent"}
 
-      (and (= 1 exit-code) (marker? out))
-      {:status  :mismatch
-       :summary (str/join "; " (map clean (filter marker? lines)))}
+    (and (= 1 exit-code) (marker? out))
+    {:status  :mismatch
+     :summary (->> (lines-of out) (filter marker?) (map clean) (str/join "; "))}
 
-      (= 2 exit-code)
-      {:status  :unverifiable
-       :summary "exit 2: some tablets could not be read from enough replicas"}
+    (= 2 exit-code)
+    {:status :unverifiable, :summary "exit 2: tablets unreadable on too many replicas"}
 
-      (= 3 exit-code)
-      {:status :partial, :summary "exit 3: stopped early, partial coverage"}
+    (= 3 exit-code)
+    {:status :partial, :summary "exit 3: stopped early, partial coverage"}
 
-      (str/includes? out no-tables-marker)
-      {:status :no-tables, :summary "discovery found no tables to compare"}
+    (str/includes? out no-tables-marker)
+    {:status :no-tables, :summary "no tables to compare"}
 
-      :else
-      {:status  :error
-       :summary (str "exit " exit-code ": " (clean (last lines)))})))
+    :else
+    {:status  :error
+     :summary (str "exit " exit-code ": " (clean (last (lines-of out))))}))
 
 (defn run-check!
   "Runs the check from the node this is invoked on. Never throws."
   [test]
   (util/timeout timeout-ms {:status :error, :summary "timed out"}
     (try
-      ;; Output to a file: a scan prints a line per tablet, and c/exec throws on
-      ;; a nonzero exit, so the code has to come back separately.
-      ;; Despite the flag name, the script passes this straight to yb-admin
-      ;; --master_addresses, so give it every master and let yb-admin fail over.
+      ;; Output to a file: c/exec throws on a nonzero exit, so the code has to
+      ;; come back separately.
       (let [log (str "/tmp/xor-check-" (System/currentTimeMillis) ".log")
             cmd (str "python3 -u " remote-path
+                     ;; Passed straight to yb-admin --master_addresses, so give
+                     ;; it every master and let yb-admin fail over.
                      " --master_leader_address " (auto/master-addresses test)
                      " --scan-all-databases"
                      " --tools-path " auto/dir "/bin"
                      " --max-runtime " max-runtime
-                     ;; Shorter than the 120s default so an unreachable master
-                     ;; gives up quickly. Retries stay at their default: the
-                     ;; script reports a failed list_tablets as a mismatch, so
-                     ;; transients must be absorbed here rather than surfacing.
+                     ;; Retries stay at their default: the script reports a
+                     ;; failed list_tablets as a mismatch.
                      " --admin-timeout 20"
                      " > " log " 2>&1; echo EXIT_CODE=$?")]
         (c/upload-resource! script remote-path)
@@ -115,10 +109,9 @@
                            (filter #(and (= :xor-check (:f %)) (map? (:value %))))
                            first
                            :value)]
-        (assoc result :valid? (get status->valid (:status result) :unknown))
-        ;; Not a pass: the op is missing only if it never completed (e.g. the
-        ;; nemesis invoke! threw), and a run we did not check must not look
-        ;; like one we checked and found clean. Stub workloads do not reach
-        ;; here - they bypass the composed checker entirely.
-        {:valid? :unknown, :status :not-run
-         :summary "no :xor-check result in history; the check did not complete"}))))
+        (assoc result :valid? (status->valid (:status result) :unknown))
+        ;; Missing only if the op never completed; stub workloads bypass this
+        ;; checker entirely.
+        {:valid?  :unknown
+         :status  :not-run
+         :summary "the check did not complete"}))))
