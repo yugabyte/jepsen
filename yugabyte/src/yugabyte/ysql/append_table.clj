@@ -86,14 +86,14 @@
                                           [:v :int]]
                                          {:conditional? true}))
     (info "Created table" table-name)
-    (catch com.yugabyte.util.PSQLException e
+    (catch java.sql.SQLException e
       (if (re-find #"already exists" (.getMessage e))
         (info "Table" table-name "already exists")
         (throw e))))
   (try
     (c/execute! conn (str "CREATE INDEX idx_" table-name " ON " table-name " (k, v)"))
     (info "Created index for" table-name)
-    (catch com.yugabyte.util.PSQLException e
+    (catch java.sql.SQLException e
       (if (re-find #"already exists" (.getMessage e))
         (info "Index for" table-name "already exists")
         (throw e)))))
@@ -119,7 +119,7 @@
                   `(info "Creating table" ~table-sym "and retrying")
                   `(create-table! ~conn ~table-sym)
                   body)
-          ~(apply catch-dne 'com.yugabyte.util.PSQLException table-sym
+          ~(apply catch-dne 'java.sql.SQLException table-sym
                   `(info "Creating table" ~table-sym "and retrying")
                   `(create-table! ~conn ~table-sym)
                   body)

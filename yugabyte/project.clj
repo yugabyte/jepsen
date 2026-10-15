@@ -11,6 +11,8 @@
                  [org.clojure/java.jdbc "0.7.12"]
                  [org.clojure/data.json "2.4.0"]
                  [com.yugabyte/jdbc-yugabytedb "42.3.5-yb-3"]
+                 ; Stock pgjdbc for AMP (yugabyte.amp.*)
+                 [org.postgresql/postgresql "42.7.13"]
                  [version-clj "2.0.2"]
                  [clj-wallhack "1.0.1"]]
   :main yugabyte.runner
