@@ -7,6 +7,7 @@
   (:require [clojure.string :as str]
             [jepsen [checker :as checker]
                     [control :as c]
+                    [store :as store]
                     [util :as util]]
             [yugabyte.auto :as auto]))
 
@@ -94,9 +95,17 @@
                      " --admin-timeout 20"
                      " > " log " 2>&1; echo EXIT_CODE=$?")]
         (c/upload-resource! script remote-path)
-        (let [res  (c/su (c/exec :bash :-c cmd))
-              code (parse-long (second (re-find #"EXIT_CODE=(\d+)" res)))]
-          (classify code (c/su (c/exec :cat log)))))
+        (let [res    (c/su (c/exec :bash :-c cmd))
+              code   (parse-long (second (re-find #"EXIT_CODE=(\d+)" res)))
+              out    (c/su (c/exec :cat log))
+              result (classify code out)]
+          ;; Keep the script's own output beside the run's other artifacts, for
+          ;; anything worth investigating. The inner catch is deliberate: a
+          ;; failure to archive must not downgrade a :mismatch to :error.
+          (when-not (= :ok (:status result))
+            (try (spit (store/path! test "xor-check.log") out)
+                 (catch Exception _)))
+          result))
       (catch Exception e
         {:status :error, :summary (str "errored: " (.getMessage e))}))))
 
