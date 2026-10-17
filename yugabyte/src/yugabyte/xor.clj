@@ -13,8 +13,8 @@
 
 (def script "follower_consistency_check_v2.py")
 (def remote-path (str "/tmp/" script))
-(def max-runtime 180)
-(def timeout-ms 240000)
+(def max-runtime 300)
+(def timeout-ms 360000)
 
 (def mismatch-marker
   "Matched instead of the exit code or the summary line: the script initialises
@@ -93,6 +93,10 @@
                      ;; Retries stay at their default: the script reports a
                      ;; failed list_tablets as a mismatch.
                      " --admin-timeout 20"
+                     ;; The stress suite's settings. Each table costs ~0.3s,
+                     ;; mostly process startup, and append-table leaves up to
+                     ;; ~1000 tables, which one at a time cannot finish.
+                     " --workers 8 --tablet-workers 4 --max-concurrent-dumps 24"
                      " > " log " 2>&1; echo EXIT_CODE=$?")]
         (c/upload-resource! script remote-path)
         (let [res    (c/su (c/exec :bash :-c cmd))
