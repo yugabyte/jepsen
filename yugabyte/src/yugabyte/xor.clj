@@ -99,10 +99,16 @@
                      " --workers 8 --tablet-workers 4 --max-concurrent-dumps 24"
                      " > " log " 2>&1; echo EXIT_CODE=$?")]
         (c/upload-resource! script remote-path)
-        (let [res    (c/su (c/exec :bash :-c cmd))
+        (let [t0     (System/nanoTime)
+              res    (c/su (c/exec :bash :-c cmd))
+              secs   (quot (- (System/nanoTime) t0) 1000000000)
               code   (parse-long (second (re-find #"EXIT_CODE=(\d+)" res)))
               out    (c/su (c/exec :cat log))
-              result (classify code out)]
+              ;; Duration and coverage on every run: Jenkins keeps no logs for
+              ;; clean runs, and this is how a run nearing the budget shows.
+              result (assoc (classify code out)
+                            :elapsed-s secs
+                            :tablets   (second (re-find #"Tablets checked: (\d+/\d+)" out)))]
           ;; Keep the script's own output beside the run's other artifacts, for
           ;; anything worth investigating. The inner catch is deliberate: a
           ;; failure to archive must not downgrade a :mismatch to :error.
