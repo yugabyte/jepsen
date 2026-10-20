@@ -27,6 +27,7 @@
             [yugabyte.set :as set]
             [yugabyte.utils :as utils]
             [yugabyte.utils :refer :all]
+            [yugabyte.xor :as xor]
             [yugabyte.ycql.bank]
             [yugabyte.ycql.bank-improved]
             [yugabyte.ycql.counter]
@@ -333,6 +334,16 @@
                           (gen/sleep (:final-recovery-time opts))
                           (gen/clients (:final-generator workload)))
               gen)
+        ; Heal here: only 2 of 49 workloads have a :final-generator, so for the
+        ; rest nothing above has repaired what the nemesis broke.
+        gen (if (is-stub-workload (:workload opts))
+              gen
+              (gen/phases gen
+                          (gen/log "Healing cluster for XOR check")
+                          (gen/nemesis (:final-generator nemesis))
+                          (gen/sleep (:final-recovery-time opts))
+                          (gen/log "Checking replica consistency (XOR)")
+                          (gen/nemesis (gen/once (nemesis/op :xor-check)))))
         perf (checker/perf
                {:nemeses #{{:name       "kill master"
                             :start      #{:kill-master :stop-master}
@@ -364,6 +375,7 @@
                                     :stats                (checker/stats)
                                     :unhandled-exceptions (checker/unhandled-exceptions)
                                     :clock                (checker/clock-plot)
+                                    :xor-consistency      (xor/checker)
                                     :workload             (:checker workload)}))]
     (merge tests/noop-test
            opts

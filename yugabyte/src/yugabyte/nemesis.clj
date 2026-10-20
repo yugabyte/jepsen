@@ -6,6 +6,7 @@
             [jepsen.util :as util :refer [meh timeout]]
             [jepsen.nemesis.time :as nt]
             [yugabyte.auto :as auto]
+            [yugabyte.xor :as xor]
             [yugabyte.ysql.client :as ysql.client]))
 
 (defn process-nemesis
@@ -47,6 +48,22 @@
 
     (teardown! [this test])))
 
+(defn xor-nemesis
+  "Runs the XOR replica-consistency check once, from the first node. Not a fault;
+  it rides the nemesis because that is the only hook with SSH access that runs
+  while the cluster is still up."
+  []
+  (reify nemesis/Nemesis
+    (setup! [this test] this)
+
+    (invoke! [this test op]
+      (let [node (first (:nodes test))]
+        (assoc op :value (-> (c/on-nodes test [node]
+                                         (fn [test _] (xor/run-check! test)))
+                             (get node)))))
+
+    (teardown! [this test])))
+
 (defn clock-nemesis-wrapper
   "Wrapper around standard Jepsen clock-nemesis which stops ntp service in addition to ntpd.
   Won't be needed after https://github.com/jepsen-io/jepsen/pull/397"
@@ -79,6 +96,7 @@
        :resume-master :resume-tserver} (process-nemesis)
      {:start-partition :start
       :stop-partition  :stop}         (nemesis/partitioner nil)
+     #{:xor-check}                    (xor-nemesis)
      ;{:reset-clock          :reset
      ; :strobe-clock         :strobe
      ; :check-clock-offsets  :check-offsets
