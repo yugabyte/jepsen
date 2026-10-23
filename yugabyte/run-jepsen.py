@@ -488,7 +488,7 @@ def parse_args():
     parser.add_argument(
         '--connection-manager',
         action='store_true',
-        default=False,
+        default=True,
         help='Force enable connection manager (overrides random selection)')
     parser.add_argument(
         '--master-flags',
