@@ -372,8 +372,7 @@ def run_cmd(cmd,
                 cycle_search_timeout_only = is_cycle_search_timeout_only(last_lines_of_output)
                 has_valid_unknown = any(
                     ':valid? :unknown' in line for line in last_lines_of_output)
-        if everything_looks_good:
-            keep_output_log_file = False
+        # EXPERIMENT: keep clean runs' logs so every heal phase can be timed.
         return CmdResult(
             output=None if everything_looks_good else "\n".join(
                 [truncate_line(line) for line in last_lines_of_output]),
