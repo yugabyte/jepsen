@@ -220,13 +220,15 @@
          (:clock-skew n)                          (conj :reset-clock)
          (:pause-master n)                        (conj :resume-master)
          (:pause-tserver n)                       (conj :resume-tserver)
-         ; Masters first, as in auto/start!: with connection manager,
-         ; :start-tserver waits for YSQL, which needs a master quorum.
          (or (:kill-master n)  (:stop-master n))  (conj :start-master)
-         (or (:kill-tserver n) (:stop-tserver n)) (conj :start-tserver)
 
          (some n [:partition-one :partition-half :partition-ring])
-         (conj :stop-partition))
+         (conj :stop-partition)
+
+         ; Last: with connection manager, :start-tserver waits for YSQL on
+         ; every node, and a node only gets YSQL once it reaches a master
+         ; quorum, so the masters must be up and the network healed first.
+         (or (:kill-tserver n) (:stop-tserver n)) (conj :start-tserver))
        (map op)
        (map gen/once)))
 
