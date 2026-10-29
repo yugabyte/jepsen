@@ -43,6 +43,11 @@ find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
     else
       category="unknown"
     fi
+    # EXPERIMENT: the pipeline does not archive results-sorted/ok, so park clean
+    # runs elsewhere to keep their node logs.
+    if [[ "$category" == "ok" ]]; then
+      category="ok-kept"
+    fi
     dest_dir="$SORTED_DIR/$category/$rel_dir_path"
     mkdir -p "$(dirname "$dest_dir")"
     mv "$STORE_DIR/$rel_dir_path" "$dest_dir"

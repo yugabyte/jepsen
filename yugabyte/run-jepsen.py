@@ -551,12 +551,10 @@ def main():
     elif not (is_version_at_least("2024.1.0.0-b1", version) or
               is_version_at_least("2.25.1.0-b1", version)):
         connection_manager_flag = "--connection-manager false"
-    elif random.choice([True, False]):
-        connection_manager_flag = "--connection-manager"
-        logging.info("Randomly enabled connection manager")
     else:
+        # EXPERIMENT: match master 2095's none suite (cm off, RF 5).
         connection_manager_flag = ""
-    replication_factor = random.choice([3, 5])
+    replication_factor = 5
     replication_factor_flag = f"--replication-factor {replication_factor}"
     logging.info("Replication factor: %d", replication_factor)
 
