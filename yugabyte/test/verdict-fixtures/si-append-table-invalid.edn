@@ -1,0 +1,137 @@
+{:perf {:latency-graph {:valid? true},
+        :rate-graph {:valid? true},
+        :valid? true},
+ :stats {:valid? true,
+         :count 30705,
+         :ok-count 21469,
+         :fail-count 8115,
+         :info-count 1121,
+         :by-f {:txn {:valid? true,
+                      :count 30705,
+                      :ok-count 21469,
+                      :fail-count 8115,
+                      :info-count 1121}}},
+ :unhandled-exceptions {:valid? true},
+ :clock {:valid? true},
+ :xor-consistency {:status :ok,
+                   :summary "all replicas consistent",
+                   :elapsed-s 138,
+                   :tablets "575/575",
+                   :valid? true},
+ :workload {:valid? false,
+            :anomaly-types (:incompatible-order :internal),
+            :anomalies {:incompatible-order ({:key 70,
+                                              :values [[10] [8 10 12]]}
+                                             {:key 137,
+                                              :values [[9] [8]]}
+                                             {:key 122,
+                                              :values [[12] [11]]}
+                                             {:key 64,
+                                              :values [[11] [7 8]]}
+                                             {:key 140,
+                                              :values [[8] [14]]}),
+                        :internal [{:op #jepsen.history.Op{:index 26799,
+                                                           :time 252103962852,
+                                                           :type :ok,
+                                                           :process 325,
+                                                           :f :txn,
+                                                           :value [[:r
+                                                                    140
+                                                                    [8]]
+                                                                   [:r
+                                                                    136
+                                                                    [7
+                                                                     8
+                                                                     10
+                                                                     14
+                                                                     16
+                                                                     17
+                                                                     18
+                                                                     19
+                                                                     20
+                                                                     21
+                                                                     22
+                                                                     23
+                                                                     24
+                                                                     26
+                                                                     28
+                                                                     29
+                                                                     30
+                                                                     31
+                                                                     33
+                                                                     36
+                                                                     37
+                                                                     38
+                                                                     41
+                                                                     44
+                                                                     46
+                                                                     47
+                                                                     48
+                                                                     52
+                                                                     53
+                                                                     54
+                                                                     55
+                                                                     58
+                                                                     61
+                                                                     64
+                                                                     66
+                                                                     70
+                                                                     71
+                                                                     73
+                                                                     72
+                                                                     76
+                                                                     77
+                                                                     85
+                                                                     86
+                                                                     88
+                                                                     89
+                                                                     90
+                                                                     94
+                                                                     95
+                                                                     96
+                                                                     97
+                                                                     99
+                                                                     101
+                                                                     102
+                                                                     104
+                                                                     105
+                                                                     108
+                                                                     109
+                                                                     111
+                                                                     113
+                                                                     116
+                                                                     118
+                                                                     120]]
+                                                                   [:append
+                                                                    140
+                                                                    14]
+                                                                   [:r
+                                                                    140
+                                                                    [14]]],
+                                                           :op-timing ["2026-11-19_18:19:02.432"
+                                                                       "2026-11-19_18:19:02.519"]},
+                                    :mop [:r 140 [14]],
+                                    :expected [8 14]}]},
+            :not #{:read-committed},
+            :also-not #{:causal-cerone
+                        :consistent-view
+                        :cursor-stability
+                        :forward-consistent-view
+                        :monotonic-atomic-view
+                        :monotonic-snapshot-read
+                        :monotonic-view
+                        :parallel-snapshot-isolation
+                        :prefix
+                        :read-atomic
+                        :repeatable-read
+                        :serializable
+                        :snapshot-isolation
+                        :strong-read-committed
+                        :strong-serializable
+                        :strong-session-read-committed
+                        :strong-session-serializable
+                        :strong-session-snapshot-isolation
+                        :strong-snapshot-isolation
+                        :update-atomic
+                        :update-serializable}},
+ :valid? false}

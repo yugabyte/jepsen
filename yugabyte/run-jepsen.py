@@ -41,46 +41,15 @@ from itertools import zip_longest, chain
 import requests
 from junit_xml import TestCase, TestSuite, to_xml_report_string
 
+import verdict
+
 CmdResult = namedtuple('CmdResult',
                        ['output',
                         'returncode',
                         'timed_out',
                         'everything_looks_good',
-                        'cycle_search_timeout_only',
-                        'has_valid_unknown'])
-
-
-def is_cycle_search_timeout_only(lines):
-    """
-    Check if test output indicates :valid? :unknown with only :cycle-search-timeout anomalies.
-    This is acceptable for rc.ol workloads where Elle's cycle search times out but finds no
-    actual consistency violations.
-
-    Output format example:
-        :anomaly-types (:cycle-search-timeout),
-        :anomalies {:cycle-search-timeout [{:type :cycle-search-timeout, ...}]}
-    """
-    has_valid_unknown = False
-    has_cycle_search_timeout = False
-    has_other_anomalies = False
-
-    # Real anomaly types that indicate actual consistency violations
-    real_anomalies = [':G0', ':G1a', ':G1b', ':G1c', ':G1', ':G2', ':G-single', ':G-nonadjacent',
-                      ':dirty-update', ':lost-update', ':internal', ':incompatible-order']
-
-    for line in lines:
-        if ':valid? :unknown' in line:
-            has_valid_unknown = True
-        if ':cycle-search-timeout' in line:
-            has_cycle_search_timeout = True
-        # Check for actual anomalies in :anomaly-types line
-        if ':anomaly-types' in line:
-            for anomaly in real_anomalies:
-                if anomaly in line:
-                    has_other_anomalies = True
-                    break
-
-    return has_valid_unknown and has_cycle_search_timeout and not has_other_anomalies
+                        'stdout_path',
+                        'stderr_path'])
 
 # Only for workload, doesn't include test results analysis. Customized for the "set" test.
 SINGLE_TEST_RUN_TIME = 600
@@ -216,7 +185,9 @@ TESTS = list(chain(*[test["tests"] for test in TEST_PER_VERSION]))
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 STORE_DIR = os.path.join(SCRIPT_DIR, "store")
 LOGS_DIR = os.path.join(SCRIPT_DIR, "logs")
+SORTED_DIR = os.path.join(SCRIPT_DIR, "results-sorted")
 SORT_RESULTS_SH = os.path.join(SCRIPT_DIR, "sort-results.sh")
+THROUGHPUT_BASELINE = os.path.join(SCRIPT_DIR, "throughput-baseline.json")
 REGEX_MAJOR_VERSION = r"^(\d+)\.(\d+)"
 
 child_processes = []
@@ -316,10 +287,11 @@ def run_cmd(cmd,
             exit_on_error=True,
             log_name_prefix=None,
             num_lines_to_show=None):
+    """With log_name_prefix, output goes to log files the caller deletes once
+    it has judged the run (delete_run_logs)."""
     logging.info("Running command: %s", cmd)
     stdout_path = None
     stderr_path = None
-    keep_output_log_file = True
     if log_name_prefix is not None:
         stdout_path = os.path.join(LOGS_DIR, f'{log_name_prefix}_stdout.log')
         stderr_path = os.path.join(LOGS_DIR, f'{log_name_prefix}_stderr.log')
@@ -361,45 +333,54 @@ def run_cmd(cmd,
             if exit_on_error:
                 sys.exit(returncode)
         everything_looks_good = False
-        cycle_search_timeout_only = False
-        has_valid_unknown = False
         last_lines_of_output = []
         if stdout_path is not None and os.path.exists(stdout_path):
             last_lines_of_output, _ = get_last_lines(stdout_path, 50)
             everything_looks_good = any(
                 line.startswith('Everything looks good!') for line in last_lines_of_output)
-            if not everything_looks_good:
-                cycle_search_timeout_only = is_cycle_search_timeout_only(last_lines_of_output)
-                has_valid_unknown = any(
-                    ':valid? :unknown' in line for line in last_lines_of_output)
-        if everything_looks_good:
-            keep_output_log_file = False
         return CmdResult(
             output=None if everything_looks_good else "\n".join(
                 [truncate_line(line) for line in last_lines_of_output]),
             returncode=returncode,
             timed_out=timed_out,
             everything_looks_good=everything_looks_good,
-            cycle_search_timeout_only=cycle_search_timeout_only,
-            has_valid_unknown=has_valid_unknown)
+            stdout_path=stdout_path,
+            stderr_path=stderr_path)
 
     finally:
         if stdout_file is not None:
             stdout_file.close()
             show_last_lines(stdout_path, num_lines_to_show)
-            if not keep_output_log_file:
-                try:
-                    os.remove(stdout_path)
-                except IOError as ex:
-                    logging.error("Error deleting output log %s, ignoring: %s", stdout_path, ex)
         if stderr_file is not None:
             stderr_file.close()
             show_last_lines(stderr_path, num_lines_to_show)
-            if not keep_output_log_file:
-                try:
-                    os.remove(stderr_path)
-                except IOError as ex:
-                    logging.error("Error deleting stderr log %s, ignoring: %s", stderr_path, ex)
+
+
+def delete_run_logs(result):
+    for path in (result.stdout_path, result.stderr_path):
+        try:
+            os.remove(path)
+        except OSError as ex:
+            logging.error("Error deleting log %s, ignoring: %s", path, ex)
+
+
+def current_run_dir(started_at):
+    """Store dir of the run that just finished, or None if it never created
+    one (store/current then still points at an earlier, already-sorted run)."""
+    path = os.path.realpath(os.path.join(STORE_DIR, 'current'))
+    try:
+        if os.path.getmtime(os.path.join(path, 'jepsen.log')) >= started_at:
+            return path
+    except OSError:
+        pass
+    return None
+
+
+def add_skipped(test_cases, tests, nemeses, message):
+    for test in tests:
+        tc = TestCase(name=f"{test}_{nemeses}", classname=test.split('/')[0])
+        tc.add_skipped_info(message)
+        test_cases[tc.name] = tc
 
 
 def get_ip_from_dns():
@@ -604,13 +585,26 @@ def main():
         exit(1)
 
     test_cases = {}
-    for test in workloads_to_evaluate:
+    add_skipped(test_cases, sorted(workloads_to_skip), nemeses, "not run on this version")
+    not_started = []
+    branch = verdict.branch_of(version)
+    baseline = verdict.load_baseline(THROUGHPUT_BASELINE)
+    # The baseline comes from nightly runs, which use the defaults.
+    check_throughput = not (args.test_time_sec or args.concurrency != '6n' or args.locking or
+                            args.stress_tuning or args.master_flags or args.tserver_flags)
+    os.makedirs(SORTED_DIR, exist_ok=True)
+    runs_path = os.path.join(SORTED_DIR, f"runs_{nemeses.replace(',', '-')}.jsonl")
+
+    for test_pos, test in enumerate(workloads_to_evaluate):
         for iteration in range(iteration_cnt):
             total_elapsed_time_sec = time.time() - start_time
             if args.max_time_sec is not None and total_elapsed_time_sec > args.max_time_sec:
                 logging.info(
                     "Elapsed time is %.1f seconds, it has exceeded the max allowed time %.1f, "
                     "stopping", total_elapsed_time_sec, args.max_time_sec)
+                not_started = workloads_to_evaluate[test_pos + (1 if iteration else 0):]
+                add_skipped(test_cases, not_started, nemeses,
+                            f"not started: suite passed --max-time-sec {args.max_time_sec}")
                 break
 
             test_index += 1
@@ -671,16 +665,52 @@ def main():
                 test_index, test_elapsed_time_sec, result.returncode,
                 result.everything_looks_good)
 
-            # For read committed workloads, accept valid-unknown results (e.g. cycle-search-timeout)
-            is_rc_unknown_acceptable = (
-                '/rc.' in test and
-                result.has_valid_unknown and
-                not result.timed_out
-            )
+            run_dir = current_run_dir(test_start_time_sec)
+            results = verdict.load_results(run_dir) if run_dir else None
 
-            if result.everything_looks_good or is_rc_unknown_acceptable:
-                if is_rc_unknown_acceptable:
-                    logging.info("Accepting read committed test with valid-unknown result")
+            is_rc_unknown_acceptable = False
+            if '/rc.' in test and not result.everything_looks_good and not result.timed_out:
+                is_rc_unknown_acceptable, reason = verdict.rc_unknown_acceptable(results)
+                logging.info("Read committed :unknown accepted=%s: %s",
+                             is_rc_unknown_acceptable, reason)
+            passed = result.everything_looks_good or is_rc_unknown_acceptable
+
+            is_low_throughput = False
+            if passed and check_throughput:
+                is_low_throughput, reason = verdict.low_throughput(
+                    baseline, branch, test, nemeses, verdict.stat(results, 'ok-count'))
+            if is_low_throughput:
+                logging.warning("Low throughput: %s", reason)
+                tc.stdout = "Low throughput: " + reason
+                # Makes sort-results.sh file the run under "low-throughput".
+                with open(os.path.join(run_dir, 'low-throughput.txt'), 'w') as f:
+                    f.write(reason + "\n")
+            elif result.everything_looks_good:
+                delete_run_logs(result)
+
+            run_record = {
+                'index': test_index,
+                'version': version,
+                'workload': test,
+                'nemesis': nemeses,
+                'passed': passed,
+                'rc_unknown_accepted': is_rc_unknown_acceptable,
+                'low_throughput': is_low_throughput,
+                'returncode': result.returncode,
+                'elapsed_sec': round(test_elapsed_time_sec, 1),
+                'ok': verdict.stat(results, 'ok-count'),
+                'fail': verdict.stat(results, 'fail-count'),
+                'info': verdict.stat(results, 'info-count'),
+                'xor': verdict.xor_status(results),
+                'colocated': run_dir and verdict.test_flag(run_dir, 'yb-colocated'),
+                'connection_manager': run_dir and verdict.test_flag(run_dir, 'connection-manager'),
+                'replication_factor': replication_factor,
+            }
+            logging.info("Run summary: %s", json.dumps(run_record))
+            with open(runs_path, 'a') as f:
+                f.write(json.dumps(run_record) + "\n")
+
+            if passed:
                 num_everything_looks_good += 1
 
                 if test_name not in test_cases:
@@ -740,6 +770,16 @@ def main():
         break
 
     logging.warning(f"Skipped workloads because of version incompatibility {workloads_to_skip}")
+    if not_started:
+        logging.warning("Not started because of --max-time-sec: %s", not_started)
+        # Jenkins counts the first word of each summary line for Slack, whose
+        # line for a category links to results-sorted/<category>/.
+        lines = "".join(f"skipped {test}\n" for test in not_started)
+        with open(os.path.join(SORTED_DIR, f"summary_{nemeses}.txt"), 'a') as f:
+            f.write(lines)
+        os.makedirs(os.path.join(SORTED_DIR, "skipped"), exist_ok=True)
+        with open(os.path.join(SORTED_DIR, "skipped", f"{nemeses.replace(',', '-')}.txt"), 'w') as f:
+            f.write(lines)
 
     logging.info("Sending JUnit XML report")
     ts = TestSuite(f"Jepsen {nemeses.replace(',', '-')} {version}", test_cases.values())

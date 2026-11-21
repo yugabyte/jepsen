@@ -158,9 +158,16 @@ Wrapper to manage log files seperately and summarize tests, for use in automated
 
 This will also classify test results by categories and put them into `~/code/jepsen/yugabyte/results-sorted` 
 sub-directories:
-- *ok*
+- *ok* - includes `rc.*` runs whose only `:unknown` is an Elle cycle-search timeout (`verdict.py`).
+- *low-throughput* - passed with under 10% of the 25th-percentile ok ops for that branch, workload and
+  nemesis (`throughput-baseline.json`); logs are kept.
 - *timed-out* - test run (including analysis phase) took more than time limit defined in `run-jepsen.py`.
 - *no-history* - file with operations history is absent.
 - *valid-unknown* - test results checker wasn't able to determine whether results are valid. 
 - *invalid* - history of operations is inconsisent.
+- *skipped* - not started because the suite passed `--max-time-sec`.
+
+`results-sorted/runs_<nemesis>.jsonl` has one line per run (verdict, op counts, XOR, colocation, ...).
+Tests: `python3 verdict_test.py`. Refresh the baseline with
+`./throughput-baseline.py --out throughput-baseline.json <runs_*.jsonl or consoleText files>`.
 

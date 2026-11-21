@@ -19,19 +19,25 @@ find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
   while IFS= read -r log_path; do
     rel_log_path="${log_path#$STORE_DIR/}"
     rel_dir_path="${rel_log_path%/jepsen.log}"
+    # run-jepsen.py marks passing runs with far fewer ok ops than usual.
+    ok="ok"
+    if [[ -e "$STORE_DIR/$rel_dir_path/low-throughput.txt" ]]; then
+      ok="low-throughput"
+    fi
     if grep -q ':valid? false' "$log_path"; then
       category="invalid"
     elif grep -q ':valid? :unknown' "$log_path"; then
-      # For rc tests, :valid? :unknown with only cycle-search-timeout is acceptable
-      if [[ "$rel_dir_path" == *"_rc."* ]] && grep -q ':cycle-search-timeout' "$log_path" && ! grep -qE ':G0|:G1a|:G1b|:G1c|:G2' "$log_path"; then
-        category="ok"
+      # Same rule as run-jepsen.py, so Slack and JUnit agree.
+      if [[ "$rel_dir_path" == *"_rc."* ]] &&
+          python3 "$SCRIPT_DIR/verdict.py" rc-acceptable "$STORE_DIR/$rel_dir_path" > /dev/null; then
+        category="$ok"
       else
         category="valid-unknown"
       fi
     elif grep -q 'Test run timed out!' "$log_path"; then
       category="timed-out"
     elif grep -q 'Everything looks good!' "$log_path"; then
-      category="ok"
+      category="$ok"
     elif grep -q 'jepsen.os.OS.install_build_essential_BANG_' "$log_path"; then
       category="no-such-method"
     elif grep -q 'Caused by: java.lang.AssertionError: Assert failed: invocation value' "$log_path"; then

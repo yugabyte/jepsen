@@ -195,6 +195,20 @@
     "Called once on a random node to tear down the client/database/cluster when work is complete.
     If it throws retryable error, can be called again."))
 
+(defn- definite-psql-error
+  "Partial :fail op for errors that prove the transaction did not commit, or
+  nil. The messages are the fixed texts YB gives a transaction conflict, abort
+  and deadlock (pg_yb_utils.c) and a unique violation; 72000 is the read of a
+  new index below its birth time."
+  [^java.sql.SQLException e m]
+  (condp re-find m
+    #"could not serialize access"                     {:type :fail, :error [:serialization-failure m]}
+    #"deadlock detected"                              {:type :fail, :error [:deadlock m]}
+    #"current transaction is expired or aborted"      {:type :fail, :error [:txn-aborted m]}
+    #"duplicate key value violates unique constraint" {:type :fail, :error [:unique-violation m]}
+    (when (= "72000" (.getSQLState e))
+      {:type :fail, :error [:snapshot-too-old m]})))
+
 (defn exception-to-op
   "Takes an exception and maps it to a partial op, like {:type :info, :error
   ...}. nil if unrecognized."
@@ -268,8 +282,9 @@
         #"(?i)Column .+ does not exist"
         nil
 
-        ; Unknown (other) SQL error
-        {:type :info, :error [:psql-exception m]})
+        ; Unknown (other) SQL error, unless it proves nothing committed
+        (or (definite-psql-error e m)
+            {:type :info, :error [:psql-exception m]}))
 
       clojure.lang.ExceptionInfo
       (if-let [e2 (:rollback (ex-data e))]
@@ -475,10 +490,13 @@
                (info "Setup sucessful")))
 
            (invoke! [~'this ~'test ~'op]
+             ; The outer with-errors maps with-conn's own :conn-not-ready, after
+             ; rc/with-conn has reopened the connection.
              (let [~'start-dt (yutil/current-pretty-datetime)
-                   ~'op2 (with-conn [~'c ~'conn-wrapper]
-                                    (with-errors ~'op
-                                                 (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper)))
+                   ~'op2 (with-errors ~'op
+                           (with-conn [~'c ~'conn-wrapper]
+                                      (with-errors ~'op
+                                                   (invoke-op! ~'inner-client ~'test ~'op ~'c ~'conn-wrapper))))
                    ~'op3 (assoc ~'op2 :op-timing [~'start-dt (yutil/current-pretty-datetime)])]
                ~'op3))
 
