@@ -28,7 +28,7 @@ find $STORE_DIR -name "jepsen.log" -printf "%T+\t%p\n" | sort | cut -f2 |
       category="invalid"
     elif grep -q ':valid? :unknown' "$log_path"; then
       # Same rule as run-jepsen.py, so Slack and JUnit agree.
-      if [[ "$rel_dir_path" == *"_rc."* ]] &&
+      if [[ "$rel_dir_path" == *"_rc."* ]] && ! grep -q 'Test run timed out!' "$log_path" &&
           python3 "$SCRIPT_DIR/verdict.py" rc-acceptable "$STORE_DIR/$rel_dir_path" > /dev/null; then
         category="$ok"
       else

@@ -602,9 +602,12 @@ def main():
                 logging.info(
                     "Elapsed time is %.1f seconds, it has exceeded the max allowed time %.1f, "
                     "stopping", total_elapsed_time_sec, args.max_time_sec)
-                not_started = workloads_to_evaluate[test_pos + (1 if iteration else 0):]
-                add_skipped(test_cases, not_started, nemeses,
-                            f"not started: suite passed --max-time-sec {args.max_time_sec}")
+                # One entry per run not started; a partly run workload keeps its
+                # JUnit case, so only its remaining iterations go to the summary.
+                not_started = [test] * (iteration_cnt - iteration) + [
+                    w for w in workloads_to_evaluate[test_pos + 1:] for _ in range(iteration_cnt)]
+                add_skipped(test_cases, workloads_to_evaluate[test_pos + (1 if iteration else 0):],
+                            nemeses, f"not started: suite passed --max-time-sec {args.max_time_sec}")
                 break
 
             test_index += 1
@@ -696,6 +699,7 @@ def main():
                 'passed': passed,
                 'rc_unknown_accepted': is_rc_unknown_acceptable,
                 'low_throughput': is_low_throughput,
+                'nightly_config': check_throughput,
                 'returncode': result.returncode,
                 'elapsed_sec': round(test_elapsed_time_sec, 1),
                 'ok': verdict.stat(results, 'ok-count'),

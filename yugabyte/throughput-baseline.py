@@ -27,9 +27,10 @@ VERSION = re.compile(r'yugabyte-(\d+\.\d+\.\d+\.\d+-b\d+)')
 
 
 def runs_in_jsonl(text):
+    """Only passing runs with the nightly configuration count."""
     for line in text.splitlines():
         run = json.loads(line)
-        if run['ok'] is not None:
+        if run['nightly_config'] and run['passed']:
             yield branch_of(run['version']), run['workload'], run['nemesis'], run['ok']
 
 
