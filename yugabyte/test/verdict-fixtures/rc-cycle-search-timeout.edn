@@ -1,0 +1,42 @@
+{:perf {:latency-graph {:valid? true},
+        :rate-graph {:valid? true},
+        :valid? true},
+ :stats {:valid? true,
+         :count 646,
+         :ok-count 387,
+         :fail-count 0,
+         :info-count 259,
+         :by-f {:txn {:valid? true,
+                      :count 646,
+                      :ok-count 387,
+                      :fail-count 0,
+                      :info-count 259}}},
+ :unhandled-exceptions {:valid? true},
+ :clock {:valid? true},
+ :xor-consistency {:status :ok,
+                   :summary "all replicas consistent",
+                   :elapsed-s 1,
+                   :tablets "10/10",
+                   :valid? true},
+ :workload {:valid? :unknown,
+            :anomaly-types (:cycle-search-timeout),
+            :anomalies {:cycle-search-timeout [{:type :cycle-search-timeout,
+                                                :anomaly-spec-type :G-single-item,
+                                                :does-not-contain (),
+                                                :scc-size 341}]},
+            :not #{:cursor-stability :read-atomic},
+            :also-not #{:causal-cerone
+                        :consistent-view
+                        :forward-consistent-view
+                        :parallel-snapshot-isolation
+                        :prefix
+                        :repeatable-read
+                        :serializable
+                        :snapshot-isolation
+                        :strong-serializable
+                        :strong-session-serializable
+                        :strong-session-snapshot-isolation
+                        :strong-snapshot-isolation
+                        :update-atomic
+                        :update-serializable}},
+ :valid? :unknown}

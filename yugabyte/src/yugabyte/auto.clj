@@ -304,10 +304,19 @@
   :signaled)
 
 (defn kill!
-  "Kill a process forcibly."
+  "Kill a process forcibly, waiting up to 10 s for it to be gone: SIGKILL is
+  asynchronous, so a single check right after pkill can still see it."
   [process]
   (signal! process 9)
-  (c/exec (c/lit (str "! ps -ce | grep " process)))
+  (loop [tries 20]
+    (let [running (-> (c/exec (c/lit (str "ps -ce | grep -c " process " || true")))
+                      str/trim
+                      Long/parseLong)]
+      (cond (zero? running)  nil
+            (pos? tries)     (do (Thread/sleep 500)
+                                 (recur (dec tries)))
+            :else            (throw (ex-info (str process " still running 10 s after SIGKILL")
+                                             {:process process, :running running})))))
   (info process "killed")
   :killed)
 
@@ -801,8 +810,10 @@
 
   (stop-tserver! [db]
     (c/su (cu/stop-daemon! ce-tserver-pidfile))
-    (c/su (cu/grepkill! "postgres"))
-    (c/su (cu/grepkill! "odyssey")))
+    ; Bracketed so pgrep can't match the bash -c wrapper's command line, which
+    ; the forked xargs child briefly carries (it then killed itself, exit 137).
+    (c/su (cu/grepkill! "[p]ostgres"))
+    (c/su (cu/grepkill! "[o]dyssey")))
 
   (wipe! [db]
     (suppress-interrupted-exception

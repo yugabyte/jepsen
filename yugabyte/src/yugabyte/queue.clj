@@ -38,7 +38,10 @@
   backend reports when a nemesis takes it down mid-transaction as well as when a
   commit already landed."
   #{:rollback :conflicting-transaction :try-again :restart-read-required
-    :conn-not-ready})
+    :conn-not-ready
+    ; yugabyte.ysql.client/definite-psql-error
+    :serialization-failure :deadlock :unique-violation :snapshot-too-old
+    :txn-aborted})
 
 (defn- error-tag
   "Leading keyword of an :error, unwrapping exception-to-op's [:batch ...]."

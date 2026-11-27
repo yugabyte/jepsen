@@ -1,0 +1,2068 @@
+{
+ "fraction": 0.1,
+ "generated": "2026-11-21",
+ "lows": {
+  "2024.2": {
+   "ycql/long-fork": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 241425
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 260023
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 258114
+    }
+   },
+   "ycql/monotonic": {
+    "kill,pause,partition": {
+     "n": 16,
+     "p25_ok": 8256
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17641
+    },
+    "kill-tserver": {
+     "n": 18,
+     "p25_ok": 12051
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17897
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 16389
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17597
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 12819
+    }
+   },
+   "ycql/types": {
+    "kill-master": {
+     "n": 11,
+     "p25_ok": 17602
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17908
+    },
+    "pause-master": {
+     "n": 12,
+     "p25_ok": 17634
+    }
+   },
+   "ycql/upsert": {
+    "kill,pause,partition": {
+     "n": 17,
+     "p25_ok": 6793
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17438
+    },
+    "kill-tserver": {
+     "n": 17,
+     "p25_ok": 11139
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17879
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17588
+    },
+    "pause-tserver": {
+     "n": 13,
+     "p25_ok": 11320
+    }
+   },
+   "ysql/rc.append": {
+    "partition": {
+     "n": 7,
+     "p25_ok": 450
+    },
+    "pause-master": {
+     "n": 6,
+     "p25_ok": 403
+    },
+    "pause-tserver": {
+     "n": 9,
+     "p25_ok": 350
+    }
+   },
+   "ysql/rc.geo.append": {
+    "kill,pause,partition": {
+     "n": 6,
+     "p25_ok": 185
+    },
+    "kill-master": {
+     "n": 8,
+     "p25_ok": 504
+    },
+    "partition": {
+     "n": 9,
+     "p25_ok": 268
+    },
+    "pause-master": {
+     "n": 5,
+     "p25_ok": 262
+    },
+    "pause-tserver": {
+     "n": 11,
+     "p25_ok": 387
+    }
+   },
+   "ysql/rc.monotonic": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17573
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17843
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 13786
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17429
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 11389
+    }
+   },
+   "ysql/rc.types": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17420
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17871
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 12643
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17464
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 11049
+    }
+   },
+   "ysql/rc.upsert": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17468
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17894
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 15510
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17631
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 12063
+    }
+   },
+   "ysql/rc.wr": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 796
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 2642
+    },
+    "kill-tserver": {
+     "n": 12,
+     "p25_ok": 1241
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 2568
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 1533
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 1988
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 1252
+    }
+   },
+   "ysql/si.append": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 972
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 1527
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 839
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 932
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 873
+    }
+   },
+   "ysql/si.geo.append": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 1104
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 1266
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 910
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 933
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 773
+    }
+   },
+   "ysql/si.long-fork": {
+    "kill,pause,partition": {
+     "n": 5,
+     "p25_ok": 94471
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 332508
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 342522
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 182944
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 292546
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 189421
+    }
+   },
+   "ysql/si.monotonic": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17586
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17846
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 13488
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17546
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 11389
+    }
+   },
+   "ysql/si.types": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17295
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17898
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 11957
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17407
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 11099
+    }
+   },
+   "ysql/si.upsert": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17503
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17921
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 15355
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 17579
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 11943
+    }
+   },
+   "ysql/si.wr": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 1347
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 4878
+    },
+    "kill-tserver": {
+     "n": 11,
+     "p25_ok": 3461
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 4741
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 3352
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 4403
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 2657
+    }
+   },
+   "ysql/sz.append": {
+    "kill,pause,partition": {
+     "n": 5,
+     "p25_ok": 433
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 798
+    },
+    "kill-tserver": {
+     "n": 9,
+     "p25_ok": 630
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 1125
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 639
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 847
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 580
+    }
+   },
+   "ysql/sz.g2": {
+    "kill,pause,partition": {
+     "n": 6,
+     "p25_ok": 2264
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 8697
+    },
+    "kill-tserver": {
+     "n": 15,
+     "p25_ok": 3181
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 2226
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 1992
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 10202
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 1544
+    }
+   },
+   "ysql/sz.geo.append": {
+    "kill,pause,partition": {
+     "n": 5,
+     "p25_ok": 371
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 713
+    },
+    "kill-tserver": {
+     "n": 7,
+     "p25_ok": 478
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 1014
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 556
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 715
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 631
+    }
+   },
+   "ysql/sz.long-fork": {
+    "kill,pause,partition": {
+     "n": 6,
+     "p25_ok": 27874
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 92868
+    },
+    "kill-tserver": {
+     "n": 11,
+     "p25_ok": 65472
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 95198
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 55004
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 93366
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 55639
+    }
+   }
+  },
+  "2025.2": {
+   "ycql/long-fork": {
+    "kill-master": {
+     "n": 15,
+     "p25_ok": 211723
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 218615
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 224848
+    }
+   },
+   "ycql/monotonic": {
+    "kill,pause,partition": {
+     "n": 16,
+     "p25_ok": 9468
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17419
+    },
+    "kill-tserver": {
+     "n": 15,
+     "p25_ok": 12172
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17881
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 16061
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 17576
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 12765
+    }
+   },
+   "ycql/types": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17665
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17916
+    },
+    "pause-master": {
+     "n": 16,
+     "p25_ok": 17617
+    }
+   },
+   "ycql/upsert": {
+    "kill,pause,partition": {
+     "n": 14,
+     "p25_ok": 6812
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17619
+    },
+    "kill-tserver": {
+     "n": 15,
+     "p25_ok": 11886
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17876
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 17535
+    },
+    "pause-tserver": {
+     "n": 14,
+     "p25_ok": 11336
+    }
+   },
+   "ysql/rc.append": {
+    "kill,pause,partition": {
+     "n": 10,
+     "p25_ok": 112
+    },
+    "kill-master": {
+     "n": 9,
+     "p25_ok": 363
+    },
+    "kill-tserver": {
+     "n": 6,
+     "p25_ok": 291
+    },
+    "partition": {
+     "n": 8,
+     "p25_ok": 213
+    },
+    "pause-master": {
+     "n": 5,
+     "p25_ok": 331
+    },
+    "pause-tserver": {
+     "n": 14,
+     "p25_ok": 276
+    }
+   },
+   "ysql/rc.geo.append": {
+    "kill,pause,partition": {
+     "n": 12,
+     "p25_ok": 161
+    },
+    "kill-master": {
+     "n": 10,
+     "p25_ok": 131
+    },
+    "none": {
+     "n": 6,
+     "p25_ok": 137
+    },
+    "partition": {
+     "n": 12,
+     "p25_ok": 205
+    },
+    "pause-tserver": {
+     "n": 14,
+     "p25_ok": 258
+    }
+   },
+   "ysql/rc.monotonic": {
+    "kill-master": {
+     "n": 14,
+     "p25_ok": 17403
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17879
+    },
+    "partition": {
+     "n": 13,
+     "p25_ok": 13985
+    },
+    "pause-master": {
+     "n": 13,
+     "p25_ok": 17459
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11190
+    }
+   },
+   "ysql/rc.types": {
+    "kill-master": {
+     "n": 11,
+     "p25_ok": 17519
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17861
+    },
+    "partition": {
+     "n": 11,
+     "p25_ok": 12892
+    },
+    "pause-master": {
+     "n": 16,
+     "p25_ok": 17475
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11504
+    }
+   },
+   "ysql/rc.upsert": {
+    "kill-master": {
+     "n": 12,
+     "p25_ok": 17552
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17860
+    },
+    "partition": {
+     "n": 8,
+     "p25_ok": 16257
+    },
+    "pause-master": {
+     "n": 13,
+     "p25_ok": 17494
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 13164
+    }
+   },
+   "ysql/rc.wr": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 150
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 266
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 176
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 277
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 346
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 140
+    }
+   },
+   "ysql/si.append": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 720
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 748
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 452
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 718
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 387
+    }
+   },
+   "ysql/si.geo.append": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 431
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 502
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 545
+    },
+    "partition": {
+     "n": 14,
+     "p25_ok": 573
+    },
+    "pause-master": {
+     "n": 16,
+     "p25_ok": 328
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 639
+    }
+   },
+   "ysql/si.long-fork": {
+    "kill,pause,partition": {
+     "n": 6,
+     "p25_ok": 32902
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 102685
+    },
+    "kill-tserver": {
+     "n": 5,
+     "p25_ok": 60015
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 107512
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 51811
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 113406
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 60125
+    }
+   },
+   "ysql/si.monotonic": {
+    "kill-master": {
+     "n": 13,
+     "p25_ok": 17593
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17859
+    },
+    "partition": {
+     "n": 11,
+     "p25_ok": 14278
+    },
+    "pause-master": {
+     "n": 12,
+     "p25_ok": 17666
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11150
+    }
+   },
+   "ysql/si.types": {
+    "kill-master": {
+     "n": 11,
+     "p25_ok": 17473
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17896
+    },
+    "partition": {
+     "n": 13,
+     "p25_ok": 13437
+    },
+    "pause-master": {
+     "n": 13,
+     "p25_ok": 17553
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11715
+    }
+   },
+   "ysql/si.upsert": {
+    "kill-master": {
+     "n": 16,
+     "p25_ok": 17436
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 17862
+    },
+    "partition": {
+     "n": 13,
+     "p25_ok": 16478
+    },
+    "pause-master": {
+     "n": 11,
+     "p25_ok": 17546
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 12706
+    }
+   },
+   "ysql/si.wr": {
+    "kill,pause,partition": {
+     "n": 5,
+     "p25_ok": 232
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 276
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 271
+    },
+    "partition": {
+     "n": 16,
+     "p25_ok": 215
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 498
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 211
+    }
+   },
+   "ysql/sz.append": {
+    "kill,pause,partition": {
+     "n": 9,
+     "p25_ok": 291
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 708
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 977
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 492
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 747
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 554
+    }
+   },
+   "ysql/sz.g2": {
+    "kill,pause,partition": {
+     "n": 7,
+     "p25_ok": 2522
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 7305
+    },
+    "kill-tserver": {
+     "n": 13,
+     "p25_ok": 3334
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 3766
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 2644
+    },
+    "pause-master": {
+     "n": 16,
+     "p25_ok": 8050
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 1621
+    }
+   },
+   "ysql/sz.geo.append": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 273
+    },
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 680
+    },
+    "kill-tserver": {
+     "n": 9,
+     "p25_ok": 402
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 923
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 489
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 747
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 574
+    }
+   },
+   "ysql/sz.long-fork": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 21584
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 64018
+    },
+    "kill-tserver": {
+     "n": 11,
+     "p25_ok": 37555
+    },
+    "none": {
+     "n": 18,
+     "p25_ok": 56421
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 32089
+    },
+    "pause-master": {
+     "n": 18,
+     "p25_ok": 55684
+    },
+    "pause-tserver": {
+     "n": 18,
+     "p25_ok": 33256
+    }
+   }
+  },
+  "2026.1": {
+   "ycql/long-fork": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 275200
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 294279
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 299278
+    }
+   },
+   "ycql/monotonic": {
+    "kill,pause,partition": {
+     "n": 17,
+     "p25_ok": 8473
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17413
+    },
+    "kill-tserver": {
+     "n": 14,
+     "p25_ok": 12097
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17885
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 16246
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 17579
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 12802
+    }
+   },
+   "ycql/types": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17522
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17898
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 17576
+    }
+   },
+   "ycql/upsert": {
+    "kill,pause,partition": {
+     "n": 16,
+     "p25_ok": 6447
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17537
+    },
+    "kill-tserver": {
+     "n": 16,
+     "p25_ok": 11345
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17881
+    },
+    "partition": {
+     "n": 5,
+     "p25_ok": 12286
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 17504
+    },
+    "pause-tserver": {
+     "n": 16,
+     "p25_ok": 11776
+    }
+   },
+   "ysql/rc.append": {
+    "kill-master": {
+     "n": 10,
+     "p25_ok": 423
+    },
+    "none": {
+     "n": 7,
+     "p25_ok": 542
+    },
+    "partition": {
+     "n": 10,
+     "p25_ok": 261
+    },
+    "pause-tserver": {
+     "n": 14,
+     "p25_ok": 183
+    }
+   },
+   "ysql/rc.geo.append": {
+    "kill-master": {
+     "n": 8,
+     "p25_ok": 175
+    },
+    "none": {
+     "n": 8,
+     "p25_ok": 54
+    },
+    "partition": {
+     "n": 5,
+     "p25_ok": 375
+    },
+    "pause-master": {
+     "n": 7,
+     "p25_ok": 94
+    },
+    "pause-tserver": {
+     "n": 12,
+     "p25_ok": 278
+    }
+   },
+   "ysql/rc.monotonic": {
+    "kill-master": {
+     "n": 12,
+     "p25_ok": 17263
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17888
+    },
+    "partition": {
+     "n": 11,
+     "p25_ok": 12990
+    },
+    "pause-master": {
+     "n": 12,
+     "p25_ok": 17634
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11204
+    }
+   },
+   "ysql/rc.types": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17656
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17901
+    },
+    "partition": {
+     "n": 12,
+     "p25_ok": 14259
+    },
+    "pause-master": {
+     "n": 13,
+     "p25_ok": 17517
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11802
+    }
+   },
+   "ysql/rc.upsert": {
+    "kill-master": {
+     "n": 14,
+     "p25_ok": 17385
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17844
+    },
+    "partition": {
+     "n": 10,
+     "p25_ok": 16621
+    },
+    "pause-master": {
+     "n": 13,
+     "p25_ok": 17579
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 12796
+    }
+   },
+   "ysql/rc.wr": {
+    "kill-master": {
+     "n": 16,
+     "p25_ok": 317
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 249
+    },
+    "partition": {
+     "n": 15,
+     "p25_ok": 207
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 240
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 196
+    }
+   },
+   "ysql/si.append": {
+    "kill-master": {
+     "n": 14,
+     "p25_ok": 834
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 810
+    },
+    "partition": {
+     "n": 10,
+     "p25_ok": 497
+    },
+    "pause-master": {
+     "n": 11,
+     "p25_ok": 774
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 451
+    }
+   },
+   "ysql/si.geo.append": {
+    "kill-master": {
+     "n": 13,
+     "p25_ok": 659
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 149
+    },
+    "partition": {
+     "n": 10,
+     "p25_ok": 743
+    },
+    "pause-master": {
+     "n": 15,
+     "p25_ok": 670
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 584
+    }
+   },
+   "ysql/si.long-fork": {
+    "kill,pause,partition": {
+     "n": 6,
+     "p25_ok": 57497
+    },
+    "kill-master": {
+     "n": 14,
+     "p25_ok": 122835
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 148238
+    },
+    "partition": {
+     "n": 16,
+     "p25_ok": 70388
+    },
+    "pause-master": {
+     "n": 16,
+     "p25_ok": 131605
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 68715
+    }
+   },
+   "ysql/si.monotonic": {
+    "kill-master": {
+     "n": 14,
+     "p25_ok": 17543
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17864
+    },
+    "partition": {
+     "n": 12,
+     "p25_ok": 13127
+    },
+    "pause-master": {
+     "n": 13,
+     "p25_ok": 17409
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11341
+    }
+   },
+   "ysql/si.types": {
+    "kill-master": {
+     "n": 14,
+     "p25_ok": 17659
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17854
+    },
+    "partition": {
+     "n": 13,
+     "p25_ok": 14328
+    },
+    "pause-master": {
+     "n": 13,
+     "p25_ok": 17565
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 11176
+    }
+   },
+   "ysql/si.upsert": {
+    "kill-master": {
+     "n": 11,
+     "p25_ok": 17576
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 17898
+    },
+    "partition": {
+     "n": 9,
+     "p25_ok": 16406
+    },
+    "pause-master": {
+     "n": 11,
+     "p25_ok": 17709
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 12305
+    }
+   },
+   "ysql/si.wr": {
+    "kill-master": {
+     "n": 15,
+     "p25_ok": 537
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 232
+    },
+    "partition": {
+     "n": 14,
+     "p25_ok": 309
+    },
+    "pause-master": {
+     "n": 14,
+     "p25_ok": 592
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 215
+    }
+   },
+   "ysql/sz.append": {
+    "kill,pause,partition": {
+     "n": 5,
+     "p25_ok": 390
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 885
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 1078
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 607
+    },
+    "pause-master": {
+     "n": 16,
+     "p25_ok": 830
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 520
+    }
+   },
+   "ysql/sz.g2": {
+    "kill,pause,partition": {
+     "n": 7,
+     "p25_ok": 4130
+    },
+    "kill-master": {
+     "n": 16,
+     "p25_ok": 6123
+    },
+    "kill-tserver": {
+     "n": 5,
+     "p25_ok": 603
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 5087
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 5310
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 12644
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 553
+    }
+   },
+   "ysql/sz.geo.append": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 818
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 1092
+    },
+    "partition": {
+     "n": 14,
+     "p25_ok": 602
+    },
+    "pause-master": {
+     "n": 17,
+     "p25_ok": 888
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 550
+    }
+   },
+   "ysql/sz.long-fork": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 49973
+    },
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 106389
+    },
+    "none": {
+     "n": 17,
+     "p25_ok": 105357
+    },
+    "partition": {
+     "n": 16,
+     "p25_ok": 68453
+    },
+    "pause-master": {
+     "n": 16,
+     "p25_ok": 112632
+    },
+    "pause-tserver": {
+     "n": 17,
+     "p25_ok": 63830
+    }
+   }
+  },
+  "master": {
+   "ycql/long-fork": {
+    "kill-master": {
+     "n": 24,
+     "p25_ok": 284618
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 273315
+    },
+    "pause-master": {
+     "n": 25,
+     "p25_ok": 272670
+    }
+   },
+   "ycql/monotonic": {
+    "kill,pause,partition": {
+     "n": 14,
+     "p25_ok": 7728
+    },
+    "kill-master": {
+     "n": 25,
+     "p25_ok": 17736
+    },
+    "kill-tserver": {
+     "n": 18,
+     "p25_ok": 12126
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17882
+    },
+    "partition": {
+     "n": 25,
+     "p25_ok": 16062
+    },
+    "pause-master": {
+     "n": 25,
+     "p25_ok": 17627
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 12806
+    }
+   },
+   "ycql/types": {
+    "kill-master": {
+     "n": 25,
+     "p25_ok": 17319
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17875
+    },
+    "pause-master": {
+     "n": 24,
+     "p25_ok": 17608
+    }
+   },
+   "ycql/upsert": {
+    "kill,pause,partition": {
+     "n": 22,
+     "p25_ok": 6832
+    },
+    "kill-master": {
+     "n": 25,
+     "p25_ok": 17484
+    },
+    "kill-tserver": {
+     "n": 21,
+     "p25_ok": 11442
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17876
+    },
+    "partition": {
+     "n": 6,
+     "p25_ok": 11765
+    },
+    "pause-master": {
+     "n": 25,
+     "p25_ok": 17588
+    },
+    "pause-tserver": {
+     "n": 23,
+     "p25_ok": 11210
+    }
+   },
+   "ysql/rc.append": {
+    "kill-master": {
+     "n": 6,
+     "p25_ok": 312
+    },
+    "none": {
+     "n": 9,
+     "p25_ok": 564
+    },
+    "partition": {
+     "n": 13,
+     "p25_ok": 176
+    },
+    "pause-master": {
+     "n": 5,
+     "p25_ok": 456
+    },
+    "pause-tserver": {
+     "n": 12,
+     "p25_ok": 301
+    }
+   },
+   "ysql/rc.append-table": {
+    "kill,pause,partition": {
+     "n": 11,
+     "p25_ok": 2754
+    },
+    "kill-master": {
+     "n": 25,
+     "p25_ok": 8213
+    },
+    "kill-tserver": {
+     "n": 9,
+     "p25_ok": 4264
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 10617
+    },
+    "partition": {
+     "n": 22,
+     "p25_ok": 5990
+    },
+    "pause-master": {
+     "n": 24,
+     "p25_ok": 7823
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 5590
+    }
+   },
+   "ysql/rc.geo.append": {
+    "kill-master": {
+     "n": 9,
+     "p25_ok": 231
+    },
+    "none": {
+     "n": 10,
+     "p25_ok": 211
+    },
+    "partition": {
+     "n": 10,
+     "p25_ok": 219
+    },
+    "pause-master": {
+     "n": 6,
+     "p25_ok": 84
+    },
+    "pause-tserver": {
+     "n": 16,
+     "p25_ok": 204
+    }
+   },
+   "ysql/rc.monotonic": {
+    "kill-master": {
+     "n": 16,
+     "p25_ok": 17396
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17856
+    },
+    "partition": {
+     "n": 19,
+     "p25_ok": 12952
+    },
+    "pause-master": {
+     "n": 19,
+     "p25_ok": 17520
+    },
+    "pause-tserver": {
+     "n": 24,
+     "p25_ok": 11065
+    }
+   },
+   "ysql/rc.types": {
+    "kill-master": {
+     "n": 19,
+     "p25_ok": 17517
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17918
+    },
+    "partition": {
+     "n": 16,
+     "p25_ok": 12741
+    },
+    "pause-master": {
+     "n": 25,
+     "p25_ok": 17529
+    },
+    "pause-tserver": {
+     "n": 24,
+     "p25_ok": 11438
+    }
+   },
+   "ysql/rc.upsert": {
+    "kill-master": {
+     "n": 18,
+     "p25_ok": 17419
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17905
+    },
+    "partition": {
+     "n": 18,
+     "p25_ok": 16019
+    },
+    "pause-master": {
+     "n": 20,
+     "p25_ok": 17673
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 12919
+    }
+   },
+   "ysql/rc.wr": {
+    "kill-master": {
+     "n": 25,
+     "p25_ok": 364
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 296
+    },
+    "partition": {
+     "n": 20,
+     "p25_ok": 213
+    },
+    "pause-master": {
+     "n": 23,
+     "p25_ok": 570
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 248
+    }
+   },
+   "ysql/si.append": {
+    "kill-master": {
+     "n": 21,
+     "p25_ok": 700
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 875
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 534
+    },
+    "pause-master": {
+     "n": 19,
+     "p25_ok": 850
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 506
+    }
+   },
+   "ysql/si.append-table": {
+    "kill-master": {
+     "n": 11,
+     "p25_ok": 14853
+    },
+    "none": {
+     "n": 19,
+     "p25_ok": 17302
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 12330
+    },
+    "pause-master": {
+     "n": 12,
+     "p25_ok": 12183
+    },
+    "pause-tserver": {
+     "n": 14,
+     "p25_ok": 11114
+    }
+   },
+   "ysql/si.geo.append": {
+    "kill-master": {
+     "n": 21,
+     "p25_ok": 580
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 756
+    },
+    "partition": {
+     "n": 14,
+     "p25_ok": 704
+    },
+    "pause-master": {
+     "n": 19,
+     "p25_ok": 850
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 724
+    }
+   },
+   "ysql/si.long-fork": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 47550
+    },
+    "kill-master": {
+     "n": 21,
+     "p25_ok": 137572
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 133176
+    },
+    "partition": {
+     "n": 24,
+     "p25_ok": 75744
+    },
+    "pause-master": {
+     "n": 24,
+     "p25_ok": 137645
+    },
+    "pause-tserver": {
+     "n": 24,
+     "p25_ok": 63913
+    }
+   },
+   "ysql/si.monotonic": {
+    "kill-master": {
+     "n": 19,
+     "p25_ok": 17659
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17905
+    },
+    "partition": {
+     "n": 16,
+     "p25_ok": 13042
+    },
+    "pause-master": {
+     "n": 22,
+     "p25_ok": 17485
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 11199
+    }
+   },
+   "ysql/si.types": {
+    "kill-master": {
+     "n": 20,
+     "p25_ok": 17291
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17856
+    },
+    "partition": {
+     "n": 16,
+     "p25_ok": 12655
+    },
+    "pause-master": {
+     "n": 20,
+     "p25_ok": 17488
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 11552
+    }
+   },
+   "ysql/si.upsert": {
+    "kill-master": {
+     "n": 17,
+     "p25_ok": 17273
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 17924
+    },
+    "partition": {
+     "n": 13,
+     "p25_ok": 16456
+    },
+    "pause-master": {
+     "n": 20,
+     "p25_ok": 17543
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 12557
+    }
+   },
+   "ysql/si.wr": {
+    "kill-master": {
+     "n": 21,
+     "p25_ok": 642
+    },
+    "none": {
+     "n": 24,
+     "p25_ok": 334
+    },
+    "partition": {
+     "n": 17,
+     "p25_ok": 222
+    },
+    "pause-master": {
+     "n": 20,
+     "p25_ok": 885
+    },
+    "pause-tserver": {
+     "n": 24,
+     "p25_ok": 287
+    }
+   },
+   "ysql/sz.append": {
+    "kill,pause,partition": {
+     "n": 6,
+     "p25_ok": 306
+    },
+    "kill-master": {
+     "n": 25,
+     "p25_ok": 770
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 1019
+    },
+    "partition": {
+     "n": 24,
+     "p25_ok": 586
+    },
+    "pause-master": {
+     "n": 24,
+     "p25_ok": 853
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 555
+    }
+   },
+   "ysql/sz.append-table": {
+    "kill,pause,partition": {
+     "n": 7,
+     "p25_ok": 5653
+    },
+    "kill-master": {
+     "n": 23,
+     "p25_ok": 9756
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 13770
+    },
+    "partition": {
+     "n": 25,
+     "p25_ok": 6800
+    },
+    "pause-master": {
+     "n": 25,
+     "p25_ok": 9944
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 7047
+    }
+   },
+   "ysql/sz.g2": {
+    "kill,pause,partition": {
+     "n": 11,
+     "p25_ok": 3328
+    },
+    "kill-master": {
+     "n": 23,
+     "p25_ok": 9396
+    },
+    "kill-tserver": {
+     "n": 5,
+     "p25_ok": 2502
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 3000
+    },
+    "partition": {
+     "n": 25,
+     "p25_ok": 2576
+    },
+    "pause-master": {
+     "n": 23,
+     "p25_ok": 8860
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 1121
+    }
+   },
+   "ysql/sz.geo.append": {
+    "kill,pause,partition": {
+     "n": 5,
+     "p25_ok": 275
+    },
+    "kill-master": {
+     "n": 23,
+     "p25_ok": 814
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 1043
+    },
+    "partition": {
+     "n": 22,
+     "p25_ok": 576
+    },
+    "pause-master": {
+     "n": 24,
+     "p25_ok": 868
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 568
+    }
+   },
+   "ysql/sz.long-fork": {
+    "kill,pause,partition": {
+     "n": 8,
+     "p25_ok": 27921
+    },
+    "kill-master": {
+     "n": 22,
+     "p25_ok": 68216
+    },
+    "none": {
+     "n": 25,
+     "p25_ok": 79383
+    },
+    "partition": {
+     "n": 25,
+     "p25_ok": 46746
+    },
+    "pause-master": {
+     "n": 25,
+     "p25_ok": 62878
+    },
+    "pause-tserver": {
+     "n": 25,
+     "p25_ok": 34876
+    }
+   }
+  }
+ }
+}
