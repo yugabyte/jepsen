@@ -23,9 +23,8 @@ jobs:
         fetch-depth: 1
     - name: Set up JDK 21
       # A jepsen 0.3.11 dependency targets JDK 21 (references
-      # java.util.SequencedCollection). The runner's default JDK is older, and
-      # apt's leiningen does not use the JDK it pulls in, so pin the runtime
-      # here; setup-java exports JAVA_HOME, which lein honors.
+      # java.util.SequencedCollection). The runner's default JDK is older, so
+      # pin the runtime here; lein is pointed at it with JAVA_CMD below.
       uses: actions/setup-java@v4
       with:
         distribution: temurin
@@ -38,12 +37,14 @@ jobs:
         ls -la
 
     - name: Install Leiningen
+      # Pinned upstream release, not apt's: Ubuntu 26.04's leiningen 2.11.2 does
+      # not resolve cassandra-driver-core's dependencies (netty, guava, ...).
+      # The script verifies the jar it downloads against its own checksum.
       working-directory: .
       run: |
-        sudo apt-get update
-        sudo apt-get install -y leiningen
-        # Force lein onto the setup-java JDK 21 (apt's lein would otherwise use
-        # the runner's default JDK, which lacks java.util.SequencedCollection).
+        curl -fsSL -o /tmp/lein https://raw.githubusercontent.com/technomancy/leiningen/2.12.0/bin/lein
+        echo "f8e1266c0c78c08bd4af6e111889ecc316c9dd56d1e8645bbee6c1703d351bc3  /tmp/lein" | sha256sum -c -
+        sudo install -m 755 /tmp/lein /usr/local/bin/lein
         echo "JAVA_CMD=$JAVA_HOME/bin/java" >> "$GITHUB_ENV"
         JAVA_CMD="$JAVA_HOME/bin/java" lein version
 
